@@ -1,0 +1,1947 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>线程</title>
+ </head>
+ <body>
+  <span id="anchor">20240307183503-_java</span>
+  <pre>
+<h1>线程调度</h1>
+线程调度是指系统为线程分配处理器使用权的过程。
+    协同式线程调度
+        线程执行时间由线程本身来控制，线程把自己的工作执行完之后，要主动通知系统切换到另外一个线程上。最大好处是实现简单，且切换操作对线程自己是可知的，没啥线程同步问题。坏处是线程执行时间不可控制，如果一个线程有问题，可能一直阻塞在那里。
+
+    抢占式线程调度
+        每个线程将由系统来分配执行时间，线程的切换不由线程本身来决定（Java中，Thread.yield()可以让出执行时间，但无法获取执行时间）。线程执行时间系统可控，也不会有一个线程导致整个进程阻塞。
+        各个线程通过竞争cpu时间而获得运行机会
+        什么时候得到cpu时间,占用多久,是不可预测的
+        一个正在运行着的线程在什么地方被暂停是不确定的
+
+Java是抢占式线程调度，支持10个级别优先级，通过Thread.setPriority(Thread.MAX_PRIORITY)设置
+    MAX_PRIORITY = 10
+    MIN_PRIORITY = 1
+    NORM_PRIORITY = 5
+    线程的默认优先级为5
+    并不能代表,通过设置优先级来确保高优先级的线程一定会先执行，只是会提高一定的优先级​ 
+    cpu比较忙时，优先级高的线程获取更多的时间片
+    cpu比较闲时，优先级设置基本没用
+
+<h1>定义和创建线程</h1>
+继承Thread类 （可以说是 将任务和线程合并在一起）
+    任务逻辑写在Thread类的run方法中，有单继承的局限性
+    创建多线程时，每个任务有成员变量时不共享，必须加static才能做到共享
+    继承Thread类的类本身就代表了一个线程，每个这样的实例对应一个独立的线程,在执行完run()方法后就会结束，线程对象也会被销毁,每次创建一个线程都会创建一个新的Thread对象，这会增加对象的创建和销毁开销，影响性能
+实现Runnable接口 （可以说是 将任务和线程分开了）
+    当我们使用Runnable接口实现一个任务时，只是创建了一个对象来表示这个任务，而不是直接创建一个线程。
+    这个任务对象可以被重复使用，可以被提交给线程池中的不同线程来执行,Runnable任务本身也是一个类，但它并不是线程。
+当继承了Thread类又实现了Runnable接口时, 实际执行的是继承自Thread类的run方法
+Runbale相比Callable有以下的局限性
+    任务没有返回值
+    任务无法抛异常给调用方
+获取线程结束之后的结果
+    定义一个类MyCallable实现Callable接口重写call()方法
+    创建Future的实现类FutureTask对象，MyCallable作为构造方法的参数
+    启动线程后使用FutureTask对象调用get方法，就可以获取线程的执行结果。
+<code>
+class MyTask implements Callable&lt;Integer> {
+    private int n;
+ 
+    public MyTask(int n) {
+        this.n = n;
+    }
+ 
+    @Override
+    public Integer call()  {// 描述这个线程的任务和这个线程返回的结果
+        int sum = 0;
+        for (int i = 0; i &lt;= n; i++) {
+            sum += i;
+        }
+        return sum;
+    }
+}
+ 
+public class Demo {
+    public static void main(String[] args) {
+        MyTask myTask = new MyTask(100);
+        FutureTask&lt;Integer> futureTask = new FutureTask&lt;>(myTask);
+        Thread t1 = new Thread(futureTask,"t1");
+        t1.start();
+ 
+        try {
+            System.out.println(futureTask.get());
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException(e);
+        }
+    }
+}
+</code>
+
+<h1>线程的状态</h1>
+new:新建状态，新创建的线程，此时尚未调用start()方法；
+Runnable:可运行状态(ready或run)，运行中的线程，已经调用了start()方法，线程正在或即将被执行；
+Blocked：阻塞状态，运行中的线程，在等待竞争锁时被阻塞(进入到sychronized修饰的代码块同时锁被其它线程拿走了)，暂不执行；
+    一般习惯而言,把Blocked, Waiting, Timed_waiting都称为阻塞状态, 不仅仅是Blocked
+Waiting:等待状态，运行中的线程，因为sleep()方法、join()方法等方法的调用，进入等待；
+Timed Waiting:计时等待状态，运行中的线程，因为执行sleep(等待毫秒值)join(等待毫秒值)等方法,进入计时等待;
+Terminated:终止状态，线程已经终止，因为run()方法已经执行完毕；
+当线程启动后,它可以在Runnable、Blocked、Waiting和Timed Waiting这几个状态之间切换,直到最后变成Terminated状态,线程终止。
+20240615192107.webp
+<code>
+Thread thread = new Thread();
+System.out.println(thread.getState());//NEW
+thread.start();
+System.out.println(thread.getState());//RUNNABLE
+Thread.sleep(100);
+System.out.println(thread.getState());//TERMINATED
+</code>
+<code>
+public class Demo implements Runnable {
+    public static void main(String[] args) throws InterruptedException {
+        Runnable runnable = new Demo();
+        Thread t1 = new Thread(runnable);
+        Thread t2 = new Thread(runnable);
+        t1.start();
+        t2.start();
+        Thread.sleep(10);
+        System.out.println(t1.getState());//Timed_Waiting，t1正在sleep(1000);
+        System.out.println(t2.getState());//BLOCKED, t2排队等t1释放锁
+        Thread.sleep(1300);
+        System.out.println(t1.getState());//WAITING，t1执行了wait()
+    }
+    @Override
+    public void run() {
+        syn();
+    }
+    private synchronized void syn() {
+        try {
+            Thread.sleep(1000);
+            wait();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+}
+</code>
+
+<h1>线程方法</h1>
+<h2>sleep()</h2>
+Sleep 不会释放锁，因此其他线程无法访问被当前线程锁住的资源
+当线程在睡眠期间被中断时，应确保线程能够正确处理该中断并作出适当的响应。通常的做法是重新设置线程的中断状态
+<code>
+try {
+    Thread.sleep(1000);
+} catch (InterruptedException e) {
+    Thread.currentThread().interrupt(); // 重新设置中断状态
+}
+</code>
+Sleep(1000) 意思是在未来的1000毫秒内本线程不参与CPU竞争
+Sleep(0)的作用是触发操作系统立刻重新进行一次CPU竞争，和yield()作用相同
+    竞争的结果也许是当前线程仍然获得CPU控制权，也许会换成别的线程获得CPU控制权。
+
+<h2>wait()</h2>
+wait() 需要在同步代码块或同步方法中调用
+会使当前线程让出持有的锁
+设置了超时时间的wait方法一旦过了超时时间，并不需要其他线程执行notify也能自动解除阻塞，
+没有设置超时时间的wait方法必须等待其他线程调用相同对象的 notify() 或 notifyAll() 方法来唤醒。
+
+通知丢失（Lost Wakeup）
+    指一个线程发送通知（通过调用 notify() 或 notifyAll() 方法）后，等待通知的线程由于某种原因没有接收到该通知，从而导致程序进入无限等待状态
+        通知先于等待：如果通知在线程开始等待之前发送，等待的线程将错过这个通知，导致其进入无限等待状态。
+        没有使用循环检查条件：如果等待线程没有在循环中检查条件，而是直接调用 wait()，则在收到通知时，可能条件并未满足，导致线程错误地继续执行或进入无限等待。
+    为了避免丢失通知，wait() 通常在循环中使用。确保线程在被唤醒时重新检查条件，而不是盲目继续执行
+    使用 notifyAll()：在多个线程等待同一条件时，使用 notifyAll() 确保唤醒所有等待线程
+<code>
+class Calculator extends Thread {
+    int total;
+ 
+    @Override
+    public void run() {
+        synchronized (this){
+            for(int i = 0; i &lt; 101; i++){
+                total += i;
+            }
+            this.notify();
+        }
+    }
+}
+ 
+public class ReaderResult extends Thread {
+    Calculator c;
+    public ReaderResult(Calculator c) {
+        this.c = c;
+    }
+ 
+    @Override
+    public void run() {
+        synchronized (c) {
+            try {
+                System.out.println(Thread.currentThread() + "等待计算结果...");
+                c.wait();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            System.out.println(Thread.currentThread() + "计算结果为:" + c.total);
+        }
+    }
+ 
+    public static void main(String[] args) {
+        Calculator calculator = new Calculator();
+        //丢失通知的情况
+        calculator.start();
+        new ReaderResult(calculator).start();//线程嵌套, Thread[Thread-1,5,main]等待计算结...
+        //不会丢失通知的情况, 交换顺序
+        //new ReaderResult(calculator).start();
+        //calculator.start(); //Thread[Thread-1,5,main]计算结果为:5050
+    }
+}
+</code>
+<code>
+public class Demo {
+    //使用一个 Object 作为锁对象，condition 作为控制条件
+    private static final Object lock = new Object();
+    private static boolean condition = true;
+ 
+    public static void main(String[] args) {
+        Thread waitingThread = new Thread(new WaitingTask(), "WaitingThread");
+        Thread notifyingThread = new Thread(new NotifyingTask(), "NotifyingThread");
+ 
+        waitingThread.start();
+        notifyingThread.start();
+    }
+ 
+    static class WaitingTask implements Runnable {
+        @Override
+        public void run() {
+            synchronized (lock) {
+                while (condition) {//在 while 循环中调用 wait() 方法，检查条件是否满足
+                    try {
+                        System.out.println(Thread.currentThread().getName() + " is waiting.");
+                        lock.wait();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+                System.out.println(Thread.currentThread().getName() + " is resumed.");
+            }
+        }
+    }
+ 
+    static class NotifyingTask implements Runnable {
+        @Override
+        public void run() {
+            synchronized (lock) {
+                condition = false;
+                lock.notify();
+                System.out.println(Thread.currentThread().getName() + " has notified.");
+            }
+        }
+    }
+}
+</code>
+
+<h2>notifyAll()</h2>
+在同步块内调用
+notify（）方法：随机唤醒等待的某个线程；
+notifyAll（）方法：唤醒全部等待线程；
+
+<h2>join()</h2>
+一般用于等待异步线程执行完结果之后才能继续运行的场景
+A线程中执行了B.join()后, A会被阻塞直到B线程执行结束后, A再继续向下执行
+    阻塞行为只发生在线程 B 实际执行并且还在运行时
+使用 join(long millis) 或 join(long millis, int nanos) 方法来设置超时参数, 避免无限循环或长期阻塞
+<code>
+public class joinTest {
+    public static void main(String[] args) {
+        Thread t1 = new Thread(new MyRunnable2(),"刀疤");
+        Thread t2 = new Thread(new MyRunnable2(),"甜甜");
+        Thread t3 = new Thread(new MyRunnable2(),"王爱花");
+        t1.start();
+        t2.start();
+        t3.start();
+        new Thread(new Hotel(t3),"希尔顿大酒店").start();
+    }
+}
+ 
+class MyRunnable2 implements Runnable{
+    @Override
+    public void run() {
+        System.out.println(Thread.currentThread().getName()+"开始出发了");
+        try {
+            sleep(2000);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+        System.out.println(Thread.currentThread().getName()+"到酒店了");
+    }
+}
+ 
+class Hotel implements Runnable{
+    Thread thread;
+    public Hotel(Thread thread) {
+        this.thread=thread;
+    }
+    @Override
+    public void run() {
+        System.out.println(Thread.currentThread().getName()+"正在等待大家的到来...");
+        try {
+            thread.join();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+        System.out.println("人齐了, "+Thread.currentThread().getName()+"的服务员开始上菜");
+    }
+}
+</code>
+死锁
+<code>
+Thread thread1 = new Thread(() -> {
+    try {
+        Thread.currentThread().join(); // 这将导致死锁
+    } catch (InterruptedException e) {
+        e.printStackTrace();
+    }
+});
+thread1.start();
+</code>
+<code>
+public class Demo {
+    public static void main(String[] args) {
+        Thread thread1 = new Thread(new Task(), "Thread-1");
+        Thread thread2 = new Thread(new Task(), "Thread-2");
+        thread1.start();
+        thread2.start();
+ 
+        try {
+            thread1.join(); // main 线程等待 thread1 结束
+            thread2.join(); // main 线程等待 thread2 结束
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+ 
+        System.out.println("main 线程继续执行");
+    }
+ 
+    static class Task implements Runnable {
+        @Override
+        public void run() {
+            for (int i = 0; i &lt; 5; i++) {
+                System.out.println(Thread.currentThread().getName() + " - " + i);
+                try {
+                    Thread.sleep(500); // 模拟一些工作
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+}
+</code>
+
+<h2>yield()</h2>
+yield() 方法不会释放线程持有的锁
+yield() 方法用于建议线程调度器让出该线程对CPU的使用权，将执行机会交给其他具有相同优先级的线程
+    调度器可以选择忽略这个建议,不能依赖 yield() 方法来实现线程之间的精确调度或协作
+    如果没有其他线程或所有其他线程的优先级都比当前线程低，那么 yield() 方法将不会有任何效果
+<code>
+public class EveryTaskOnThread {
+    public static void main(String[] args) {
+ 
+        Thread t1 = new Thread(() -> {
+            for(int i = 0;i&lt;10000;i++) {
+                System.out.println(Thread.currentThread().getName());
+            }
+        },"-------t1");
+ 
+        Thread t2 = new Thread("t2") {
+            @Override
+            public void run() {
+                for(int i = 1;i&lt;10000;i++) {
+                    System.out.println(Thread.currentThread().getName());
+                    Thread.yield();
+                }
+            }
+        };
+ 
+        t2.start();
+        t1.start();
+    }
+}
+
+</code>
+
+<h2>stop()</h2>
+已经被jdk废弃，原因是因为stop()方法太过于暴力，会释放对象锁，强行把执行到一半的线程终止，可能会造成数据不一致。
+为了避免stop方法终断线程，我们可以采用Java线程的中断机制。
+
+<h2>interrupt()</h2>
+中断是一种协作机制, 并不能直接终止另一个线程，而需要被中断的线程自己处理。
+
+中断标志位
+    isInterrupted() 判断当前线程的中断标志位是否为true，不会清除中断标志位
+    interrupt() 将线程的中断状态标志位设置为true，不会停止线程
+        如果线程处于阻塞状态（如调用了 sleep()、wait()、join(), BlockingQueue.take(),BlockingQueue.put()），会抛出 InterruptedException，并清除中断状态(重置为 false)。
+            如果在捕获 InterruptedException 后不重新设置中断状态标志位为 true，那么其他检查线程中断状态的代码可能无法检测到中断信号，从而导致线程在实际被中断后继续运行下去
+            如果你的目的是让线程在捕获到 InterruptedException 后退出循环并结束线程，使用 break 是比较直观和清晰的做法。
+            但如果你希望线程退出循环后还能继续执行一些其他操作，可能需要重新设置中断标志位以便后续代码能够检测到中断状态
+        如果线程处于非阻塞状态，会设置线程的中断状态，但不会立即中断线程，可以通过检查中断标志位得到中断信号
+    interrupted() 判断当前线程的中断标志位是否为true，并清除中断标志位，重置为fasle
+        在长时间运行的任务中，定期使用 interrupted() 检查中断状态，确保线程可以及时响应中断请求，同时清除中断状态避免重复处理
+<code>
+public class Demo {
+    public static void main(String[] args) throws InterruptedException {
+        Thread t1 = new Thread(() -> {
+            int count = 0;
+            while (!Thread.currentThread().isInterrupted() && count &lt; 1000) {
+                System.out.println("count = " + count++);
+                try {
+                    Thread.sleep(1);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();// 重新设置中断状态 或break
+                }
+            }
+            System.out.println("Stop thread");
+        },"t1");
+        t1.start();
+        Thread.sleep(5);
+        t1.interrupt();
+    }
+}
+</code>
+<code>
+class SharedResource {
+    //lock 是一个 Object 实例, 被用作同步的对象，即锁的持有者
+    private final Object lock = new Object();
+ 
+    public void waitForSignal() {
+        //synchronized (lock) 是同步代码块的形式，表明它锁定的是 lock 对象。代码块内的所有操作都在这个锁的保护下执行
+        synchronized (lock) { //只有持有 lock 锁的线程才能进入这段同步代码块，其他线程在尝试进入时会被阻塞，直到锁被释放
+            while (true) {
+                try {
+                    System.out.println(Thread.currentThread().getName() + " is waiting...");
+                    lock.wait();
+                } catch (InterruptedException e) {
+                    System.out.println(Thread.currentThread().getName() + " was interrupted.");
+                    // 判断是否需要继续等待
+                    if (!shouldContinueWaiting()) {
+                        System.out.println(Thread.currentThread().getName() + " decided to stop waiting.");
+                        break;
+                    }
+                    System.out.println(Thread.currentThread().getName() + " will continue waiting.");
+                }
+            }
+        }
+    }
+ 
+    public void sendSignal() {
+        synchronized (lock) {
+            System.out.println(Thread.currentThread().getName() + " is sending signal...");
+            lock.notifyAll();
+        }
+    }
+ 
+    private boolean shouldContinueWaiting() {
+        // 在这里可以根据条件决定是否继续等待
+        return true; // 返回true表示继续等待，返回false表示不再等待
+    }
+}
+ 
+public class Demo {
+    public static void main(String[] args) {
+        SharedResource sharedResource = new SharedResource();
+ 
+        Thread waitingThread = new Thread(() -> {
+            sharedResource.waitForSignal();
+        }, "A");
+ 
+        Thread interruptingThread = new Thread(() -> {
+            try {
+                Thread.sleep(1000); // 确保A线程先进入等待状态
+                waitingThread.interrupt();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }, "B");
+ 
+        Thread signalingThread = new Thread(() -> {
+            try {
+                Thread.sleep(1000); // 确保中断后再发送信号
+                sharedResource.sendSignal();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }, "C");
+ 
+        waitingThread.start();
+        interruptingThread.start();
+        signalingThread.start();
+    }
+}
+</code>
+<code>
+public class IsInterruptedDemo {
+    public static void main(String[] args) {
+        Thread workerThread = new Thread(() -> {
+            boolean isWorking = true;
+ 
+            while (!Thread.currentThread().isInterrupted()) {
+                if (isWorking) {
+                    // 模拟长时间运行的任务
+                    for (int i = 0; i &lt; 1000000; i++) {
+                        // 模拟工作
+                        if (i % 100000 == 0) {
+                            System.out.println(Thread.currentThread().getName() + " is working... " + i);
+                        }
+ 
+                        // 定期检查中断状态
+                        if (Thread.currentThread().isInterrupted()) {
+                            System.out.println(Thread.currentThread().getName() + " was interrupted during work, stopping work...");
+                            break;
+                        }
+                    }
+                    isWorking = false; // 模拟完成工作后进入阻塞状态
+                } else {
+                    // 模拟阻塞操作
+                    try {
+                        Thread.sleep(5000); // 可能抛出InterruptedException
+                    } catch (InterruptedException e) {
+                        System.out.println(Thread.currentThread().getName() + " was interrupted during sleep.");
+                        Thread.currentThread().interrupt(); // 重新设置中断状态 或 break
+                    }
+                }
+            }
+ 
+            System.out.println(Thread.currentThread().getName() + " has stopped.");
+        }, "WorkerThread");
+ 
+        workerThread.start();
+ 
+        // 主线程等待一段时间后中断工作线程
+        try {
+            Thread.sleep(2000); // 主线程等待2秒
+            workerThread.interrupt(); // 中断工作线程
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+}
+</code>
+
+<h1>线程的关闭</h1>
+定义一个标志位，在线程的run方法中，不断的循环检测标志位，从而确定是否退出
+使用interrupt方法
+    非阻塞过程中通过判断中断标志来退出
+    阻塞过程通过捕获中断异常后重新设置标志位或break退出循环
+
+<h1>守护线程</h1>
+用户线程
+    必须执行完毕，JVM 才会退出。
+守护线程
+    当所有用户线程结束时，即使守护线程未完成也会退出, 不能用于执行一些需要完整性保证的任务，如文件写入或数据库事务
+    通常用于后台任务，如垃圾回收、日志记录等
+    Java 的垃圾回收器就是一个典型的守护线程
+在调用start()方法前,调用setDaemon(true)把该线程标记为守护线程。
+
+<code>
+public class AsyncLogger {
+    private static final BlockingQueue&lt;String> logQueue = new LinkedBlockingQueue&lt;>();//共享阻塞队列
+    private static final String logFilePath = "logs.txt";
+ 
+    public static void main(String[] args) {
+        // 使用守护线程异步地将日志写入文件, 不会影响主线程的执行
+        Thread loggerThread = new Thread(() -> {
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter(logFilePath, true))) {
+                while (true) {
+                    try {
+                        // 不断从一个共享队列中读取日志消息并写入文件
+                        String log = logQueue.take();
+                        writer.write(log);
+                        writer.newLine();
+                        writer.flush();
+                    } catch (InterruptedException e) {
+                        // 线程被中断，退出循环
+                        break;
+                    }
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+ 
+        loggerThread.setDaemon(true);
+        loggerThread.start();
+ 
+        // 主线程模拟主业务逻辑
+        for (int i = 0; i &lt; 10; i++) {
+            String logMessage = "Log message " + i;
+            try {
+                //add 方法在插入元素时，如果队列已满会抛出 IllegalStateException
+                //put 方法在插入元素时，如果队列已满会阻塞直到空间变得可用
+                logQueue.put(logMessage);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+ 
+            try {
+                Thread.sleep(1000); // 模拟主线程的工作
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        // 主线程结束
+        System.out.println("Main thread is ending...");
+    }
+}
+</code>
+
+<h1>锁的分类</h1>
+排它锁(独占锁,独享锁)
+
+共享锁,又称读锁,获得共享锁之后,可以查看但无法修改和删除数, 其它线程此时也可以获取到共享锁
+    共享锁和排它锁的典型是读写锁 ReentrantReadWritLock,其中读锁是共享锁,写锁是独享锁
+
+读写锁
+    写锁需要等待别人释放读锁和写锁
+    读锁需要等别人释放写锁
+    要么是一个或多个线程同时有读锁,要么是一个线程有写锁,两者不会同时出现(要么多读,要么一写)
+
+公平和非公平锁
+    公平锁指按照线程请求的顺序来分配锁,非公平锁指不完全按照请求的顺序在一定情况下可以插队
+    非公平锁利用下一个请求线程被唤醒时带来的空档期,为已经处于唤醒状态的其它线程服务, 从而提高服务吞吐量
+        缺点是可能产生线程饥饿(总有人来插队)而在长时间内始终得不到执行
+
+乐观锁和悲观锁
+    悲观锁
+        如果我不锁住这个资源,别人就会来争抢,造成数据结果错误,所以在每次获取并修改数据时,把数据锁住,让别人无法访问,确保数据内容万无一失
+        java中的悲观锁的实现就是synchronized和Lock相关类
+    乐观锁
+        认为自己在处理操作的时候不会有其它线程来干扰,所以并不会锁住被操作对象
+        在更新的时候,先计算完最终数据,然后去对比在我计算的期间数据有没有被其它人改变过,如果没被改变过,就说明真的是只有我自己在操作,那我就开始去写数据,如果期间被人改变过,那我就不能写数据,选择放弃,报错,重试等策略
+        乐观锁的实现一般都是利用CAS算法来实现的
+    数据库例子
+        用version控制数据库就是乐观锁
+            添加一个字段version
+            更新前先查询出version值(假设查出为1)
+            然后update set num=100,version=version+1 where version=1 and id=10;
+            如果更新失败通常做法是重新读取数据并再次尝试更新，直到成功或达到最大重试次数
+        用select for update就是悲观锁
+            先读取并锁定数据，使用"SELECT id, name, email FROM user WHERE id = ? FOR UPDATE";语句锁定数据行
+            然后执行更新操作, "UPDATE user SET name = ?, email = ? WHERE id = ?"
+            
+自旋锁和阻塞锁
+    阻塞或唤醒一个java线程需要操作系统切换cpu状态来完成,这种切换需要耗费处理器时间
+    如果同步代码块中的内容过于简单,切换所耗费的时间可能比用户代码执行的时间还要长
+    在许多场景中,同步资源的锁定时间很短,为此切换线程带来的线程挂起和恢复所造成的损耗可能让系统得不偿失
+    如果物理机器有多个处理器,能够让两个或以上的线程同时并行执行,我们就可以让后面那个请求锁的线程不放弃cpu的执行时间,等等看持有锁的线程是否很快就会释放锁
+    为了让后面那个请求锁的线程稍等一下, 就需要它进行自旋,如果在自旋完成后前面锁定资源的线程已经释放了锁,那么就可以不必阻塞而是直接获取同步资源,从而避免切换线程产生的开销,这就是自旋锁
+    如果锁被占用的时间很长,那么自旋的线程只会白白浪费处理器资源
+
+可重入锁和非可重入锁
+    可重入可以避免死锁
+        允许同一个线程多次获得同一个锁而不会造成死锁
+        如果一个线程已经持有一个锁，它可以再次获得这个锁，而不会被阻塞,由于一个线程可以多次获得锁，所以它可以避免在复杂的同步场景中出现死锁
+可中断锁和不可中断锁
+
+<h1>Lock和synchronized</h1>
+Lock接口最常见的实现类是ReentrantLock 
+Lock主要方法
+    lock()
+        如果锁已被其他线程获取,则进行等待
+        不会像synchronized一样在异常时自动释放锁
+        需要在finally中释放锁,以保证发生异常时锁一定被释放
+        lock()方法不能被中断,这会带来死锁永久等待
+    tryLock()
+        尝试获取锁,如果当前锁没有被其他线程占用,则获取成功返回true, 否则代表获取锁失败返回false
+        相比于lock(), 它可以根据是否能获取到锁来决定后续程序的行为
+        该方法会立即返回,即便在拿不到锁时不会一直在那里等待
+    tryLock(long time,TimeUnit unit)
+        超时就放弃
+    lockInterruptibly()
+        超时时间无限.在等待过程中可以随时被中断
+    unlock()
+        解锁
+Lock必须使用lock(),unlock来显式加解锁
+    可以判断当前锁是否被占用,如果不想等待可以退出
+    异常时不会自动释放锁
+synchronized可以用在方法和同步代码块上隐式自动加解锁
+    如果没有拿到锁只能等待
+    异常时自动释放锁
+早期两者间synchronized性能较低,java6之后差异较小
+两者都是可重入的
+    如果一个线程已经持有一个锁，它可以再次获得这个锁，而不会被阻塞
+<code>
+// f1() 和 f2() 方法都被 synchronized 修饰。这意味着这两个方法都使用了同一个对象作为锁
+// 当 new LockTest().f1(); 被调用时，主线程将会获得 LockTest 实例的锁，并进入 f1() 方法。
+// f1() 方法内部调用 f2()，因为 f2() 也是 synchronized 的，主线程必须再次获得 LockTest 实例的锁才能执行 f2() 方法。
+public class LockTest {
+    public synchronized void f1(){
+        System.out.println("f1()");
+        f2();
+    }
+    public synchronized void f2(){
+        System.out.println("f2()");
+    }
+ 
+    public static void main(String[] args) {
+        new LockTest().f1();
+    }
+}
+</code>
+synchronized 使用以下两种类型的锁
+    对象实例锁
+        当 synchronized 修饰一个实例方法时，它会使用当前对象实例作为锁。每个对象都有一个关联的监视器，只有获取了该监视器的线程才能执行 synchronized 修饰的代码
+    类对象锁
+        当 synchronized 修饰一个静态方法或代码块时，它会使用该类的 Class 对象作为锁。每个类只有一个 Class 对象，静态方法的同步是基于该类的 Class 对象的监视器
+
+<h2>synchronized 窗口卖票</h2>
+<code>
+class MyRunnable implements Runnable {
+    private static int ticketCount = 100;
+    private static int one;
+    private static int two;
+ 
+    @Override
+    public void run() {
+        while (true) {
+            if("窗口一".equals(Thread.currentThread().getName())){
+                //同步代码块
+                synchronized (MyRunnable.class){
+                    if(ticketCount == 0){
+                        break;
+                    }else{
+                        try {
+                            Thread.sleep(10);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                        ticketCount--;
+                        one++;
+                        System.out.println(Thread.currentThread().getName() + "卖了"+one+"张票,还剩下" + ticketCount + "张票");
+                    }
+                }
+            }
+            if("窗口二".equals(Thread.currentThread().getName())){
+                //同步代码块
+                synchronized (MyRunnable.class){
+                    if(ticketCount == 0){
+                        break;
+                    }else{
+                        try {
+                            Thread.sleep(10);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                        ticketCount--;
+                        two++;
+                        System.out.println(Thread.currentThread().getName() + "卖了"+two+"张票,还剩下" + ticketCount + "张票");
+                    }
+                }
+            }
+        }
+    }
+}
+ 
+public class Demo {
+    public static void main(String[] args) {
+        MyRunnable mr = new MyRunnable();
+        Thread t1 = new Thread(mr,"窗口一");
+        Thread t2 = new Thread(mr,"窗口二");
+        t1.start();
+        t2.start();
+    }
+}
+</code>
+<h2>synchronized 一个生产者一个消费者</h2>
+<code>
+class Desk {
+    public static boolean flag = false;
+    public static int count = 5;
+    public static final Desk lock = new Desk();
+}
+class Cooker implements Runnable {
+    @Override
+    public void run() {
+        while(true){
+            synchronized (Desk.lock){
+                if(Desk.count == 0){
+                    break;
+                }else{
+                    if(!Desk.flag){
+                        System.out.println("厨师煎好了一份牛排");
+                        Desk.count--;
+                        Desk.flag = true;
+                        //使用什么对象当做锁,那么就必须用这个对象去调用等待和唤醒的方法.
+                        Desk.lock.notifyAll();
+                    }else{
+                        try {
+                            Desk.lock.wait();
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+            }
+        }
+        System.out.println("没有食材了");
+    }
+}
+class Foodie implements Runnable {
+    @Override
+    public void run() {
+        while(true){
+            synchronized (Desk.lock){
+                if(Desk.count == 0){
+                    break;
+                }else{
+                    if(Desk.flag){
+                        System.out.println("顾客吃掉一份牛排");
+                        Desk.flag = false;
+                        Desk.lock.notifyAll();
+                    }else{
+                        try {
+                            Desk.lock.wait();
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+public class Demo {
+    public static void main(String[] args) {
+        Thread f = new Thread(new Foodie());
+        Thread c = new Thread(new Cooker());
+        f.start();
+        c.start();
+    }
+}
+</code>
+<h2>synchronized 一个生产者多个消费者</h2>
+<code>
+class Queue {
+    private int n;
+    boolean flag = false;
+    public synchronized int getN() {
+        //当线程A在getN方法中执行wait时，它会释放锁并等待。
+        //线程B获得锁，进入getN方法，并调用notifyAll，唤醒线程A和其他所有等待的线程。
+        //线程被唤醒并不意味着它立即可以继续执行。唤醒的线程必须重新竞争获得该对象的锁，才能从wait方法返回并继续执行
+        //如果使用的是if而不是while，被唤醒的线程不会再次检查条件，因此会出现多个消费者同时消费同一个产品。
+        while (!flag) {//使用while而不是if
+            try {
+                wait();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        System.out.println(Thread.currentThread().getName()+"消费: "+n);
+        flag = false;//消费完毕,容器中已经没有数据
+        notifyAll();
+        return n;
+    }
+ 
+    public synchronized void setN(int n) {
+        while (flag) {//使用while而不是if
+            try {
+                wait();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        System.out.println(Thread.currentThread().getName()+"生产: "+n);
+        this.n = n;
+        flag = true;//生产完毕,容器中已经有数据
+        notifyAll();
+    }
+}
+ 
+class Producer implements Runnable{
+    Queue queue;
+    Producer(Queue queue) {
+        this.queue=queue;
+    }
+    @Override
+    public void run() {
+        int n = 0;
+        while (true) {
+            queue.setN(n++);
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+}
+ 
+class Consumer implements Runnable{
+    Queue queue;
+    Consumer(Queue queue) {
+        this.queue= queue;
+    }
+    @Override
+    public void run() {
+        while (true) {
+            queue.getN();
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+}
+ 
+public class Test {
+    public static void main(String[] args) {
+        Queue queue = new Queue();
+        Thread a = new Thread(new Producer(queue),"a");
+        Thread b = new Thread(new Consumer(queue),"b");
+        Thread b2 = new Thread(new Consumer(queue),"b2");
+        Thread b3 = new Thread(new Consumer(queue),"b3");
+        a.start();
+        b.start();
+        b2.start();
+        b3.start();
+    }
+}
+</code>
+<h1>死锁</h1>
+两个或更多线程或进程相互持有对方所需要的资源,又不主动释放,导致所有人都无法继续前进
+<code>
+public class Demo {
+    public static void main(String[] args) throws InterruptedException {
+        Object o1 = new Object();
+        Object o2 = new Object();
+ 
+        Thread t1 = new Thread(() -> {
+            synchronized (o1) {
+                System.out.println("Thread 1: Locked o1");
+                try {
+                    Thread.sleep(50);
+                } catch (InterruptedException e) {
+                }
+                synchronized (o2) {
+                    System.out.println("Thread 1: Locked o2");
+                }
+            }
+        });
+        Thread t2 = new Thread(() -> {
+            synchronized (o2) {
+                System.out.println("Thread 2: Locked o2");
+                try {
+                    Thread.sleep(50);
+                } catch (InterruptedException e) {
+                }
+                synchronized (o1) {
+                    System.out.println("Thread 2: Locked o1");
+                }
+            }
+        });
+        t1.start();
+        t2.start();
+    }
+}
+</code>
+避免死锁
+    设置超时时间
+        Lock的tryLock(long timeout,TimeUnit unit)
+        synchronized不具备尝试锁的能力,如果拿不到会一直等待
+    获取锁失败时可以打日志,发报警邮件,重启等,将可能发生的大事故缩小为一个小事故(获取不到锁)
+    多使用并发类而不是自己设计锁
+    尽量降低锁的范围,例如使用同步代码块而不是同步方法
+    给线程起个有意义的名字利于排查
+<code>
+public class TryLockDeadlock implements Runnable {
+    int flag = 1;
+    static Lock lock1 = new ReentrantLock();
+    static Lock lock2 = new ReentrantLock();
+    static int sharedResource = 0; // 全局变量
+ 
+    public static void main(String[] args) {
+        TryLockDeadlock r1 = new TryLockDeadlock();
+        TryLockDeadlock r2 = new TryLockDeadlock();
+        r1.flag = 1;
+        r2.flag = 0;
+        new Thread(r1, "t1").start();
+        new Thread(r2, "t2").start();
+    }
+ 
+    @Override
+    public void run() {
+        for (int i = 0; i &lt; 100; i++) {
+            if (flag == 1) {
+                try {
+                    if (lock1.tryLock(800, TimeUnit.MILLISECONDS)) {
+                        System.out.println(Thread.currentThread().getName() + " 获取到了锁1");
+                        Thread.sleep(new Random().nextInt(1000)); // 模拟一些操作
+                        if (lock2.tryLock(800, TimeUnit.MILLISECONDS)) {
+                            try {
+                                System.out.println(Thread.currentThread().getName() + " 获取到了锁2");
+                                sharedResource++;
+                                System.out.println(Thread.currentThread().getName() + " 成功获取到了两把锁, 并修改了共享资源，当前值: " + sharedResource);
+                                break;
+                            } finally {
+                                lock2.unlock();
+                                lock1.unlock();
+                            }
+                        } else {
+                            System.out.println(Thread.currentThread().getName() + " 尝试获取锁2失败，正在重试");
+                            lock1.unlock();
+                            Thread.sleep(new Random().nextInt(1000)); // 模拟一些操作
+                        }
+                    } else {
+                        System.out.println(Thread.currentThread().getName() + " 获取锁1失败，正在重试");
+                    }
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            } else if (flag == 0) {
+                try {
+                    if (lock2.tryLock(3000, TimeUnit.MILLISECONDS)) {
+                        System.out.println(Thread.currentThread().getName() + " 获取到了锁2");
+                        Thread.sleep(new Random().nextInt(1000)); // 模拟一些操作
+                        if (lock1.tryLock(3000, TimeUnit.MILLISECONDS)) {
+                            try {
+                                System.out.println(Thread.currentThread().getName() + " 获取到了锁1");
+                                sharedResource++;
+                                System.out.println(Thread.currentThread().getName() + " 成功获取到了两把锁, 并修改了共享资源，当前值: " + sharedResource);
+                                break;
+                            } finally {
+                                lock1.unlock();
+                                lock2.unlock();
+                            }
+                        } else {
+                            System.out.println(Thread.currentThread().getName() + " 尝试获取锁1失败，正在重试");
+                            lock2.unlock();
+                            Thread.sleep(new Random().nextInt(1000)); // 模拟一些操作
+                        }
+                    } else {
+                        System.out.println(Thread.currentThread().getName() + " 获取锁2失败，正在重试");
+                    }
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+}
+</code>
+
+<h1>AtomicInteger</h1>
+AtomicInteger 是 Java 提供的一个线程安全的整数类，位于 java.util.concurrent.atomic 包中。它提供了一些原子操作，这些操作都是线程安全的，不需要使用同步块或锁。
+    get()：获取当前的值。
+    set(int newValue)：设置新的值。
+    getAndSet(int newValue)：获取当前的值，并设置新的值。
+    incrementAndGet()：以原子方式将当前值加 1，并返回加 1 后的值。
+    getAndIncrement()：以原子方式将当前值加 1，并返回加 1 前的值。
+    decrementAndGet()：以原子方式将当前值减 1，并返回减 1 后的值。
+    getAndDecrement()：以原子方式将当前值减 1，并返回减 1 前的值。
+    addAndGet(int delta)：以原子方式将当前值增加指定的值，并返回更新后的值。
+    getAndAdd(int delta)：以原子方式将当前值增加指定的值，并返回更新前的值。
+    compareAndSet(int expect, int update)：如果当前值等于预期值，则以原子方式将该值设置为更新值。
+<code>
+public class AtomicIntegerExample {
+    public static void main(String[] args) {
+        AtomicInteger atomicInteger = new AtomicInteger(0);
+        // 创建多个线程进行操作
+        Thread t1 = new Thread(() -> {
+            for (int i = 0; i &lt; 1000; i++) {
+                atomicInteger.incrementAndGet();
+            }
+        });
+        Thread t2 = new Thread(() -> {
+            for (int i = 0; i &lt; 1000; i++) {
+                atomicInteger.incrementAndGet();
+            }
+        });
+        t1.start();
+        t2.start();
+        try {
+            t1.join();
+            t2.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        System.out.println("Final value: " + atomicInteger.get());//2000
+    }
+}
+</code>
+
+<h1>Semaphore</h1>
+Semaphore(信号) 用于控制同时访问特定资源的线程数量，确保资源不被过度使用
+该类通过指定许可证的数量来控制同时访问共享资源的线程数，超过许可证数量的线程必须等待其他线程释放许可证后才能继续执行
+    Semaphore(int permits)：创建具有给定许可数的信号量。
+    Semaphore(int permits, boolean fair)：创建具有给定许可数和给定公平性设置的信号量。
+        公平模式确保线程按照请求资源的顺序获取资源，即先请求资源的线程会先获取到资源
+        非公平模式则不保证线程按照请求顺序获取资源，这种模式通常会有更高的吞吐量，因为它减少了线程切换的开销,可能会导致某些线程长时间等待（线程饥饿）
+    acquire()：获取一个许可，如果没有可用的许可，则会一直等待。
+    acquire(int permits)：获取指定数量的许可。
+        控制并发数量。例如，你有一个池（连接池、线程池等），希望一次只能有固定数量的线程可以访问该池
+    tryAcquire()：尝试获取一个许可，立即返回 true 或 false。
+    tryAcquire(int permits)：尝试获取指定数量的许可，立即返回 true 或 false。
+    release()：释放一个许可。
+    release(int permits)：释放指定数量的许可。
+    availablePermits()：返回当前可用的许可数。
+<code>
+public class SemaphoreExample {
+    public static void main(String[] args) {
+        Semaphore semaphore = new Semaphore(3);
+ 
+        for (int i = 0; i &lt; 10; i++) {
+            new Thread(new Worker(semaphore, "Worker-" + i)).start();
+        }
+    }
+}
+ 
+class Worker implements Runnable {
+    private final Semaphore semaphore;
+    private final String name;
+ 
+    public Worker(Semaphore semaphore, String name) {
+        this.semaphore = semaphore;
+        this.name = name;
+    }
+ 
+    @Override
+    public void run() {
+        try {
+            System.out.println(name + " trying to acquire permit.");
+            semaphore.acquire();//获取一个许可，如果没有可用的许可，则会一直等待
+            System.out.println(name + " acquired permit.");
+ 
+            Thread.sleep(2000);// 模拟工作
+ 
+            System.out.println(name + " releasing permit.");
+            semaphore.release();//释放一个许可
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+}
+</code>
+
+<h1>BlockingQueue</h1>
+用于实现线程安全的阻塞队列
+    ArrayBlockingQueue: 底层是数组,有界
+    LinkedBlockingQueue: 底层是链表,无界.但不是真正的无界,最大为int的最大值
+        put(anObject): 将参数放入队列,如果放不进去会阻塞
+        take(): 取出第一个数据,取不到会阻塞
+
+<h2>BlockingQueue 一个生产者一个消费者</h2>
+<code>
+class Producer implements Runnable {
+    private BlockingQueue&lt;String> queue;
+    public Producer(BlockingQueue&lt;String> queue){
+        this.queue=queue;
+    }
+    @Override
+    public void run() {
+        for(int i=0; i&lt;=100; i++){
+            String msg = String.valueOf(i);
+            try {
+                queue.put(msg);
+                System.out.println("Produced "+msg);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        try {
+            queue.put("exit");//一直到100个数据消费完后
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+}
+ 
+class Consumer implements Runnable{
+    private BlockingQueue&lt;String> queue;
+    public Consumer(BlockingQueue&lt;String> queue){
+        this.queue=queue;
+    }
+    @Override
+    public void run() {
+        try{
+            String msg;
+            while(!(msg = queue.take()).equals("exit")){
+                System.out.println("Consumed "+msg);
+            }
+        }catch(InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+}
+ 
+public class ProduceConsumeDemo {
+    public static void main(String[] args) {
+        BlockingQueue&lt;String> queue = new ArrayBlockingQueue&lt;>(1);
+        Producer producer = new Producer(queue);
+        Consumer consumer = new Consumer(queue);
+        new Thread(producer).start();
+        new Thread(consumer).start();
+        System.out.println("Producer and Consumer has been started");
+    }
+}
+</code>
+<h2>BlockingQueue 多个生产者多个消费者</h2>
+<code>
+class Queue {
+    private BlockingQueue&lt;Integer> queue = new ArrayBlockingQueue&lt;>(10);
+ 
+    public void put(int n) throws InterruptedException {
+        queue.put(n);
+        System.out.println(Thread.currentThread().getName() + " 生产: " + n);
+    }
+ 
+    public int take() throws InterruptedException {
+        int n = queue.take();
+        System.out.println(Thread.currentThread().getName() + " 消费: " + n);
+        return n;
+    }
+}
+ 
+class Producer implements Runnable {
+    private static AtomicInteger idGenerator = new AtomicInteger(0); // 原子整型,产品ID生成器
+    private Queue queue;
+    Producer(Queue queue) {
+        this.queue = queue;
+    }
+    @Override
+    public void run() {
+        while (true) {
+            try {
+                int id = idGenerator.incrementAndGet(); // 获取唯一产品ID
+                queue.put(id);
+                Thread.sleep(500);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+}
+ 
+class Consumer implements Runnable {
+    private Queue queue;
+    Consumer(Queue queue) {
+        this.queue = queue;
+    }
+    @Override
+    public void run() {
+        while (true) {
+            try {
+                queue.take();
+                Thread.sleep(500);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+}
+ 
+public class Test {
+    public static void main(String[] args) {
+        Queue queue = new Queue();
+        Thread p1 = new Thread(new Producer(queue), "生产者1");
+        Thread p2 = new Thread(new Producer(queue), "生产者2");
+        Thread c1 = new Thread(new Consumer(queue), "消费者1");
+        Thread c2 = new Thread(new Consumer(queue), "消费者2");
+        Thread c3 = new Thread(new Consumer(queue), "消费者3");
+        p1.start();
+        p2.start();
+        c1.start();
+        c2.start();
+        c3.start();
+    }
+}
+</code>
+
+<h1>线程池</h1>
+假如创建线程用的时间为T1，执行任务用的时间为T2,销毁线程用的时间为T3，那么使用线程池就免去了T1和T3的时间；
+服务器接收到大量请求时使用线程池技术是非常合适的,它可以大大减少线程的创建和销毁次数,提高服务器的工作效率
+实际开发中如果需要创建5个以上的线程,那么就可以使用线程池来管理
+
+<h2>线程复用</h2>
+核心线程是线程池中最基本的线程数量。这些线程在没有任务执行时，默认情况下会一直存活，不会被终止。
+    核心线程在处理完一个任务后，会继续从任务队列中取新的任务来执行
+当线程池中的任务数量超过核心线程数时，线程池会创建非核心线程来处理多余的任务
+    这些非核心线程只要没有超出其空闲存活时间同样会被复用来处理新提交的任务。
+过程
+    初始化
+        创建一个固定数量的核心线程并将它们设置为等待任务状态。
+    任务分发
+        当有新任务提交时，线程池会从工作队列中取出任务分发给空闲线程。
+    任务执行
+        空闲线程接收到任务后开始执行任务的run方法。
+    复用线程
+        任务执行完毕后，线程不会退出，而是回到等待任务状态，准备处理下一个任务。
+
+<h2>构造方法</h2>
+<code>
+public class ThreadPoolExample {
+    public static void main(String[] args) {
+        // 示例1：使用基本的构造方法
+        ThreadPoolExecutor executor1 = new ThreadPoolExecutor(
+            2, // 核心线程数
+            4, // 最大线程数
+            10L, // 线程空闲时间
+            TimeUnit.SECONDS, // 时间单位
+            new LinkedBlockingQueue&lt;>() // 工作队列
+        );
+ 
+        // 示例2：使用包含线程工厂的构造方法
+        ThreadFactory threadFactory = Executors.defaultThreadFactory();
+        ThreadPoolExecutor executor2 = new ThreadPoolExecutor(
+            2,
+            4,
+            10L,
+            TimeUnit.SECONDS,
+            new LinkedBlockingQueue&lt;>(),
+            threadFactory // 线程工厂
+        );
+ 
+        // 示例3：使用包含拒绝策略的构造方法
+        RejectedExecutionHandler rejectionHandler = new ThreadPoolExecutor.AbortPolicy();
+        ThreadPoolExecutor executor3 = new ThreadPoolExecutor(
+            2,
+            4,
+            10L,
+            TimeUnit.SECONDS,
+            new LinkedBlockingQueue&lt;>(),
+            rejectionHandler // 拒绝策略
+        );
+ 
+        // 示例4：使用包含线程工厂和拒绝策略的构造方法
+        ThreadPoolExecutor executor4 = new ThreadPoolExecutor(
+            2,
+            4, 
+            10L,
+            TimeUnit.SECONDS,
+            new LinkedBlockingQueue&lt;>(),
+            threadFactory, // 线程工厂
+            rejectionHandler // 拒绝策略
+        );
+ 
+        // 提交任务给线程池
+        for (int i = 0; i &lt; 10; i++) {
+            final int taskNumber = i;
+            executor1.submit(() -> {
+                System.out.println("Executing task " + taskNumber + " with thread " + Thread.currentThread().getName());
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            });
+        }
+ 
+        // 关闭线程池
+        executor1.shutdown();
+        executor2.shutdown();
+        executor3.shutdown();
+        executor4.shutdown();
+    }
+}
+</code>
+
+<h2>拒绝策略</h2>
+AbortPolicy（默认策略）：
+    抛出 RejectedExecutionException，通知调用者任务被拒绝。
+CallerRunsPolicy：
+    当线程池已经关闭或者线程池中的任务数量达到最大限制，且任务队列已满时，CallerRunsPolicy 会将任务交给提交任务的线程来执行。
+    这样可以有效地限制任务的提交速度，避免线程池过载，同时确保任务不会被丢弃。
+DiscardPolicy：
+    简单地丢弃无法处理的新任务，不做任何处理。
+DiscardOldestPolicy：
+    丢弃任务队列中最旧的未处理任务，然后尝试重新提交新任务。
+
+<h2>线程工厂</h2>
+可以使用 ThreadFactory 来创建具有特定名称、优先级、守护状态等属性的线程
+<code>
+public class CustomThreadFactory implements ThreadFactory {
+    private final String namePrefix;
+    private final AtomicInteger threadNumber = new AtomicInteger(1);
+    //线程组: 允许将线程组织在一起集中管理, 如集体中断
+    private final ThreadGroup group;
+ 
+    public CustomThreadFactory(String namePrefix) {
+        this.namePrefix = namePrefix;
+        this.group = Thread.currentThread().getThreadGroup();
+    }
+ 
+    @Override
+    public Thread newThread(Runnable r) {
+        //new Thread(ThreadGroup group, Runnable target, String name, long stackSize) 
+        //stackSize线程的栈大小,值为 0 表示使用默认栈大小
+        Thread t = new Thread(group, r, namePrefix + "-Thread-" + threadNumber.getAndIncrement(), 0);
+        if (t.isDaemon()) { //确保线程在执行完任务之前不会被 JVM 强制结束
+            t.setDaemon(false);
+        }
+        if (t.getPriority() != Thread.NORM_PRIORITY) { //确保线程使用一致的优先级，避免优先级不一致带来的潜在问题
+            t.setPriority(Thread.NORM_PRIORITY);
+        }
+        return t;
+    }
+}
+</code>
+<code>
+ThreadPoolExecutor executor2 = new ThreadPoolExecutor(
+        2,
+        4,
+        10L,
+        TimeUnit.SECONDS,
+        new LinkedBlockingQueue&lt;>(),
+        new CustomThreadFactory("MyPool")
+);
+</code>
+<h2>线程组</h2>
+<code>
+ThreadGroup group = new ThreadGroup("MyThreadGroup");
+// String groupName = group.getName();
+ 
+Thread t1 = new Thread(group, () -> {
+    while (!Thread.currentThread().isInterrupted()) {
+        // 线程工作
+    }
+}, "Thread-1");
+ 
+Thread t2 = new Thread(group, () -> {
+    while (!Thread.currentThread().isInterrupted()) {
+        // 线程工作
+    }
+}, "Thread-2");
+ 
+t1.start();
+t2.start();
+ 
+// 中断线程组中的所有线程
+group.interrupt();
+</code>
+
+<h2>核心线程数和最大线程数</h2>
+corePoolSize
+    线程池完成初始化后,默认情况下池中没有任何线程,会等待有任务到来时,再创建新线程执行任务, 之后核心线程数会一直存活不会减少数量,即使没有任何新任务
+maxPoolSize
+    核心线程数+非核心线程
+线程池的行为
+    corePoolSize = 2
+    maximumPoolSize = 5
+    new ArrayBlockingQueue&lt;&gt;(3)
+    假设提交了 10 个任务到这个线程池，以下是线程池的行为：
+        第1,2个任务交给核心线程执行
+        第3,4,5个任务加入任务队列
+        第6,7,8个任务因为队列已满，因此会创建额外3个非核心线程来处理它们。此时，线程池中的总线程数增加到 5（2 个核心线程 + 3 个非核心线程）
+        假设第9,10个任务到来时，所有线程（包括核心线程和非核心线程）仍在忙碌，队列中任务仍为3
+        因为总线程数已经达到 maximumPoolSize（5）,任务队列已满，在这种情况下第9,10个任务如何处理取决于线程池的拒绝策略
+在某些情况下，如果队列中的任务还在等待，而新的任务导致创建了新的非核心线程，新任务可能会比队列中的任务更早完成
+    一种解决方法是使用较大的任务队列，这样即使有更多的任务提交，所有的任务都可以先进入队列，然后按顺序执行。
+    另一种解决方法是使用自定义的拒绝策略来控制任务的提交顺序。
+
+<h2>任务队列</h2>
+ArrayBlockingQueue
+    有界队列，固定容量先进先出, 使用一个锁来控制插入和删除操作（单锁）
+    maximumPoolSize参数在使用有界队列时才具有实际意义
+        因为在无界队列的情况下，任务可以无限制地被添加到队列中，不会触发创建额外的非核心线程
+LinkedBlockingQueue
+    可以指定容量，也可以使用默认的无界容量(int的最大值)
+    使用两个独立的锁来控制插入和删除操作（分段锁）,插入和删除操作可以并行执行
+SynchronousQueue 
+    一种特殊的同步阻塞队列, 因为没有内部容量所以提供了高效的线程间数据交换(没有任务缓冲区，任务提交后必须立即由工作线程执行), 典型应用包括高性能线程池和实时数据传输
+    每一个 put 操作必须阻塞等待一个 take 操作，反之亦然。换句话说，生产者线程和消费者线程必须直接进行数据交换
+    当使用 SynchronousQueue 时，通常需要设置较大的核心线程数, 确保提交的任务能够及时被线程执行，不会因为缺少线程而导致任务被阻塞
+    虽然 SynchronousQueue 没有容量，但 maximumPoolSize 仍然控制线程池中可以同时存在的最大线程数量。
+        每个新任务的提交都可能导致创建一个新的线程，直到达到 maximumPoolSize, 这样能够更好地处理突发的高并发任务
+<code>
+public class ThreadPoolWithSynchronousQueue {
+    public static void main(String[] args) {
+        ExecutorService executor = new ThreadPoolExecutor(
+                2, 4, 60, TimeUnit.SECONDS,
+                new SynchronousQueue&lt;>(),
+                new ThreadPoolExecutor.CallerRunsPolicy() //如果所有工作线程都忙，将任务交给提交任务的线程来执行
+        );
+        for (int i = 0; i &lt; 10; i++) {
+            final int index = i;
+            executor.submit(() -> {
+                System.out.println("Task " + index + " is running by " + Thread.currentThread().getName());
+                try {
+                    Thread.sleep(1000); // 模拟任务执行时间
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            });
+        }
+        executor.shutdown();
+    }
+}
+/*
+Task 0 is running by pool-1-thread-1
+Task 2 is running by pool-1-thread-3
+Task 4 is running by main
+Task 1 is running by pool-1-thread-2
+Task 3 is running by pool-1-thread-4
+Task 5 is running by main
+Task 6 is running by pool-1-thread-3
+Task 7 is running by pool-1-thread-1
+Task 8 is running by pool-1-thread-4
+Task 9 is running by pool-1-thread-2
+*/
+</code>
+
+<h2>submit 和 execute</h2>
+两者区别在于如何处理它们的返回值和异常
+    execute
+        没有返回值，只能提交 Runnable 任务
+        提交的任务在执行过程中抛出的异常不会被返回给调用者
+    submit 方法是 ExecutorService 接口中定义的
+        有返回值，可以提交 Runnable 和 Callable 任务，并返回一个 Future 对象
+        提交的任务在执行过程中抛出的异常可以通过返回的 Future 对象获取
+
+<h2>JDK封装好的线程池</h2>
+<p>
+:corePoolSize:maxPoolSize:队列类型:空闲时间:拒绝策略
+Fixed Thread Pool:nThreads:同左:LinkedBlockingQueue (无限):0:AbortPolicy
+Single Thread Executor:1:1:LinkedBlockingQueue (无限):0:AbortPolicy
+Cached Thread Pool:0:Integer.MAX_VALUE:SynchronousQueue:60 秒:AbortPolicy
+Scheduled Thread Pool:corePoolSize:Integer.MAX_VALUE:DelayedWorkQueue:0:AbortPolicy
+Single Thread Scheduled Executor:1:Integer.MAX_VALUE:DelayedWorkQueue:0:AbortPolicy
+</p>
+<code>
+//适合处理执行时间较长的任务，可以充分利用多线程并发执行的优势
+ExecutorService fixedThreadPool = Executors.newFixedThreadPool(1);
+ 
+//等效于newFixedThreadPool(1)
+//适用于需要顺序执行任务且避免多线程竞争条件的场景,例如日志记录、文件写入等
+ExecutorService singleThreadExecutor = Executors.newSingleThreadExecutor();
+ 
+//核心线程数为0, 线程最大数量Integer.MAX_VALUE,空闲60秒回收
+//可能会创建数量非常多的线程,导致OOM
+//适合并发执行许多短期任务和动态负载的场景
+ExecutorService cachedThreadPool = Executors.newCachedThreadPool();
+ 
+//适用于需要多个并发定时任务的场景
+ScheduledExecutorService threadPool = Executors.newScheduledThreadPool(10);
+//延时5秒执行
+//threadPool.schedule(new Task(), 5, TimeUnit.SECONDS);
+//scheduleAtFixedRate(Runnable command, long initialDelay, long period, TimeUnit unit);延时1秒后执行, 之后每间隔3秒执行一次
+threadPool.scheduleAtFixedRate(new Task(), 1, 3, TimeUnit.SECONDS);
+//schedule(Runnable command, long initialDelay, TimeUnit unit)延后执行,仅执行一次
+ 
+//等效于Executors.newScheduledThreadPool(1)
+//适用于需要串行顺序执行定时任务的场景
+ScheduledExecutorService threadPool2 = Executors.newSingleThreadScheduledExecutor();
+</code>
+
+<h2>ThreadPoolExecutor实例化方式</h2>
+ExecutorService executor = new ThreadPoolExecutor(...)
+ThreadPoolExecutor executor = new ThreadPoolExecutor(...)
+    ThreadPoolExecutor是ExecutorService接口的实现类
+<code>
+ExecutorService executor = new ThreadPoolExecutor(
+    5, 10, 60, TimeUnit.SECONDS, new LinkedBlockingQueue&lt;>()
+);
+ 
+// 只能使用ExecutorService接口中定义的方法
+executor.submit(new RunnableTask());
+executor.shutdown();
+ 
+// 如果需要使用ThreadPoolExecutor特有的方法，需要进行类型转换
+if (executor instanceof ThreadPoolExecutor) {
+    ((ThreadPoolExecutor) executor).setCorePoolSize(7);
+}
+</code>
+
+<h2>自定义线程池</h2>
+CPU密集型任务
+    如果任务主要消耗 CPU 资源，如数学计算、数据处理等，线程池的大小应接近于可用的 CPU 核心数
+    推荐线程池大小：线程池大小 = CPU核心数 + 1
+I/O密集型任务
+    如果任务主要进行 I/O 操作，如文件读写、网络通信等，线程池可以设置为更大的数量，因为 I/O 操作会导致线程等待。
+    推荐线程池大小：线程池大小 = CPU核心数 * 2 或更多，具体数量应根据 I/O 等待时间和 CPU 使用率进行调整。
+混合型任务
+    如果任务既有 CPU 密集型操作又有 I/O 密集型操作，可以根据两种任务的比例来调整线程池大小。
+<code>
+public class ThreadPoolExample {
+    public static void main(String[] args) {
+        // 获取可用的CPU核心数
+        int cpuCores = Runtime.getRuntime().availableProcessors();
+ 
+        // 根据任务类型设置线程池大小
+        int poolSize = cpuCores * 2; // 假设是I/O密集型任务
+ 
+        // 创建线程池
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(
+                poolSize,         // corePoolSize
+                poolSize,         // maximumPoolSize
+                60,               // keepAliveTime
+                TimeUnit.SECONDS, // unit
+                new LinkedBlockingQueue&lt;>() // workQueue
+        );
+ 
+        // 提交任务
+        for (int i = 0; i &lt; 10; i++) {
+            executor.submit(new Task());
+        }
+ 
+        // 关闭线程池
+        executor.shutdown();
+    }
+ 
+    static class Task implements Runnable {
+        @Override
+        public void run() {
+            try {
+                // 模拟I/O操作
+                Thread.sleep(1000);
+                System.out.println(Thread.currentThread().getName() + " is working...");
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+}
+</code>
+20240531140712.webp
+
+<h2>暂停和恢复线程池</h2>
+使用场景
+    后台任务调度
+        在许多应用中，后台任务需要定期运行，但在某些情况下（例如系统维护或高峰负载时期）可能需要暂停这些任务。
+    数据处理
+        在数据处理流水线中，例如数据清洗、转换、和加载（ETL）流程中，某些任务可能需要暂停以等待上游数据源的更新或下游系统的准备
+    资源管理
+        当系统资源（如数据库连接、文件句柄）紧张时，可以暂停部分任务以等待资源变得可用。这样可以避免资源过度消耗和系统崩溃。
+    系统维护
+        在进行系统维护时，通常需要暂停某些非关键任务。使用可暂停的线程池可以方便地暂停和恢复这些任务，而不需要完全停止线程池。
+    任务优先级处理
+        在一些情况下，某些任务的优先级可能较低，系统需要在处理高优先级任务时暂停低优先级任务。
+
+ThreadPoolExecutor 并不自带此功能，需要自行扩展, 例如通过 ReentrantLock 和 Condition 来控制线程池任务的暂停和恢复
+<code>
+public class PausableThreadPoolExecutor extends ThreadPoolExecutor {
+    private boolean isPaused;
+    //ReentrantLock 提供了更细粒度的锁机制，并且可以通过 newCondition() 方法创建条件对象。
+    //Condition 对象允许线程等待特定条件（await和signalAll类似于对象监视器的 wait 和 notify 方法）
+    private final ReentrantLock lock = new ReentrantLock();
+    private final Condition condition = lock.newCondition();
+ 
+    public PausableThreadPoolExecutor(int corePoolSize, int maximumPoolSize, long keepAliveTime, TimeUnit unit,
+                                      BlockingQueue&lt;Runnable> workQueue) {
+        super(corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue);
+    }
+ 
+    @Override
+    protected void beforeExecute(Thread t, Runnable r) {
+        super.beforeExecute(t, r);
+        // 获取 lock 对象的锁后，可以向下进入try块, 如果其他线程已经持有这个锁，当前线程将会被阻塞在try块之前，直到锁被释放
+        lock.lock();
+        try {
+            while (isPaused) condition.await();
+        } catch (InterruptedException ie) {
+            t.interrupt();
+        } finally {
+            lock.unlock();
+        }
+    }
+ 
+    public void pause() {
+        lock.lock();
+        try {
+            isPaused = true;
+        } finally {
+            lock.unlock();
+        }
+    }
+ 
+    public void resume() {
+        lock.lock();
+        try {
+            isPaused = false;
+            condition.signalAll();
+        } finally {
+            lock.unlock();
+        }
+    }
+ 
+    public static void main(String[] args) throws InterruptedException {
+        PausableThreadPoolExecutor executor = new PausableThreadPoolExecutor(2, 4, 60, TimeUnit.SECONDS,
+                new LinkedBlockingQueue&lt;>());
+ 
+        for (int i = 0; i &lt; 10; i++) {
+            final int index = i;
+            executor.execute(() -> {
+                System.out.println("Task " + index + " is running");
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                System.out.println("Task " + index + " is completed");
+            });
+        }
+ 
+        Thread.sleep(3000);
+        System.out.println("Pausing thread pool");
+        executor.pause();
+ 
+        Thread.sleep(6000);
+        System.out.println("Resuming thread pool");
+        executor.resume();
+ 
+        executor.shutdown();
+    }
+}
+</code>
+
+<h2>线程池的关闭</h2>
+    shutdown()
+        不是立即关闭所有线程, 而是自此不再接收新任务, 继续处理完当前的任务和原队列中存在的任务
+    shutdownNow()
+        尝试停止(触发中断)所有正在执行的任务，并不再处理等待队列中的任务
+        返回值是一个未执行的任务列表
+        List&lt;Runnable> runnablerlist = executorService.shutdownNow();
+    isShutdown()
+        判断shutdown()是否被调用了
+    isTerminated()
+        判断所有任务是否都已经执行完毕且所有线程都已经关闭
+    awaitTerminate(3L,TimeUnit.SECONDS);
+        如果所有任务在这个时间段内完成，那么方法会立即返回 true
+        该方法会阻塞调用它的线程，直到以下三个条件中的任何一个满足：
+            所有提交的任务都已完成执行（无论是正常完成还是异常终止）。
+            超时时间过去。
+            当前线程被中断。
+        通常在调用 shutdown 或 shutdownNow 方法之后使用，以确保线程池中的任务都已经执行完毕。
+        如果没有调用 shutdown 或 shutdownNow，awaitTermination 将永远等待，因为线程池还在接受新任务。
+
+<h2>线程池状态监视</h2>
+<code>
+public class ThreadPoolMonitor {
+ 
+    private final ThreadPoolExecutor threadPool;
+    private final ScheduledExecutorService scheduler; //创建一个单线程调度线程池
+ 
+    public ThreadPoolMonitor(ThreadPoolExecutor threadPool, int monitoringInterval) {
+        this.threadPool = threadPool;
+        this.scheduler = Executors.newSingleThreadScheduledExecutor();
+        this.scheduler.scheduleAtFixedRate(this::printThreadPoolStatus, 0, monitoringInterval, TimeUnit.SECONDS);
+    }
+ 
+    private void printThreadPoolStatus() {
+        System.out.println("========== ThreadPool Status ==========");
+        System.out.println("Core Pool Size: " + threadPool.getCorePoolSize());
+        System.out.println("Maximum Pool Size: " + threadPool.getMaximumPoolSize());
+        System.out.println("Current Pool Size: " + threadPool.getPoolSize());
+        System.out.println("Active Threads: " + threadPool.getActiveCount());
+        System.out.println("Completed Tasks: " + threadPool.getCompletedTaskCount());
+        System.out.println("Total Tasks: " + threadPool.getTaskCount());
+        System.out.println("Queue Size: " + threadPool.getQueue().size());
+        System.out.println("========================================");
+    }
+ 
+    public void shutdown() {
+        scheduler.shutdown();
+        try {
+            if (!scheduler.awaitTermination(1, TimeUnit.SECONDS)) {
+                scheduler.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            scheduler.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+    }
+ 
+    public static void main(String[] args) throws InterruptedException {
+         ThreadPoolExecutor threadPool = new ThreadPoolExecutor(
+                2, 4, 60, TimeUnit.SECONDS, new LinkedBlockingQueue&lt;>());
+ 
+        // 开始3秒一次的调度任务
+        // 实例化 ThreadPoolMonitor 对象后，调度任务会自动开始运行。这是因为调度任务的设置是在构造函数中完成的，scheduleAtFixedRate 方法会在创建 ThreadPoolMonitor 对象时立即启动任务调度
+        ThreadPoolMonitor monitor = new ThreadPoolMonitor(threadPool, 3);
+ 
+        for (int i = 0; i &lt; 10; i++) {
+            threadPool.submit(() -> {
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            });
+        }
+        Thread.sleep(30000);// 给时间让所有任务完成
+        threadPool.shutdown();
+        monitor.shutdown();// 关闭调度线程池
+    }
+}
+</code>
+<h2>使用注意</h2>
+避免任务堆积(队列过大)
+避免线程数过度增加(CacheThreadPool)
+排查线程泄漏(统计线程数量,无法回收,无法结束)
+
+<h1>ThreadLocal</h1>
+20240601095501.webp
+
+用于解决多线程环境中的共享变量问题, 可以存储独立于其他线程的数据, 主要是在需要线程隔离的场景，如线程池中的线程共享用户上下文
+    在多个线程中各自保存一份独立的变量副本, 每个线程对该变量的访问和修改互不影响
+在高并发环境下，ThreadLocal 提供线程安全的变量访问和操作，性能优于通过锁机制实现的共享变量
+
+
+<h2>方法</h2>
+get(): 返回当前线程的变量副本。
+set(T value): 设置当前线程的变量副本的值。
+remove(): 删除当前线程的变量副本，减少内存泄漏的风险。
+withInitial(Supplier): 静态工厂方法，接受一个 Supplier 函数来初始化 ThreadLocal 变量（Java 8 引入）。
+initialValue(): 可重写的方法，用于提供变量的初始值（Java 8 之前常用）
+    未被重写时默认返回 nul作为初始值
+    每个线程访问 ThreadLocal 变量时, 都只会调用一次 initialValue() 方法, 以确保每个线程都有自己的初始值。之后，该线程对该 ThreadLocal 变量的访问将使用它自己的副本，而不是重新调用 initialValue() 方法。
+        当一个线程结束后，使用 remove() 方法显式地清除 ThreadLocal 变量, 防止内存泄漏
+        每次在调用 ThreadLocal.remove() 方法之后，如果再次调用 ThreadLocal.get() 方法，会重新调用 initialValue() 方法为当前线程提供一个新的初始值。
+
+<h2>value的泄漏</h2>
+20240601103733.webp
+在 Java 中，所有普通的对象引用都是强引用。
+    一个对象只要有强引用存在，垃圾回收器就不会回收这个对象
+    弱引用不会阻止垃圾回收器回收被引用的对象。如果一个对象只被弱引用引用，那么当垃圾回收器运行时，这个对象会被回收
+
+ThreadLocalMap的每个Entry包含一个对key的弱引用,和一个对value的强引用
+    Entry类继承自WeakReference[ThreadLocal[?]]，表示 Entry 的键是一个 ThreadLocal 对象的弱引用
+    Entry的值Object v是一个强引用
+
+正常情况下,当线程终止,ThreadLocal里的value会被垃圾回收,因为没有强引用了
+但是如果线程不终止或需要保持很久(如使用线程池时的核心线程), 那么作为弱引用的key被回收后对应的value却不能被回收(因为 value 仍然被 ThreadLocalMap.Entry 强引用), 如果没有显式地清除这些 ThreadLocal 变量，随着时间的推移，会导致内存泄漏(某个不对象不再有用,但是占用的内存却不能被回收)，最终可能导致 OutOfMemoryError（OOM）。
+    显式清除 ThreadLocal 变量：
+        在不再需要使用 ThreadLocal 变量时，显式调用 remove() 方法清除。
+    使用 try-finally 块确保清除：
+        使用 try-finally 块确保在任务完成后清除 ThreadLocal 变量。
+    使用拦截器（Interceptor）来管理 ThreadLocal 变量是一个非常有效的方法，特别是在使用 Web 框架（如 Spring MVC）或其他支持拦截器的框架时。
+        通过拦截器，可以确保在每次请求处理完成后清除 ThreadLocal 变量，从而防止内存泄漏。
+
+<h2>用户身份验证和会话信息</h2>
+在 Web 应用程序中，可以使用 ThreadLocal 来存储当前用户的身份验证信息或会话信息。这样可以确保每个线程处理的请求都能安全地访问到正确的用户信息，而不需要在方法之间传递这些信息。
+<code>
+public class UserContext {
+    private static final ThreadLocal&lt;User> userThreadLocal = ThreadLocal.withInitial(() -> null);
+    public static void setUser(User user) {
+        userThreadLocal.set(user);
+    }
+    public static User getUser() {
+        return userThreadLocal.get();
+    }
+    public static void clear() {
+        userThreadLocal.remove();
+    }
+}
+</code>
+
+<h2>简化线程安全的格式化器</h2>
+例如，日期格式化器 (SimpleDateFormat) 不是线程安全的，可以使用 ThreadLocal 为每个线程提供一个独立的实例。
+<code>
+public class DateFormatter {
+    private static final ThreadLocal&lt;SimpleDateFormat> dateFormatHolder = ThreadLocal.withInitial(() -> new SimpleDateFormat("yyyy-MM-dd"));
+    public static String formatDate(Date date) {
+        return dateFormatHolder.get().format(date);
+    }
+    public static Date parseDate(String dateStr) throws ParseException {
+        return dateFormatHolder.get().parse(dateStr);
+    }
+}
+</code>
+
+<h2>线程局部变量的上下文信息</h2>
+在某些场景下，需要在整个线程的生命周期内保存一些上下文信息，比如日志跟踪 ID、事务 ID 等。
+<code>
+public class LogContext {
+    private static final ThreadLocal&lt;String> logIdHolder = ThreadLocal.withInitial(() -> UUID.randomUUID().toString());
+    public static String getLogId() {
+        return logIdHolder.get();
+    }
+    public static void setLogId(String logId) {
+        logIdHolder.set(logId);
+    }
+    public static void clear() {
+        logIdHolder.remove();
+    }
+}
+</code>
+
+<h2>数据库连接和事务管理</h2>
+在某些框架中，可以使用 ThreadLocal 来存储数据库连接或事务对象。这确保了同一个线程在同一个事务中使用相同的数据库连接，从而避免了并发问题。
+<code>
+public class ConnectionManager {
+    private static final ThreadLocal&lt;Connection> connectionHolder = ThreadLocal.withInitial(() -> {
+        // Initialize the connection (e.g., get from a connection pool)
+        return DriverManager.getConnection("jdbc:your_database_url");
+    });
+    public static Connection getConnection() {
+        return connectionHolder.get();
+    }
+    public static void closeConnection() {
+        Connection connection = connectionHolder.get();
+        if (connection != null) {
+            connection.close();
+            connectionHolder.remove();
+        }
+    }
+}
+</code>
+
+<h2>使用 Spring MVC 拦截器来管理 ThreadLocal 变量</h2>
+创建 ThreadLocal 变量
+<code>
+public class UserContext {
+    private static ThreadLocal&lt;String> userThreadLocal = new ThreadLocal&lt;>();
+ 
+    public static void setUser(String user) {
+        userThreadLocal.set(user);
+    }
+ 
+    public static String getUser() {
+        return userThreadLocal.get();
+    }
+ 
+    public static void clear() {
+        userThreadLocal.remove();
+    }
+}
+</code>
+创建拦截器, 在 preHandle 方法中设置 ThreadLocal 变量，在 afterCompletion 方法中清除 ThreadLocal 变量
+<code>
+public class UserContextInterceptor implements HandlerInterceptor {
+ 
+    @Override
+    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+        // 从请求中获取用户信息并设置到ThreadLocal中
+        String user = request.getHeader("X-User");
+        UserContext.setUser(user);
+        return true;
+    }
+ 
+    @Override
+    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) throws Exception {
+        // 清除ThreadLocal变量
+        UserContext.clear();
+    }
+}
+</code>
+注册拦截器
+<code>
+//Java 配置方式
+@Configuration
+public class WebConfig implements WebMvcConfigurer {
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(new UserContextInterceptor());
+    }
+}
+</code>
+XML 配置方式
+<code xml>
+&lt;mvc:interceptors&gt;
+    &lt;bean class=&quot;com.example.UserContextInterceptor&quot;/&gt;
+&lt;/mvc:interceptors&gt;
+</code>
+</pre>
+ </body>
+</html>

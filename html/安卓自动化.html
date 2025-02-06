@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>安卓自动化</title>
+ </head>
+ <body>
+  <span id="anchor">20241123225336-_工具使用</span>
+  <pre>
+https://play.google.com/store/apps/details?id=com.arlosoft.macrodroid&amp;hl=en_US&amp;gl=US&amp;pli=1
+
+smtp
+    goddady
+        server: smtpout.secureserver.net
+        port: 465 or 587
+    yeah.net
+        server: smtp.yeah.net
+        port: 25
+
+<h1>短信抄送邮件</h1>
+<code html>
+//标题
+[SMS] {sms_number}
+//正文
+&lt;span style="font-size:24px;font-family:serif"&gt;{sms_message}&lt;/span&gt;&lt;br&gt;&lt;br&gt;&lt;span style="color:white"&gt;[{year}-{month_digit}‐{dayofmonth} {hour}:{minute}] [{sms_number}]&lt;/span&gt;
+</code>
+
+<h1>漏话抄送邮件</h1>
+<code html>
+//标题
+[CALL] {call_number}
+//正文
+&lt;span style="font-size:24px;font-family:serif"&gt;{call_number}&lt;/span&gt;&lt;br&gt;&lt;br&gt;&lt;span style="color:white"&gt;[{year}-{month_digit}‐{dayofmonth} {hour}:{minute}] [{call_number}]&lt;/span&gt;
+</code>
+
+<h1>桌面编发短信</h1>
+<code null>
+//Dropbox文件夹
+sms
+    def.txt //号码\n短信内容 //离线访问
+    trigger.url //触发链接
+//定义局部变量
+str,arr
+//触发器
+Webhook
+//动作
+如果(VPN状态启用)
+    清除变量str,arr
+    启动Dropbox(重新启动) //必要
+    等待10秒
+    从文件中读取(def.txt -&gt; str)
+    文本操作, 拆分为数组({lv=str}) -&gt; arr //分割符\n
+    发短信({lv=arr[0]}:{lv=arr[1]})
+    发送提示邮件
+        已向{lv=arr[0]}发送了消息: {lv=arr[1]}
+否则
+    发送提示邮件
+        代理未开启
+//结束条件
+</code>
+
+<h1>解锁失败存照</h1>
+<code null>
+//局部变量
+    cnt 
+//触发器
+登陆尝试失败 任何的登录失败
+//动作
+如果cnt&lt;3
+    设置变量 cnt:(+1)
+结束条件
+如果cnt=3
+    设置变量 cnt:0 
+    拍照 前摄像头
+    等待直至触发 屏幕已解锁
+    显示对话框 suspicious unlocking
+结束条件
+//约束条件
+</code>
+</pre>
+ </body>
+</html>

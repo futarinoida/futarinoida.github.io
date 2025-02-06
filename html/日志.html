@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>日志</title>
+ </head>
+ <body>
+  <span id="anchor">20240425192057-_java</span>
+  <pre>
+日志门面(一系列的日志接口)
+    JCL (Commons Logging)
+        Commons Logging常与Log4j组合使用
+    SLF4J (Simple Logging Facade for Java)
+        Slf4j常与Logback组合使用
+
+日志实现
+    log4j是apache实现的一个开源日志组件。Log4j 1当前已经停止维护，不建议使用
+        Log4j 在一些项目中仍然被广泛使用
+    Logback 是 log4j 的后继者，由 log4j 的作者设计和开发
+        Logback 具有较低的延迟和高吞吐量。
+        Logback 支持异步日志，但是需要使用 AsyncAppender 实现。
+        在配置简易性、社区支持等方面, Logback 是一个优秀的选择。
+    Log4j2是Log4j的升级产品,, Log4j 2不兼容Log4j 1（但log4j2提供了桥接包，可以将log4j1桥接到log4j2）
+        log4j2 通过异步日志和可配置的缓冲区来提高性能，可以实现比 Logback 更高的吞吐量。
+        log4j2 默认就支持异步日志，不需要额外配置。
+        如果性能是首要考虑因素，可以选择 log4j2
+    Jul (Java Util Logging),自Java1.4以来的官方日志实现
+        无需额外的依赖，并且具有较好的集成性
+        如果是旧项目或需要与其他 Java 库集成，可以考虑使用 SLF4J + JUL，通过 SLF4J 将 JUL 日志转发到其他框架。
+
+日志级别
+<p>
+TRACE:最详细的日志信息，通常用于跟踪程序的内部流程:通常不会在生产环境中启用，用于调试和详细跟踪信息
+DEBUG:详细信息，用于调试应用程序，通常会输出较多信息:在开发和测试阶段启用，帮助开发人员调试和诊断问题
+INFO:普通信息，表明应用程序正在运行:通常记录应用程序的主要事件和状态信息
+WARN:警告信息，表示潜在的问题或不期望的情况，但不会导致应用程序失败:指示可能的问题，不会影响应用程序的正常运行
+ERROR:错误信息，指出发生的错误或异常，可能会影响应用程序的正常运行:用于记录错误和异常情况，可能需要进一步的处理和干预
+</p>
+
+避免在循环中记录日志：
+    在循环中频繁记录日志会导致性能问题。应该避免在循环中记录大量的调试信息或详细信息。
+    可以考虑使用条件判断来控制日志记录的频率，以降低对性能的影响
+异步日志记录：
+    如果日志记录对应用程序的性能产生较大影响，可以考虑使用异步日志记录。
+    异步日志记录允许在后台线程中执行日志记录操作，从而减少对主线程的影响。
+定期清理日志文件：
+    长时间运行的应用程序可能会生成大量的日志文件，占用过多的磁盘空间。
+    应该定期清理旧的日志文件，避免磁盘空间不足和性能下降的问题。
+    可以使用定时任务或日志框架自带的日志文件滚动机制来实现日志文件的清理。
+
+<h1>logback</h1>
+<h2>依赖</h2>
+logback-classic 包含了 SLF4J 的 API 依赖项，因此只需要单独引入 logback-classic 就可以了
+    Logback 1.2.3 是为 Java 8 编译的最后一个版本
+        如果你的项目运行在 Java 8 环境下，推荐使用 Logback 1.2.3 版本或更低的 1.2.x 版本。
+    Logback 1.2.6 也可以在 Java 8 环境下使用的原因是，Logback 1.2.x 系列的版本都是为 Java 7 及以上版本设计的。
+        虽然 Logback 1.2.6 可能包含一些 Java 9 或更高版本的改进和优化，但它仍然保持与 Java 8 的兼容性。
+<code xml>
+&lt;dependency&gt;
+    &lt;groupId&gt;ch.qos.logback&lt;/groupId&gt;
+    &lt;artifactId&gt;logback-classic&lt;/artifactId&gt;
+    &lt;version&gt;1.2.3&lt;/version&gt;
+&lt;/dependency&gt;
+</code>
+
+<h2>配置</h2>
+如果没有创建 resources/logback.xml 文件, Logback 默认将向控制台输出 INFO 级别及以上的日志，并且不会将日志输出到文件中
+Logback本身不支持直接在同一个文件中定义和引用公共模式。你需要将公共的部分提取到一个单独的文件，然后在主配置文件中通过include标签引入, 如果不希望分成多个文件，使用Groovy配置也是一种选择
+<code xml>
+&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; ?&gt;
+&lt;configuration&gt;
+ 
+    &lt;appender name=&quot;root&quot; class=&quot;ch.qos.logback.core.FileAppender&quot;&gt;
+        &lt;!-- 如果日志文件的路径没有特别指定，会在项目的根目录下生成 --&gt;
+        &lt;file&gt;logback_root.log&lt;/file&gt;
+        &lt;encoder&gt;
+            &lt;!--
+                %-5level 日志级别按5个字符占位右对齐
+                %logger{36} 产生信息的类名超出36个字符用缩写形式
+                %msg%n 信息和换行
+            --&gt;
+            &lt;pattern&gt;%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n&lt;/pattern&gt;
+            &lt;!-- 如果不指定字符编码，系统默认可能使用操作系统的默认编码 --&gt;
+            &lt;charset&gt;UTF-8&lt;/charset&gt;
+        &lt;/encoder&gt;
+    &lt;/appender&gt;
+ 
+    &lt;!-- 注意区别FileAppender和ConsoleAppender, 输出到控制台不需要指定文件 --&gt;
+    &lt;appender name=&quot;console&quot; class=&quot;ch.qos.logback.core.ConsoleAppender&quot;&gt;
+        &lt;encoder&gt;
+            &lt;!-- 控制台使用 ANSI 转义序列对关键信息着色 --&gt;
+            &lt;pattern&gt;%d{HH:mm:ss.SSS} [%thread] %highlight(%-5level) %logger{36} - %highlight(%msg) %n&lt;/pattern&gt;
+        &lt;/encoder&gt;
+    &lt;/appender&gt;
+ 
+    &lt;!-- 使用 RollingFileAppender 类来处理日志文件的滚动和写入 --&gt;
+    &lt;appender name=&quot;debug&quot; class=&quot;ch.qos.logback.core.rolling.RollingFileAppender&quot;&gt;
+        &lt;!-- 指定了滚动策略为基于时间的滚动策略 --&gt;
+        &lt;rollingPolicy class=&quot;ch.qos.logback.core.rolling.TimeBasedRollingPolicy&quot;&gt;
+            &lt;!-- 其中 %d 表示日期格式，生成的文件名类似于 LogX.2024-06-28.log，根据当前日期生成具体的文件名 --&gt;
+            &lt;fileNamePattern&gt;logback_debug.%d.log&lt;/fileNamePattern&gt;
+        &lt;/rollingPolicy&gt;
+        &lt;encoder&gt;
+            &lt;pattern&gt;%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n&lt;/pattern&gt;
+            &lt;charset&gt;UTF-8&lt;/charset&gt;
+        &lt;/encoder&gt;
+        &lt;filter class=&quot;ch.qos.logback.classic.filter.LevelFilter&quot;&gt;
+            &lt;!-- 过滤器的目标级别为 INFO。不包括高于或低于INFO的级别, 如果要包含级别以上的使用ThresholdFilter--&gt;
+            &lt;level&gt;DEBUG&lt;/level&gt;
+            &lt;onMatch&gt;ACCEPT&lt;/onMatch&gt;
+            &lt;onMismatch&gt;DENY&lt;/onMismatch&gt;
+        &lt;/filter&gt;
+        &lt;!--
+            &lt;filter class=&quot;ch.qos.logback.classic.filter.ThresholdFilter&quot;&gt;
+                &lt;level&gt;INFO&lt;/level&gt;
+            &lt;/filter&gt;
+        --&gt;
+    &lt;/appender&gt;
+ 
+    &lt;appender name=&quot;info&quot; class=&quot;ch.qos.logback.core.rolling.RollingFileAppender&quot;&gt;
+        &lt;rollingPolicy class=&quot;ch.qos.logback.core.rolling.TimeBasedRollingPolicy&quot;&gt;
+            &lt;fileNamePattern&gt;logback_info.%d.log&lt;/fileNamePattern&gt;
+        &lt;/rollingPolicy&gt;
+        &lt;encoder&gt;
+            &lt;pattern&gt;%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n&lt;/pattern&gt;
+            &lt;charset&gt;UTF-8&lt;/charset&gt;
+        &lt;/encoder&gt;
+        &lt;filter class=&quot;ch.qos.logback.classic.filter.LevelFilter&quot;&gt;
+            &lt;level&gt;INFO&lt;/level&gt;
+            &lt;onMatch&gt;ACCEPT&lt;/onMatch&gt;
+            &lt;onMismatch&gt;DENY&lt;/onMismatch&gt;
+        &lt;/filter&gt;
+    &lt;/appender&gt;
+ 
+    &lt;appender name=&quot;error&quot; class=&quot;ch.qos.logback.core.rolling.RollingFileAppender&quot;&gt;
+        &lt;rollingPolicy class=&quot;ch.qos.logback.core.rolling.TimeBasedRollingPolicy&quot;&gt;
+            &lt;fileNamePattern&gt;logback_error.%d.log&lt;/fileNamePattern&gt;
+        &lt;/rollingPolicy&gt;
+        &lt;encoder&gt;
+            &lt;pattern&gt;%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n&lt;/pattern&gt;
+            &lt;charset&gt;UTF-8&lt;/charset&gt;
+        &lt;/encoder&gt;
+        &lt;filter class=&quot;ch.qos.logback.classic.filter.LevelFilter&quot;&gt;
+            &lt;level&gt;ERROR&lt;/level&gt;
+            &lt;onMatch&gt;ACCEPT&lt;/onMatch&gt;
+            &lt;onMismatch&gt;DENY&lt;/onMismatch&gt;
+        &lt;/filter&gt;
+    &lt;/appender&gt;
+ 
+    &lt;!-- 自定义日志记录器 --&gt;
+    &lt;appender name=&quot;custom&quot; class=&quot;ch.qos.logback.core.rolling.RollingFileAppender&quot;&gt;
+        &lt;rollingPolicy class=&quot;ch.qos.logback.core.rolling.TimeBasedRollingPolicy&quot;&gt;
+            &lt;fileNamePattern&gt;logback_custom.%d.log&lt;/fileNamePattern&gt;
+        &lt;/rollingPolicy&gt;
+        &lt;encoder&gt;
+            &lt;pattern&gt;%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n&lt;/pattern&gt;
+            &lt;charset&gt;UTF-8&lt;/charset&gt;
+        &lt;/encoder&gt;
+    &lt;/appender&gt;
+    &lt;!--
+        未显式声明additivity(增加性)属性时等于隐式声明了additivity=&quot;true&quot;
+        设为true时,记录器(logger)会继承其父logger的附加器(appender)配置，并将接收到的日志消息传递给其父logger和根logger
+            如果一个记录器的名称是另一个记录器名称的前缀（即名称以另一个名称开始），则这两个记录器具有父子关系
+            例如，com.example 是 com.example.MyClass 的父记录器
+        通过将 additivity 设置为 false，可以禁用这种继承行为，使得日志消息只会被当前logger处理
+
+        日志事件会先被发送到自定义记录器，然后才会传递给根记录器
+        如果日志事件级别为info,自定义记录器级别为error,根记录器级别为debug
+        那么自定义记录器不会接受此事件,因为additivity为false,根记录器也无法捕获到此事件
+    --&gt;
+    &lt;logger name=&quot;com.ida.日志测试.LogbackTest&quot; level=&quot;DEBUG&quot; additivity=&quot;false&quot;&gt;
+        &lt;appender-ref ref=&quot;custom&quot;/&gt;
+    &lt;/logger&gt;
+ 
+    &lt;!--
+        当一个日志消息到达根记录器时，意味着该消息未被任何其他具体记录器（即没有与之匹配的 logger）处理
+        因此根记录器会接收并处理这些未被处理的消息
+        根记录器可以被视为日志消息的“最后一道防线”，确保所有日志消息都有一个最终的输出位置
+    --&gt;
+    &lt;root level=&quot;DEBUG&quot;&gt;
+        &lt;appender-ref ref=&quot;error&quot;/&gt;
+        &lt;appender-ref ref=&quot;info&quot;/&gt;
+        &lt;appender-ref ref=&quot;console&quot;/&gt;
+        &lt;appender-ref ref=&quot;debug&quot;/&gt;
+        &lt;appender-ref ref=&quot;root&quot;/&gt;
+    &lt;/root&gt;
+ 
+&lt;/configuration&gt;
+</code>
+
+<h2>使用</h2>
+<code>
+package com.ida.日志测试;
+ 
+//注意包地址
+//这些是Sun内部的SLF4J实现，不推荐在生产代码中使用它们，这些内部类可能不会与Logback正确集成，因此无法生成日志文件。
+//com.sun.org.slf4j.internal.Logger
+//com.sun.org.slf4j.internal.LoggerFactory
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+ 
+public class LogbackTest {
+    private static final Logger logger = LoggerFactory.getLogger(LogbackTest.class);
+ 
+    public static void main(String[] args) {
+        logger.debug("This is a debug message LogbackTest");
+        logger.info("This is an info message LogbackTest");
+        logger.error("This is an error message LogbackTest");
+    }
+}
+ 
+public class LogbackTest2 {
+    private static final Logger logger = LoggerFactory.getLogger(LogbackTest2.class);
+ 
+    public static void main(String[] args) {
+        logger.debug("This is a debug message LogbackTest2");
+        logger.info("This is an info message LogbackTest2");
+        logger.error("This is an error message LogbackTest2");
+        // 使用自定义记录器
+        Logger customLogger = LoggerFactory.getLogger("com.ida.日志测试.LogbackTest");
+        customLogger.debug("This is a debug message from customLogger.");
+    }
+}
+</code>
+
+<h1>log4j2</h1>
+<h2>依赖</h2>
+<code xml>
+&lt;dependency&gt;
+    &lt;groupId&gt;org.apache.logging.log4j&lt;/groupId&gt;
+    &lt;artifactId&gt;log4j-api&lt;/artifactId&gt;
+    &lt;version&gt;2.14.1&lt;/version&gt;
+&lt;/dependency&gt;
+&lt;dependency&gt;
+    &lt;groupId&gt;org.apache.logging.log4j&lt;/groupId&gt;
+    &lt;artifactId&gt;log4j-core&lt;/artifactId&gt;
+    &lt;version&gt;2.14.1&lt;/version&gt;
+&lt;/dependency&gt;
+</code>
+
+<h2>配置</h2>
+log4j2.xml
+<code xml>
+&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;
+&lt;!--
+    status属性用于设置 Log4j2 内部日志记录器的级别。
+    这个日志记录器负责记录 Log4j2 自身的行为和状态信息，例如配置文件加载、日志记录器初始化等
+    内部日志记录器产生的内容默认输出到控制台,主要用途是帮助开发人员调试 Log4j2 自身的配置和运行问题
+    开发阶段使用较低的日志级别（例如 debug 或 trace）来获取更多详细的日志信息，有助于调试和诊断问题
+    生产环境使用较高的日志级别（例如 error 或 fatal(非常严重的错误)）以减少不必要的日志输出，只记录重要的错误和警告信息。
+--&gt;
+&lt;Configuration status=&quot;fatal&quot;&gt;
+    &lt;!-- 可复用的部分 --&gt;
+    &lt;Properties&gt;
+        &lt;!-- 如果日志文件的路径没有特别指定，会在项目的根目录下生成 --&gt;
+        &lt;Property name=&quot;baseDir&quot; value=&quot;D:\Dropbox\workspace\idea\practice&quot;/&gt;
+        &lt;!--
+            &lt;PatternLayout pattern=&quot;[%d{HH:mm:ss:SSS}] [%p] - %l - %m%n&quot;/&gt;是log4j1.x的格式
+                %p: 输出日志事件的级别
+                %l: 输出日志事件的源代码位置，包括类名、方法名、文件名和行号, com.example.MyClass.myMethod(MyClass.java:42)
+                    %l 输出源代码位置时，会对性能产生较大影响，获取行号涉及到在运行时解析堆栈跟踪信息，这是一项相对较昂贵的操作, 建议在开发和调试阶段使用，在生产环境中尽量避免使用。
+                %m: 输出日志事件的消息内容
+                %n: 输出换行符
+        --&gt;
+        &lt;!--
+            %logger{36} 类名超36字符时采用缩写
+            %C{1} 如果类名是 com.example.MyClass，则只输出 MyClass,调整{1}中的数字来控制输出的类名部分数
+            %M：方法名
+            %L：行号
+        --&gt;
+        &lt;Property name=&quot;p_debug&quot; value=&quot;[%d{MM:dd HH:mm:ss.SSS}] [%level] [%logger{36}] [%C{1}.%M:%L] - %msg%n&quot;/&gt;
+        &lt;Property name=&quot;p_console&quot; value=&quot;[%d{MM:dd HH:mm:ss.SSS}] %highlight{[%level]} [%logger{36}] - %highlight{%msg} %n&quot;/&gt;
+        &lt;Property name=&quot;p&quot; value=&quot;[%d{MM:dd HH:mm:ss.SSS}] [%level] [%logger{36}] - %msg%n&quot;/&gt;
+    &lt;/Properties&gt;
+ 
+    &lt;Appenders&gt;
+        &lt;!-- 控制台输出debug级以上信息 --&gt;
+        &lt;Console name=&quot;console&quot; target=&quot;SYSTEM_OUT&quot;&gt;
+            &lt;ThresholdFilter level=&quot;DEBUG&quot; onMatch=&quot;ACCEPT&quot;/&gt;
+            &lt;!-- Log4j2 可能默认禁用了 ANSI 转义码。可以通过设置 disableAnsi=&quot;false&quot; 属性来启用它 --&gt;
+            &lt;PatternLayout pattern=&quot;${p_console}&quot; disableAnsi=&quot;false&quot;/&gt;
+        &lt;/Console&gt;
+
+        &lt;!-- debug级别日志文件输出 --&gt;
+        &lt;RollingFile name=&quot;debug&quot;
+                     fileName=&quot;${baseDir}/log4j2_debug.log&quot;
+                     filePattern=&quot;${baseDir}/log4j2_debug_%i.log.%d{yyyy-MM-dd}&quot;&gt;
+            &lt;!--
+                ThresholdFilter：根据日志级别过滤，比如只接受某个级别及以上的日志事件
+                    &lt;ThresholdFilter level=&quot;DEBUG&quot;/&gt;
+                RegexFilter：使用正则表达式匹配日志消息内容来决定是否接受事件
+                    &lt;RegexFilter regex=&quot;.*error.*&quot; onMatch=&quot;ACCEPT&quot; onMismatch=&quot;DENY&quot;/&gt;
+                LevelRangeFilter：指定一个级别范围来过滤日志事件
+                    &lt;LevelRangeFilter minLevel=&quot;INFO&quot; maxLevel=&quot;WARN&quot; onMatch=&quot;ACCEPT&quot; onMismatch=&quot;DENY&quot;/&gt;
+            --&gt;
+            &lt;!--
+                Filters(过滤链)中包含了多个ThresholdFilter(阈值过滤器)
+                日志事件将按ThresholdFilter的声明顺序依次被处理
+                level 属性指定了日志消息的最低级别, 如果没有显示声明level, 默认为error
+                如果未显式指定 onMatch 和 onMismatch，它们的默认行为分别是 ACCEPT 和 NEUTRAL(即使默认值符合预期，显式设置可以减少配置错误的风险)
+                    ACCEPT [记录并向下传递], DENY [不记录且不向下传递], NEUTRAL [不记录但向下传递到下一个过滤器（如果有）]
+                    影响范围仅限于当前附加器的过滤链
+            --&gt;
+            &lt;Filters&gt;
+                &lt;!-- debug、info、warn、error、fatal 级别的日志事件都会被接受 --&gt;
+                &lt;!-- info、warn、error、fatal 级别的日志事件会被拒绝, debug,trace不记录但向下传递到下一个过滤器（如果有） --&gt;
+                &lt;!-- 两个ThresholdFilter组合的效果是只接受级别等于debug的日志信息 --&gt;
+                &lt;ThresholdFilter level=&quot;DEBUG&quot;/&gt;
+                &lt;ThresholdFilter level=&quot;INFO&quot; onMatch=&quot;DENY&quot; onMismatch="NEUTRAL"/&gt;
+            &lt;/Filters&gt;
+            &lt;PatternLayout pattern=&quot;${p_debug}&quot;/&gt;
+            &lt;Policies&gt;
+                &lt;!--
+                    &lt;TimeBasedTriggeringPolicy interval=&quot;1&quot; modulate=&quot;true&quot;/&gt;
+                    interval(默认值1): 日志文件每隔1个时间单位进行滚动,具体取决于日志文件名模式中的日期格式
+                        如果文件模式是 log_%d{yyyy-MM-dd-HH}.log，那么 interval=&quot;1&quot; 则意味着每小时滚动一次
+                        如果文件模式是 log_%d{yyyy-MM-dd}.log，那么 interval=&quot;1&quot; 就意味着日志文件每天会滚动一次
+                    modulate=(默认值true): 确保滚动时间点与自然时间单位（如午夜12点）对齐
+                    即使默认值符合预期，显式设置可以减少配置错误的风险
+                    size=&quot;10 MB&quot;: 当日志文件大小达到10 MB时进行滚动
+                    当配置了多个触发策略时，日志滚动会在任意一个策略满足条件时触发
+                    两个策略的组合确保了日志文件不会变得太大，同时也会按时间单位定期滚动
+                --&gt;
+                &lt;TimeBasedTriggeringPolicy interval="1" modulate="true"/&gt;
+                &lt;SizeBasedTriggeringPolicy size=&quot;10 MB&quot;/&gt;
+            &lt;/Policies&gt;
+        &lt;/RollingFile&gt;
+ 
+        &lt;!-- info级别日志文件输出 --&gt;
+        &lt;RollingFile name=&quot;info&quot;
+                     fileName=&quot;${baseDir}/log4j2_info.log&quot;
+                     filePattern=&quot;${baseDir}/log4j2_info_%i.log.%d{yyyy-MM-dd}&quot;&gt;
+            &lt;Filters&gt;
+                &lt;ThresholdFilter level=&quot;INFO&quot;/&gt;
+                &lt;ThresholdFilter level=&quot;ERROR&quot; onMatch=&quot;DENY&quot; onMismatch="NEUTRAL"/&gt;
+            &lt;/Filters&gt;
+            &lt;PatternLayout pattern=&quot;${p}&quot;/&gt;
+            &lt;Policies&gt;
+                &lt;TimeBasedTriggeringPolicy interval="1" modulate="true"/&gt;
+                &lt;SizeBasedTriggeringPolicy size=&quot;10 MB&quot;/&gt;
+            &lt;/Policies&gt;
+        &lt;/RollingFile&gt;
+ 
+        &lt;!-- error级别日志文件输出 --&gt;
+        &lt;RollingFile name=&quot;error&quot;
+                     fileName=&quot;${baseDir}/log4j2_error.log&quot;
+                     filePattern=&quot;${baseDir}/log4j2_error_%i.log.%d{yyyy-MM-dd}&quot;&gt;
+            &lt;Filters&gt;
+                &lt;ThresholdFilter level=&quot;ERROR&quot;/&gt;
+            &lt;/Filters&gt;
+            &lt;PatternLayout pattern=&quot;${p}&quot;/&gt;
+            &lt;Policies&gt;
+                &lt;TimeBasedTriggeringPolicy interval="1" modulate="true"/&gt;
+                &lt;SizeBasedTriggeringPolicy size=&quot;10 MB&quot;/&gt;
+            &lt;/Policies&gt;
+        &lt;/RollingFile&gt;
+ 
+        &lt;!-- 总记录 --&gt;
+        &lt;File name=&quot;root&quot; fileName=&quot;${baseDir}/log4j2_root.log&quot;&gt;
+            &lt;Filters&gt;
+                &lt;ThresholdFilter level=&quot;DEBUG&quot;/&gt;
+            &lt;/Filters&gt;
+            &lt;PatternLayout pattern=&quot;${p}&quot;/&gt;
+        &lt;/File&gt;
+ 
+        &lt;!-- 自定义记录器 --&gt;
+        &lt;RollingFile name=&quot;CustomAppender&quot;
+                     fileName=&quot;${baseDir}/log4j2_custom.log&quot;
+                     filePattern=&quot;${baseDir}/log4j2_custom_%i-%d{MM-dd-yyyy}.log&quot;&gt;
+            &lt;ThresholdFilter level=&quot;DEBUG&quot; onMatch=&quot;ACCEPT&quot;/&gt;
+            &lt;PatternLayout pattern=&quot;${p}&quot;/&gt;
+            &lt;Policies&gt;
+                &lt;TimeBasedTriggeringPolicy/&gt;
+                &lt;SizeBasedTriggeringPolicy size=&quot;10 MB&quot; /&gt;
+            &lt;/Policies&gt;
+        &lt;/RollingFile&gt;
+    &lt;/Appenders&gt;
+ 
+    &lt;Loggers&gt;
+        &lt;!-- 
+            additivity=&quot;false&quot; 不会向父记录器(没有父包则为Root)传播日志事件
+                只有配置在当前日志记录器下的附加器（Appender）会处理和记录日志消息，而不会有任何父级记录器的附加器参与记录
+        --&gt;
+        &lt;Logger name=&quot;com.ida.日志测试.Log4j2Test&quot; level=&quot;DEBUG&quot; additivity=&quot;false&quot;&gt;
+            &lt;AppenderRef ref=&quot;CustomAppender&quot;/&gt;
+        &lt;/Logger&gt;
+ 
+        &lt;!--
+            对于一条日志消息, 先查找是否属于某个自定义记录器(Logger)及是否匹配其等级, 没有的话就交给根记录器(Root), 根记录器处理所有没有被其他显式定义的日志记录器处理的日志事件
+            如果匹配到了某个记录器, 则所有与该记录器关联的附加器（Appender）都会接收这条日志消息,然后根据自身配置处理
+        --&gt;
+        &lt;Root level=&quot;DEBUG&quot;&gt;
+            &lt;appender-ref ref=&quot;error&quot;/&gt;
+            &lt;appender-ref ref=&quot;info&quot;/&gt;
+            &lt;appender-ref ref=&quot;console&quot;/&gt;
+            &lt;appender-ref ref=&quot;debug&quot;/&gt;
+            &lt;appender-ref ref=&quot;root&quot;/&gt;
+        &lt;/Root&gt;
+    &lt;/Loggers&gt;
+ 
+&lt;/Configuration&gt;
+</code>
+
+<h2>使用</h2>
+<code>
+package com.ida.日志测试;
+ 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+ 
+public class Log4j2Test {
+    private static final Logger logger = LogManager.getLogger(Log4j2Test.class);
+ 
+    public static void main(String[] args) {
+        logger.debug("This is a debug message Log4j2Test");
+        logger.info("This is an info message Log4j2Test");
+        logger.error("This is an error message Log4j2Test");
+    }
+}
+ 
+public class Log4j2Test2 {
+    private static final Logger logger = LogManager.getLogger(Log4j2Test2.class);
+ 
+    public static void main(String[] args) {
+        logger.debug("This is a debug message Log4j2Test2");
+        logger.info("This is an info message Log4j2Test2");
+        logger.error("This is an error message Log4j2Test2");
+        // 使用自定义记录器
+        Logger customLogger = LogManager.getLogger("com.ida.日志测试.Log4j2Test");
+        customLogger.debug("This is a debug message from customLogger.");
+    }
+}
+</code>
+
+<h1>JUL</h1>
+Java Util Logging (JUL) 中每个级别的含义
+<p>
+级别:数值:含义
+SEVERE:1000:表示非常严重的错误事件，可能导致程序终止。
+WARNING:900:表示潜在的问题或即将出现的错误情况，但不影响程序的继续执行。
+INFO:800:表示程序正常运行的信息，用于描述程序的进度、状态和一些重要但非关键性的信息。
+CONFIG:700:表示程序或系统配置的信息，通常用于在程序启动时输出配置信息。
+FINE:500:表示详细的调试信息，用于跟踪程序的执行情况。
+FINER:400:表示比 FINE 更详细的调试信息，用于更详细的跟踪和诊断。
+FINEST:300:表示最详细的调试信息，用于最细粒度的跟踪和诊断。
+ALL:0:启用所有日志消息的输出。
+OFF:Integer.MAX_VALUE:关闭所有日志消息的输出。
+</p>
+<h2>配置类</h2>
+<code>
+package com.ida.日志测试;
+ 
+import java.io.IOException;
+import java.util.logging.ConsoleHandler;
+import java.util.logging.FileHandler;
+import java.util.logging.Filter;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
+ 
+public class JULConfig {
+ 
+    private static final Object globalLock = new Object();
+    private static final Object customLock = new Object();
+ 
+    public static void setup() throws IOException {
+        // 获取全局日志记录器
+        Logger globalLogger = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
+        globalLogger.setUseParentHandlers(false); // 禁用默认的控制台处理器
+ 
+        // 创建控制台处理器并设置格式化器和日志级别
+        ConsoleHandler consoleHandler = new ConsoleHandler();
+        consoleHandler.setFormatter(new SimpleFormatter());
+        consoleHandler.setLevel(Level.ALL); // 设置控制台处理器的日志级别
+        globalLogger.addHandler(consoleHandler);
+ 
+        // 创建不同级别日志的处理器
+        FileHandler fineHandler = new FileHandler("jul_fine.log", true); // 追加模式
+        FileHandler infoHandler = new FileHandler("jul_info.log", true); // 追加模式
+        FileHandler severeHandler = new FileHandler("jul_severe.log", true); // 追加模式
+        FileHandler rootHandler = new FileHandler("jul_root.log", true); // 追加模式
+ 
+        // 设置处理器的格式化器
+        SimpleFormatter formatter = new SimpleFormatter();
+        fineHandler.setFormatter(formatter);
+        infoHandler.setFormatter(formatter);
+        severeHandler.setFormatter(formatter);
+        rootHandler.setFormatter(formatter);
+ 
+        // 设置日志级别过滤器
+        fineHandler.setFilter(new LevelFilter(Level.FINE));
+        infoHandler.setFilter(new LevelFilter(Level.INFO));
+        severeHandler.setFilter(new LevelFilter(Level.SEVERE));
+ 
+        // 将处理器添加到日志记录器中
+        synchronized (globalLock) {
+            globalLogger.addHandler(fineHandler);
+            globalLogger.addHandler(infoHandler);
+            globalLogger.addHandler(severeHandler);
+            globalLogger.addHandler(rootHandler);
+ 
+            // 设置rootHandler的日志级别
+            rootHandler.setLevel(Level.ALL);
+ 
+            // 设置全局日志记录器的日志级别
+            globalLogger.setLevel(Level.ALL);
+        }
+ 
+        // 配置自定义记录器
+        setupCustomLogger();
+    }
+ 
+    private static void setupCustomLogger() throws IOException {
+        // 创建自定义记录器
+        Logger customLogger = Logger.getLogger("custom");
+ 
+        // 禁用自定义记录器的父级处理器
+        customLogger.setUseParentHandlers(false);
+ 
+        // 创建处理器
+        FileHandler customHandler = new FileHandler("jul_custom.log", true); // 追加模式
+        customHandler.setFormatter(new SimpleFormatter());
+ 
+        // 设置日志级别
+        customHandler.setLevel(Level.ALL);
+ 
+        // 添加处理器到自定义记录器
+        synchronized (customLock) {
+            customLogger.addHandler(customHandler);
+            customLogger.setLevel(Level.ALL);
+        }
+    }
+ 
+    static class LevelFilter implements Filter {
+        private final Level level;
+ 
+        LevelFilter(Level level) {
+            this.level = level;
+        }
+ 
+        @Override
+        public boolean isLoggable(LogRecord record) {
+            return record.getLevel().equals(level);
+        }
+    }
+}
+</code>
+<h2>使用</h2>
+<code>
+package com.ida.日志测试;
+ 
+import java.io.IOException;
+import java.util.logging.Logger;
+ 
+public class JULTest {
+ 
+    private static final Logger logger = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
+    private static final Logger customLogger = Logger.getLogger("custom");
+ 
+    public static void main(String[] args) {
+        try {
+            JULConfig.setup();
+        } catch (IOException e) {
+            e.printStackTrace();
+            return;
+        }
+ 
+        logger.fine("这是一条DEBUG信息");
+        logger.info("这是一条INFO信息");
+        logger.severe("这是一条ERROR信息");
+ 
+        customLogger.fine("这是一条DEBUG信息 custom");
+        customLogger.info("这是一条INFO信息 custom");
+        customLogger.severe("这是一条ERROR信息 custom");
+    }
+}
+</code>
+</pre>
+ </body>
+</html>

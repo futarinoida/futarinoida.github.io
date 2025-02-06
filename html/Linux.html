@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>Linux</title>
+ </head>
+ <body>
+  <span id="anchor">20240428165642-_环境容器</span>
+  <pre>
+操作系统(Operating System)是应用程序运行的基础支撑环境
+操作系统的作用是管理和控制计算机系统的硬件与软件资源
+Intel x86架构上常见的操作系统:Windos,Linux,Unix(Mac OS基于此开发)..
+Linux是目前最主要的服务器端操作系统
+
+<h1>发行版</h1>
+Linux系统内核(kernel)提供了Linux操作系统的核心功能
+不同开发商在内核基础上扩展封装, 形成了不同的发行版本
+
+桌面系统
+    Ubuntu (可替代windows)
+服务器系统
+    CentOS 社区 
+        Community Enterprise Operating System
+        基于Red Hat Enterprise Linux的开源企业级Linux发行版本
+        各版本CentOS都会获得十年的支持,与RHEL保持同步更新
+        CentOS采用社区支持,bug修复会及时更新到RHEL, 两者互利
+    Red Hat Enterprise Linux 商业(技术支持)
+特定需求
+    Debian 稳定
+    Fedora 新特性
+    麒麟Linux 中国版
+
+centos桌面版登录时选择未列出,以最高级的帐号登录
+<h1>目录结构</h1>
+"/"是所有目录的顶点也即根目录
+与windows相比没有盘符的概念, 不同目录下的数据可分布在不同磁盘,所有目录按规则组织与命名 
+<p>
+/:根目录，所有文件和目录的起点。
+/bin:二进制可执行文件，常用的用户命令（如 ls、cp、mv 等）存放在这里。
+/boot:启动引导程序文件，包括内核、初始 RAM 磁盘映像等启动时需要的文件。
+/dev:设备文件，表示系统中的硬件设备。
+/etc:配置文件和脚本。
+/home:用户主目录，每个用户都有一个对应的子目录。
+/lib:系统库文件，包含内核和系统程序使用的共享库。
+/media:可移动媒体设备挂载点（如 CD-ROM、USB 驱动器）。
+/mnt:临时文件系统挂载点。
+/opt:可选的应用程序包。
+/proc:虚拟文件系统，提供系统进程和内核状态的信息。
+/root:根用户的主目录。
+/run:临时文件系统，存储系统运行时的数据。
+/sbin:系统二进制文件，包含系统管理员使用的命令（如 fsck、reboot 等）。
+/srv:服务数据目录，存放特定服务的数据（如 HTTP 服务器的网页数据）。
+/sys:虚拟文件系统，包含设备和内核信息。
+/tmp:临时文件目录，系统启动时清空。
+/usr:用户程序和数据，包含更高层次的系统文件和目录。
+/usr/bin:大多数用户级命令。
+/usr/lib:用户级库文件。
+/usr/sbin:非系统管理员使用的系统二进制文件。
+/usr/share:共享数据，如文档、配置文件样本。
+/var:可变数据文件，如日志、邮件、临时文件等。
+/var/log:日志文件目录。
+/var/tmp:临时文件目录，系统重启后不清空。
+</p>
+
+<h1>安装centos7</h1>
+vmware创建空白磁盘,配置硬件和iso路径
+打开以太网接口(ens前缀),命名主机,最小型安装
+设置root密码
+
+无法解析镜像源 DNS 地址
+    vi /etc/yum.repos.d/CentOS-Base.repo
+        base,updates,extras
+        注释mirrorlist,启用baseurl,并改为..vault.centos.org..
+    vi /etc/resolv.conf
+    清理 YUM 缓存并重新生成缓存
+        yum clean all
+        yum makecache
+    添加Google 的公共 DNS 服务器
+        nameserver 8.8.8.8
+        nameserver 8.8.4.4
+
+<h1>SSH客户端</h1>
+idc机房
+SSH（Secure Shell）是专为远程登录和其它网络服务提供的安全性协议
+SSH分为两个不兼容版本1.x与2.x 
+基于SSH远程连接工具有很多,最常见的是Xshell与SecureCRT
+    Xshell是Linux客户端,常用于在Windows下远程访问
+        Xftp是Xshell配套组件,用于向服务器上传/下载文件
+
+<h1>文件操作</h1>
+<code bash>
+#清屏
+clear
+#linux下任何询问以y或n答复
+ 
+#返回上级目录
+cd .. 
+cd ../../
+ 
+#当前位置
+pwd
+ 
+#列出当前目录内容, ls仅文件名, ll包含文件详情
+ls
+#也可以列出指定目录下的内容
+ls /boot 
+ 
+#tab补全文件名
+#不唯一时, 例如目录下存在lib,lib64,libexec, 输入lib按两次tab则列出所有以lib开头的目录或文件
+ 
+#命令帮助
+mkdir --help
+ 
+#单级目录
+#mkdir ./test 
+mkdir test 
+#多级目录, p多级v提示
+#mkdir -p -v test/demo/oa
+mkdir -pv test/demo/oa
+ 
+#复制文件
+cp test.txt test 
+#复制整个文件夹
+cp -r test demo 
+ 
+#当目标文件已存在时，mv 命令默认会覆盖目标文件。使用 -i 选项可以在覆盖前进行提示, -f强制模式不进行提示
+# mv 命令不会在源和目标位置相同时移动文件
+#移动 
+mv file.txt /home/user/documents/
+mv file1.txt file2.txt file3.txt /home/user/documents/
+mv /home/user/old_directory /home/user/new_directory/
+#重命名
+mv oldname.txt newname.txt
+mv /home/user/old_directory /home/user/new_directory
+#移动并重命名文件
+mv file.txt /home/user/documents/newfile.txt
+ 
+#删除,r迭代删除目录及内容,f不询问
+rm test.txt
+rm -r test
+ 
+#查找, -type f文件d目录, -o或, -mtime天, immin分, +-大于小于
+find /home/user -name file.txt
+find /home/user -name "*.txt"
+find /home/user -type f -name "*.txt" -size +100k
+find /home/user \( -name "*.txt" -o -name "*.log" \)
+find /home/user -mtime -7
+find /home/user -mmin -60
+#找到后删除, {} 是一个占位符，表示当前找到的文件名，而 \; 则标志着 -exec 命令的结束
+find /home/user -name "*.log" -exec rm -f {} \;
+#找到后移动
+find /home/user -name "*.txt" -exec mv {} /home/user/documents/ \;
+# .当前目录下
+find . -type d -name "*ttt" -exec rm -rf {} \;
+</code>
+
+<h1>文本操作</h1>
+vi是Linux重要的文字编辑工具,vim是它的增强版,vim用于在远程环境下用命令形式对文本进行在线编辑
+vim三种模式
+    普通模式
+        默认,只读
+    编辑模式
+        普通模式下按 i 键进入, esc 退出
+    命令模式 (只能在普通模式下使用)
+        执行保存,搜索,退出等操作
+
+20240422203158.webp
+20240725190030.webp
+<code bash>
+#输出到屏幕, 反斜杠转义,或单引包裹
+echo 'hello"'
+echo "hello\""
+#输出到文件
+#覆盖
+echo "hello" > hello.txt
+#追加
+echo "hello" >> hello.txt
+echo "ok\\\"  " >> hello.txt
+ 
+#合并日志
+echo "hello" > hello.txt
+echo "my name is Lily" &gt; name.txt 
+cat hello.txt name.txt >> greeting.txt 
+#查看文件, 相比vim不用进入命令模式和退出模式, 更简单, n显示行号,E显示换行符(用$表示)用于区分出空格
+cat -n greeting.txt
+#在控制台上写文件, 新增或覆盖(>),追加(>>)
+#向greeting.txt追加内容,以EOF作为结束标志
+cat >> test.txt &lt;&lt; EOF 
+hi, Lily
+i love u
+..
+EOF 
+cat -nE greeting.txt
+ 
+#查看文件倒数两行的内容,查看最近产生的错误日志
+tail -n 2 test.txt
+#监控文件变化实时输出到控制台上(复制会话,向test中追加内容,在原会话中可以看到变化),ctrl+c退出监控
+tail -f test.txt 
+ 
+#筛选文本行, -v排除
+#筛选出包含h[任意一个字符]t的文本行,输出到控制台
+grep h.t test.txt
+#筛选出不包含h[任意一个字符]t的文本行,输出到out.txt
+grep -v h.t test.txt &gt; out.txt
+ 
+#将ll的结果作为源,筛选出符合正则的文件列表,-E开启可扩展的正则表达式
+ll | grep log1.txt
+ll | grep -E "log[0-5]{1,}.txt"
+</code>
+
+<h1>解压缩</h1>
+gzip是Linux系统的压缩程序,压缩后扩展名.gz
+tar是打包软件,将多个文件打包为一个文件,并不提供数据压缩,扩展名.tar
+两者配合生成.tar.gz文件
+<code bash>
+#将/usr/local/tomcat目录进行压缩并命名为tomcat.tar.gz
+tar zcvf tomcat.tar.gz /usr/local/tomcat 
+#将tomcat.tar.gz解压到/usr/local/tomcat, 如果去掉-C及后面的内容则默认解压到当前目录
+tar zxvf tomcat.tar.gz -C /usr/local/tomcat 
+</code>
+20240422213909.webp
+
+<h1>yum安装</h1>
+在centos中安装第三方应用程序包有两种方式, 一种是yum,一种是编译安装
+    两者生成的应用存放地点是不一样的
+        yum会自动在usr/bin下生成对应的应用程序
+        编译安装只能在当前编译目录中生成应用程序
+
+20240423090513.webp
+
+rpm, 红帽软件包管理器,相当于应用程序安装文件的执行者
+    yum是rpm的前端程序,目的是简化rpm的安装过程,通过引入软件仓库,联网下载rpm包及依赖,并依次自动安装, 类似于maven依赖
+    只适合红帽的产品且不同环境对应不同的版本
+
+如果你的系统是64位的，并且没有32位的兼容性要求，那么通常情况下，应用程序名中的.x86_64可以省略
+    如果系统上只有一种架构的可执行文件（例如所有软件都是64位的），那么可以省略架构信息，因为没有其他可能的选择
+<code bash>
+#在仓库中查询是否存在指定应用, 应用名可通配
+yum search tree 
+ 
+#全自动下载安装应用及其依赖,遇到询问自动y
+yum install -y tree.x86_64
+ 
+#查看应用详细信息
+yum info tree
+ 
+#查看应用的安装位置
+which tree
+ 
+#查看已安装的应用程序
+#全部列出
+yum list installed 
+#筛选
+yum list installed *tree*
+ 
+#查看安装后输出的文件清单
+rpm -ql tree
+ 
+#卸载指定应用,遇到询问自动y
+yum remove -y tree.x86_64 
+</code>
+
+<h2>从仓库安装和本地安装</h2>
+方式一：通过 YUM 仓库安装
+    优点：
+        自动依赖管理：YUM 仓库会自动解决软件包的依赖关系，确保所有依赖包都能正确安装。
+        安全性：使用 GPG 密钥签名验证包的来源和完整性，防止恶意软件包。
+        简便性：安装命令简单，yum install package-name即可，适合日常维护和更新。
+        版本控制：YUM 仓库会提供经过测试的包版本，减少不兼容和错误的风险。
+    缺点：
+        依赖网络连接：需要访问远程仓库，如果网络连接不好或仓库配置有问题，安装可能失败。
+        仓库维护：需要正确配置仓库地址和 GPG 密钥，有时会遇到配置错误或过期的密钥。
+        仓库更新：如果仓库更新不及时，可能无法获得最新版本的软件包。
+<code bash>
+# 1. 配置仓库
+vim /etc/yum.repos.d/rabbitmq_erlang.repo
+[rabbitmq-erlang]
+name=rabbitmq-erlang
+baseurl=https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-erlang/rpm/el/7/x86_64/
+gpgcheck=1
+gpgkey=https://dl.cloudsmith.io/rabbitmq/rabbitmq-release-signing-key.asc
+enabled=1
+ 
+# 2. 清除和重新生成 YUM 缓存
+yum clean all
+yum makecache
+ 
+# 3. 安装包
+yum install erlang
+</code>
+
+方式二：下载 RPM 包并本地安装
+    优点：
+        灵活性：可以从任何可用的来源下载特定版本的 RPM 包，适合特殊需求或解决仓库配置问题。
+        绕过仓库配置问题：不依赖于远程仓库的配置，避免了仓库地址或 GPG 密钥配置错误导致的问题。
+        本地安装：适用于离线环境，下载后可以在多个机器上重复使用。
+    缺点：
+        依赖管理复杂：需要手动处理依赖关系，可能需要下载和安装多个依赖包。
+        安全性降低：没有自动的 GPG 密钥验证，需手动确认包的来源和完整性，增加了安全风险。
+        不便于更新：本地安装的包需要手动更新，不能自动从仓库获取最新版本。
+<code bash>
+# 1. 下载 RPM 包
+curl -L -O -J "https://github.com/rabbitmq/erlang-rpm/releases/download/v23.3.4.18/erlang-23.3.4.18-1.el7.x86_64.rpm"
+ 
+# 2. 本地安装 RPM 包
+# Erlang 是直接安装的软件包。当你下载并使用 yum localinstall 命令安装该 RPM 包时，实际的软件包内容会立即被解压和安装到系统中, 包含完整的应用程序及其依赖项
+yum localinstall erlang-23.3.4.18-1.el7.x86_64.rpm
+</code>
+
+<h1>编译安装</h1>
+编译安装, 用户自己从网站下载程序源码解压进行编译安装
+    兼容性好, 但是在安装过程中需要用户自己解决依赖问题
+        如果yum仓库未提供rpm,则通常采用编译安装,在源文件解压目录下执行make
+            make只是调用第三方编译程序完成对代码的编译工作
+<code bash>
+# gcc是c语言源代码的编译工具包
+yum install -y gcc
+</code>
+        首次编译安装时提示未安装gcc,安装gcc后编译安装报错,因为前次安装失败有残留,需要删除解压后的源目录重新解压执行make
+
+<h1>系统管理</h1>
+<code bash>
+#查看网卡ip
+ifconfig 
+ 
+#查看网络端口号
+netstat -tulpn
+netstat -ano
+netstat -tulpn | grep ssh
+</code>
+20240423104518.webp
+<code bash>
+#显示包含单机程序在内的所有进程信息, 可以配合grep筛选, ps -ef | grep redis
+ps -ef
+#强制结束PID为41139的进程, 通常情况下建议使用程序自带的退出命令
+kill -9 41139
+</code>
+
+<h1>应用服务化</h1>
+20240423110231.webp
+<code bash>
+#查找pid文件
+find / -name *.pid 
+ 
+#查看其当前占用的端口(和ps -ef | grep redis 端口结果一致)
+cat /run/redis_6379.pid   
+ 
+#服务描述文件.sevice存放地址
+cd /usr/lib/systemd/system
+ 
+#新建redis.service服务
+cat &gt; redis.service &lt;&lt;EOF
+ 
+[Unit]
+Description=Redis #服务的描述信息
+After=syslog.target network.target remote-fs.target nss-lookup.target #在这些服务启动之后再启动该服务
+ 
+[Service]
+Type=forking #后台运行
+PIDFile=/run/redis_6379.pid #进程的pid文件
+ExecStart=/usr/local/redis-4.0.14/src/redis-server /usr/local/redis-4.0.14/redis.conf #服务启动时使用的命令
+ExecStop=/bin/kill -s QUIT $MAINPID #服务结束时的命令, $MAINPID是变量存放PIDFile中变化的进程id, -s QUIT按正常流程通知指定进程进行关闭,-9是对进程进行强制结束
+PrivateTmp=ture #为该服务设置私有的临时文件目录
+ 
+[Install]
+WantedBy=multi-user.target #将该服务分配到multi-user.target服务组上, multi-user中的服务被允许随系统启动而自动启动
+ 
+#使新增的service生效
+systemctl daemon-reload #对所有service配置文件进行重载
+ 
+#启动服务
+systemctl start redis
+ 
+#查看服务状态
+systemctl status redis
+ 
+#当修改了配置文件时对服务进行重新启动,相当先停止然后启动
+systemctl restart redis
+ 
+#停止服务
+systemctl stop redis
+
+#让redis随系统启动
+systemctl enable redis
+ 
+#立即重启
+shutdown -r now
+ 
+#取消随系统自动启动
+systemctl disable redis
+ 
+#查看系统有哪些服务及其状态, static随其它服务的关联而启动,enabled随系统启动,disabled不随系统启动
+systemctl list-unit-files
+
+#查看哪些服务是自启动的
+systemctl list-unit-files | grep enabled
+</code>
+
+<h1>用户及用户组</h1>
+一个用户可隶属于多个组, 同一时间只能有一个组作为当前组
+每个用户都有一个主要组和可以属于多个附加组
+    主要组（Primary Group）
+        每个用户都有一个主要组，它是用户的默认组。主要组在用户创建时指定，通常是用户的用户名作为组名
+        当用户创建文件时，文件的默认组所有权是用户的主要组。主要组在用户操作文件时影响文件的组权限。
+    附加组（Supplementary Groups）
+        附加组是用户可以加入的其他组。用户可以属于多个附加组，每个附加组提供额外的访问权限或文件权限
+<code bash>
+#新建用户
+useradd d1
+#修改密码
+passwd d1
+#创建新组
+groupadd dev
+ 
+#更改用户的主要组
+usermod -g dev d1
+ 
+#查看自己所属于组
+groups
+#查看某用户所属组
+groups d1
+ 
+#更改用户的附加组列表。此命令会覆盖用户的现有附加组列表, 所以要把原有附加组带上
+usermod -G tes d1
+#d1需要重新连接才能拥有新用户组权限
+ 
+# groups
+# dev tes
+#第一个组为当前用户组,如果要访问tes用户组的资源则需要切换
+newgrp tes
+groups
+# tes dev
+ 
+#当删除一个用户后，用户拥有的其他文件和目录将保留其原有的所有权，除非手动修改。文件和目录的所有者将显示为已删除的用户的 UID（用户 ID），而不是用户名
+#删除用户, -r 选项将删除用户及其主目录和邮件池文件
+userdel -r d1
+#查找用户主目录
+find / -type d -name d1
+#在删除用户后，可以使用 find 命令查找系统中与该用户有关的所有文件，以确保没有遗漏的残留文件
+#查找系统中与 UID 相关的文件
+find / -user [UID]
+#检查 /etc/passwd 和 /etc/group 文件，确认用户是否已被完全删除
+grep 'd1' /etc/passwd
+grep 'd1' /etc/group
+ 
+#如果你将用户的主要组更改为其他组（而不是用户的用户名组），那么在删除用户时，主要组不会被删除用户组删除，除非手动删除(确保系统的整洁和一致性)
+#只能删除没有任何成员的组。如果组中仍有用户，你需要先将这些用户从组中移除
+groupdel d1
+ 
+#查看创建的所有用户组
+cat /etc/group
+ 
+#从用户组中移除用户,无法将用户从自己的默认组中移除
+gpasswd -d d1 tes
+#也可以通过重新设置附加组的方式
+usermod -G dev d1
+ 
+#在Linux系统中，即使是root账户也无法直接查看其他用户的密码明文
+# 列出所有用户及其主组
+awk -F: '{ print $1 " - " $4 }' /etc/passwd | while IFS=" -" read -r username gid; do
+    groupname=$(getent group "$gid" | cut -d: -f1)
+    echo "$username - $groupname"
+done
+ 
+# 列出所有用户及其主组和附加组
+awk -F: '{ print $1 " - " $4 }' /etc/passwd | while IFS=" -" read -r username gid; do
+    primary_group=$(getent group "$gid" | cut -d: -f1)
+    additional_groups=$(id -Gn "$username")
+    echo "$username - Primary Group: $primary_group, Additional Groups: $additional_groups"
+done
+</code>
+
+<h1>文件权限</h1>
+20240726142709.webp
+第一位d表示目录-表示文件,其它位-无权限
+三个数字相加后的值
+    7,rwx
+    5,r-x 
+    0,---
+
+对于文件名的修改，实际上是对文件所在目录的操作，而不是对文件本身的操作。因此，要修改文件名，需要对包含该文件的目录拥有相应的权限
+删除文件的操作是对包含该文件的目录的操作，而不是对文件本身的操作
+对文件内容的修改权限由文件自身的权限控制
+    例如A文件夹为777, 它里面有一个文件b权限为000, 无法修改文件内容, 但能够修改文件b的文件名和删除文件b
+    目录权限 r-x 只允许查看目录内容和进入目录，但不允许对目录内容进行任何修改，包括创建、删除或重命名文件或子目录
+
+对于文件
+    读	r	可以查看文件内容。
+    写	w	可以修改文件内容。
+    执行	x	可以执行文件（如果文件是可执行的脚本或程序, 否则可以-）。
+对于目录
+    读	r	可以列出目录中的文件和子目录。
+    写	w	可以在目录中创建、删除和重命名文件或子目录。
+    执行	x	可以进入目录并访问其内容（包括读取和执行文件）。
+<code bash>
+cd /usr/local/share 
+mkdir dev_folder
+ 
+#改变文件所有者
+chown d1:dev dev_folder
+ 
+#改变文件权限
+chmod 750 dev_folder 
+#drwxr-x---.  2 d1   dev   6 4月  23 16:31 dev_folder
+</code>
+
+<h1>超级管理员权限</h1>
+<code bash>
+#系统管理员交他人代管时不用交出密码
+#执行visudo
+visudo
+ 
+#普通模式下100gg定位到
+## Allow root to run any commands anywhere
+root    ALL=(ALL)       ALL
+#普通模式下光标处按o向下插入新行同时进入编辑状态
+d1      ALL=(ALL)       ALL
+#第1个all表示可以从任意主机名称(ip),第2个all表示可以切换到任意账户,第3个all表示可以执行任意命令
+ 
+#不允许直接在一行中指定多个目标用户(user1,user2)来执行命令,需要分别为每个目标用户配置权限
+# 允许 admin1 和 admin2 在 server1、server2 和 server3 上以 user1 身份执行 /usr/bin/command1 和 /usr/bin/command2
+admin1,admin2 server1,server2,server3 = (user1) /usr/bin/command1, /usr/bin/command2
+# 允许 admin1 和 admin2 在 server1、server2 和 server3 上以 user2 身份执行 /usr/bin/command1 和 /usr/bin/command2
+admin1,admin2 server1,server2,server3 = (user2) /usr/bin/command1, /usr/bin/command2
+ 
+#如果要创建更复杂的配置，通常需要将 sudoers 文件中的规则分解为多个条目
+# 允许 admin1 在 server1、server2 和 server3 上以 user1 身份执行 /usr/bin/command1 和 /usr/bin/command2
+admin1 server1,server2,server3 = (user1) /usr/bin/command1, /usr/bin/command2
+# 允许 admin1 在 server1、server2 和 server3 上以 user2 身份执行 /usr/bin/command1 和 /usr/bin/command2
+admin1 server1,server2,server3 = (user2) /usr/bin/command1, /usr/bin/command2
+# 允许 admin2 在 server1、server2 和 server3 上以 user1 身份执行 /usr/bin/command1 和 /usr/bin/command2
+admin2 server1,server2,server3 = (user1) /usr/bin/command1, /usr/bin/command2
+# 允许 admin2 在 server1、server2 和 server3 上以 user2 身份执行 /usr/bin/command1 和 /usr/bin/command2
+admin2 server1,server2,server3 = (user2) /usr/bin/command1, /usr/bin/command2
+ 
+#修改保存后进行格式检查
+visudo -c
+ 
+#接管人在执行超级命令前加sudo
+sudo useradd d3
+#sudo执行任何命令前不必输入密码
+d1 root    ALL=(ALL)       NOPASSWD:ALL
+</code>
+
+<h1>防火墙</h1>
+centos7基于firewall实现应用层防火墙,centos6基于iptables
+<code bash>
+#查看防火墙是否开启
+firewall-cmd --state
+#查看放行的端口
+firewall-cmd --list-ports
+#--permanent永久性策略修改需要执行frewall-cmd --reload, 不写视为临时策略
+#采用tcp通讯时放行8080端口
+firewall-cmd --zone=public --permanent --add-port=8080/tcp
+frewall-cmd --reload
+#放行8000到9000区域内的端口
+firewall-cmd --zone=public --permanent --add-port=8000-9000/tcp
+firewall-cmd --reload
+#移除放行的端口
+firewall-cmd --zone=public --permanent --remove-port=8080/tcp
+firewall-cmd --reload
+</code>
+
+<h1>Shell</h1>
+Shell是一个用c语言编写的脚本解释器,使用户能够通过代码操作Linux
+Shell脚本描述要执行的任务,完成系列复杂操作,文件后缀.sh
+Shell脚本通过Shell解释器执行,按解释器分类分为多种类型
+    默认解释器为bash
+    20240423193948.webp
+
+自动部署tomcat
+#!/bin/bash 指定脚本的解释器,确保脚本在不同系统上以一致的方式运行
+<code bash>
+cat > deploy_tomcat.sh &lt;&lt; EOF
+#!/bin/bash
+echo "准备下载tomcat9"
+wget --no-check-certificate https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.91/bin/apache-tomcat-9.0.91.tar.gz
+echo "正在解压缩tomcat9"
+tar zxf apache-tomcat-9.0.91.tar.gz
+echo "开放8080端口"
+firewall-cmd --zone=public --permanent --add-port=8080/tcp
+echo "重新应用防火墙规则"
+firewall-cmd --reload
+echo "启动tomcat"
+./apache-tomcat-9.0.91/bin/startup.sh
+EOF
+#将默认权限644改755
+chmod 755 deploy_tomcat.sh
+./deploy_tomcat.sh
+</code>
+
+<h1>oa部署到服务器</h1>
+新建两个最小安装的linux虚拟机
+CentOS-DB 192.168.149.130
+CentOS-Web 192.168.149.134
+
+<code bash>
+#最小安装不带ifconfig
+yum install -y net-tools.x86_64
+ifconfig
+ 
+#yum中没有提供mysql-community相关的安装组件
+yum search mysql-community
+ 
+#网页搜索mysql yum 
+#从mysql官网获取对应版本rpm文件链接地址
+#使用wget命令进行下载
+#最小安装不带wget
+yum install -y wget
+mkdir /usr/local/mysql 
+cd /usr/local/mysql
+wget https://dev.mysql.com/get/mysql84-community-release-el7-1.noarch.rpm
+ 
+#使用yum安装,本质已是下载rpm文件执行里面的安装命令,执行本地rpm文件时用localinstall准备安装源
+#安装 MySQL 社区版本的 RPM 包时，你实际上安装的是 MySQL 仓库配置包，而不是 MySQL 服务器本身
+#这个配置包的作用是添加 MySQL 仓库到你的 yum 配置中，以便你可以方便地安装和更新 MySQL 及其相关组件
+yum localinstall -y mysql84-community-release-el7-1.noarch.rpm
+#此时可以查询到mysql相关的安装组件
+yum search mysql-community
+ 
+#开始安装mysql,可以省略末尾的.x86_64
+yum install -y mysql-community-server
+ 
+#启动mysql,确认运行状态
+systemctl start mysqld
+systemctl status mysqld
+ 
+#设置开机启动
+systemctl enable mysqld
+ 
+#从日志中获取生成的临时密码
+cat /var/log/mysqld.log 
+ 
+#登陆mysql,修改root帐户密码,'localhost'只允许在本机登陆,with mysql_native_password针对旧版本navicat连接不上mysql8的兼容处理
+mysql -uroot -p
+#alter user 'root'@'localhost' identified with mysql_native_password by 'fsafASDfs2#@';
+#mysql_native_password 插件在 MySQL 中用于处理用户身份验证。它提供了一种将用户密码存储在 MySQL 数据库中的方法，并在用户登录时验证这些密码
+#在 MySQL 8.0 及更高版本中，默认的身份验证插件是 caching_sha2_password。这种插件比 mysql_native_password 更加安全
+alter user 'root'@'localhost' identified by 'fsafASDfs2#@';
+ 
+#切换到mysql数据库
+use mysql;
+#查看用户信息
+select host,user from user;
+ 
+#使root账户可以远程登陆,修改允许登陆的设备, %表示可以从任意设备上登陆
+update user set host='%' where user='root';
+#当 MySQL 启动时，它会从权限表（如 mysql.user, mysql.db, mysql.tables_priv 等）中读取权限数据并将其加载到内存中
+#如果直接对权限表进行手动修改（例如，通过 INSERT, UPDATE, DELETE 操作），这些修改不会自动生效。必须执行 FLUSH PRIVILEGES; 命令以使这些手动修改生效
+flush privileges;
+ 
+#放行mysql端口
+firewall-cmd --zone=public --permanent --add-port=3306/tcp
+firewall-cmd --reload
+firewall-cmd --zone=public --permanent --remove-port=3306/tcp
+firewall-cmd --reload
+#对db服务器增强安全设置,只对指定主机开放指定端口
+firewall-cmd --permanent --zone=public --add-rich-rule="rule family="ipv4" source address="192.168.149.134" port protocol="tcp" port="3306" accept"
+firewall-cmd --reload
+ 
+#查看自定义的防火墙规则
+firewall-cmd --permanent --zone=public --list-rich-rules
+ 
+#登录建库
+mysql -uroot -p 
+create database oa
+ 
+#宿主机数据库导出sql文件
+mysqldump -u username -p oa > oa.sql
+#宿主机sql文件导入到远程主机
+mysql -h 192.168.149.130 -P 3306 -uroot -p oa &lt; D:\mess\oa.sql
+</code>
+
+<code bash>
+#查看仓库中的jdk
+yum search jdk 
+#java-1.8.0-openjdk与标准jdk是一致的
+yum install -y java-1.8.0-openjdk.x86_64
+java -version
+which java 
+ 
+#安装tomcat,上传war包
+#修改tomcat端口号和上下文
+#放行80端口
+firewall-cmd --zone=public --permanent --add-port=80/tcp
+firewall-cmd --reload
+ 
+#启动tomcat,确认80
+./bin/startup.sh 
+netstat -tupln
+ 
+#修改WEB-INF/classes/mybatis-config.xml中的jdbc驱动参数ssl设true,数据库用户名密码
+</code>
+</pre>
+ </body>
+</html>

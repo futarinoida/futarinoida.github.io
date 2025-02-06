@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>JSONP</title>
+</head>
+<body><span id="anchor">20240521124656-_前端</span>
+<pre>
+JSONP（JSON with Padding）是一种跨域请求的技术，通常用于从不同域的服务器获取数据。
+    它利用了script元素没有跨域限制的特性来实现跨域请求,只能用于 GET 请求
+    它属于前端和后端共同实现的一种解决方案
+
+jsonp和ajax比较
+    都是用于在客户端与服务器之间进行异步数据传输的技术
+        JSONP不受同源策略限制
+            AJAX默认遵循同源策略，除非使用CORS
+        JSONP有一定的安全风险，因为它执行的是脚本，可能会引入恶意代码
+            AJAX更安全，因为它通过XMLHttpRequest或Fetch API进行请求
+        JSONP只能返回JavaScript代码
+            AJAX支持多种数据格式（JSON、XML、HTML、纯文本等）
+
+在网页中动态创建一个script标签, 它的src属性设置为一个远程服务器的 URL, 并将回调函数的名称作为查询参数附加到 URL 末尾
+    远程服务器接收到请求后，解析出查询参数中的回调函数名称, 将实际的数据包装在这个回调函数中，生成一个 JavaScript 代码片段返回给客户端
+    浏览器下载并执行返回的 JavaScript 代码片段（因为它是通过 script 标签引入的）
+    由于返回的内容包含调用回调函数的代码，所以回调函数会被立即执行，数据被传入回调函数
+<code>
+//http://localhost:9000/data.json
+@WebServlet("/data.json")
+public class JSOPServlet extends HttpServlet {
+    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        String data = "{ \"name\": \"汤姆\", \"age\": 12 }";
+        response.setContentType("application/javascript;charset=UTF-8");
+        response.getWriter().write(request.getParameter("callback") + "(" + data + ")");
+    }
+}
+</code>
+<code html>
+&lt;!-- http://localhost/jsonpTest.jsp --&gt;
+&lt;%@ page contentType=&quot;text/html;charset=UTF-8&quot; language=&quot;java&quot; %&gt;
+&lt;html&gt;
+&lt;head&gt;
+    &lt;title&gt;Title&lt;/title&gt;
+    &lt;script src=&quot;js/jquery-1.11.1.min.js&quot;&gt;&lt;/script&gt;
+    &lt;script&gt;
+        //常规发起jsonp请求
+        function fetchJSONP(url, handler) {
+            const script = document.createElement(&#39;script&#39;);
+            //src的值为 http://localhost:9000/data.json?callback=handleResponse 返回的响应, 即 handleResponse(..)
+            script.src = url + &quot;?callback=&quot; + handler; 
+            document.body.appendChild(script); // handleResponse(..) 被作为脚本执行
+        }
+        function handleResponse(data) {
+            console.log(data);
+            document.getElementById(&quot;result&quot;).innerHTML=data.name + &quot; 常规发起jsonp请求&quot;;
+        }
+ 
+        //使用jquery的ajax方法发起jsonp请求
+        $(document).ready(function() {
+            $(&#39;#btn2&#39;).click(function () {
+                $.ajax({
+                    url: &#39;http://localhost:9000/data.json&#39;,
+                    dataType: &#39;jsonp&#39;, //指定类型为jsonp, 发送的 JSONP 请求中会自动尾随一个名为 &quot;callback&quot; 的参数
+                    //jsonpCallback: &#39;handleResponse&#39;, //指定回调函数名或者success中直接处理
+                    success: function (data) {
+                        console.log(data);
+                        $(&quot;#result&quot;).html(data.name + &quot; 使用jquery的ajax方法发起jsonp请求&quot;);
+                    }
+                });
+            })
+        });
+    &lt;/script&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;button onclick=&quot;fetchJSONP(&#39;http://localhost:9000/data.json&#39;, &#39;handleResponse&#39;)&quot;&gt;常规发起jsonp请求&lt;/button&gt;
+&lt;button id=&quot;btn2&quot;&gt;使用jquery的ajax方法发起jsonp请求&lt;/button&gt;
+&lt;div id=&quot;result&quot;&gt;&lt;/div&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code>
+</pre>
+</body>
+</html>

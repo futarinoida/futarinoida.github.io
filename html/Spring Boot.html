@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>Spring Boot</title>
+</head>
+<body><span id="anchor">20240522102834-_java web</span>
+<pre>
+Spring 最初利用IOC和AOP解耦应用组件。
+大家觉得挺好用，于是按照这种模式搞了一个 MVC框架（一些用Spring 解耦的组件），用开发 web 应用（ SpringMVC ）。
+然后有发现每次开发都写很多样板代码，为了简化工作流程，于是开发出了一些“懒人整合包”（starter），这套就是 Spring Boot。(集成了tomcat)
+Spring Cloud是在Spring Boot基础上诞生的
+
+<h1>特点</h1>
+开箱即用
+约定优于配置
+
+<h1>上下文路径</h1>
+src/main/resources/static 是 Spring Boot 默认的静态资源目录。你可以将静态文件放在这个目录中，它们会被自动暴露为 Web 资源
+    可以在 application.properties 或 application.yml 文件中配置静态资源的路径
+    spring.web.resources.static-locations=classpath:/static/
+<code>
+@Resource
+private ServletContext servletContext; //通过 ServletContext 来获取静态资源的根目录。这通常在 Spring Boot 应用中比较直接
+String staticDir = servletContext.getRealPath("/static");
+
+Resource resource = resourceLoader.getResource("classpath:/static/"); //通过 ResourceLoader 获取静态文件的 URL 或文件对象
+Path path = resource.getFile().toPath();
+</code>
+
+
+<h1>版本</h1>
+CURRENT 
+    可能包含了最近的更新和修复，但不一定是正式发布的版本。它代表了目前用户可以访问的最新稳定版本
+GA (General Availability) 
+    表示软件已经经过充分的测试，并且被认为是稳定的，可以广泛用于生产环境。GA 版本是正式的、最终的发布版本，适合所有用户使用，通常意味着软件经过了完整的开发生命周期和质量保证过程
+SNAPSHOT
+    用于内部测试或开发阶段。SNAPSHOT 版本是不断更新的，可能包含实验性的特性或正在进行的开发改进，因此可能不够稳定，不适合用于生产环境。这个版本用来捕捉当前开发状态的快照，通常会被频繁更新
+
+<h1>创建方式</h1>
+在线, https://start.spring.io/
+idea spring initializer 使用早期jdk时改sever url[start.spring.io]为start.aliyun.com
+
+<h1>pom</h1>
+spring-boot-starter-web
+    起始依赖, 包含了一系列默认配置和依赖, 帮助开发者快速启动和构建基于 Spring 的 Web 应用
+    spring-boot-starter-web 适用于开发标准的 Web 应用程序、RESTful API、使用 WebSocket 技术的应用，以及其他需要处理 HTTP 请求的场景
+        微服务中的网关服务：像 Zuul、Spring Cloud Gateway 这样的网关服务通常不需要直接引入 spring-boot-starter-web，因为它们自己的依赖已经包含了所需的 Web 功能。
+        非 Web 项目：如果你的项目是一个命令行工具、消息驱动应用或数据处理服务，不使用容器管理, 那么就不需要 spring-boot-starter-web
+    包含了Spring MVC, Tomcat（默认嵌入式容器）, Jackson, Validation, Logging(默认配置了日志框架Logback)
+        但是不包括aop, 需要单独引入spring-boot-starter-aop(自动配置模块), 提供了针对 spring-aop、aspectjrt 和 aspectjweaver 的依赖。
+dependencyManagement
+    允许你在项目的根 POM 文件中集中控制所有依赖项的版本。在子模块中，只需声明依赖项的 groupId 和 artifactId，而不需要重复指定版本。这保证了所有模块都使用相同的版本，减少了版本冲突的风险
+
+<h1>配置文件</h1>
+默认位置： Spring Boot 会自动在项目的根目录（src/main/resources/ 或 src/main/resources/config/）、classpath 路径下查找名为 application.properties 或 application.yml 的文件
+
+<h2>多环境配置</h2>
+如果存在 application.properties 和 application-prod.properties 两个配置文件
+    Spring Boot 会根据激活的环境来选择使用哪个文件，或者是否组合使用它们
+        如果你没有激活 prod 环境，Spring Boot 只会使用 application.properties
+        如果激活了 prod 环境，配置会先从 application.properties 加载，然后再加载 application-prod.properties，并用后者的值覆盖前者的相同配置
+    application-{profile}.properties, 其中 {profile} 对应的是激活的 Spring 环境配置文件
+
+激活 pro 环境
+    在 application.properties 中配置
+        spring.profiles.active=prod
+        这会让 application.properties 还是会被加载，之后加载 application-prod.properties, 如果要禁用 application.properties 的影响，确保它是空文件或没有相关配置
+
+一种做法是, 在 application.properties 文件中，仅设置 spring.profiles.active 属性来指定当前激活的环境
+    再根据不同的环境创建出相应的配置文件
+    application.properties
+<code properties>
+spring.profiles.active=dev
+</code>
+    application-dev.properties
+<code properties>
+server.port=8080
+spring.datasource.url=jdbc:mysql://localhost:3306/dev_db
+..
+</code>
+    application-prod.properties
+<code properties>
+server.port=9090
+spring.datasource.url=jdbc:mysql://localhost:3306/prod_db
+..
+</code>
+
+<h2>yml</h2>
+application.properties
+<code properties>
+server.port=80
+server.servlet.context-path=/first
+</code>
+application.yml 层级结构,冒号后要空格(多个空格解析器视为一个空格)
+<code yml>
+server:
+  port: 80
+  servlet:
+    context-path: /first
+</code>
+YAML 是 JSON 的超集
+YAML 和 Properties 文件在配置列表（数组）时有不同的支持和表现形式
+    YAML 支持以自然且可读的方式配置列表或数组。可以使用短横线（-）来表示列表项
+    Properties 文件不直接支持列表或数组。要在 Properties 文件中模拟列表，通常需要用逗号分隔或其他自定义的分隔符
+<code yaml>
+# YAML 文件示例
+servers:
+  - server1
+  - server2
+  - server3
+ 
+database:
+  urls:
+    - jdbc:mysql://localhost:3306/db1
+    - jdbc:mysql://localhost:3306/db2
+</code>
+<code properties>
+# Properties 文件示例
+servers=server1,server2,server3
+ 
+database.urls=jdbc:mysql://localhost:3306/db1,jdbc:mysql://localhost:3306/db2
+</code>
+
+<h2>绑定配置文件中的参数</h2>
+<code properties>
+server.port=80
+#server.servlet.context-path=/first
+fruit.title=orange
+fruit.quantity=10
+</code>
+<h2>一. 直接绑定</h2>
+<code>
+@RestController
+public class PropertiesController {
+    @Value("${fruit.title}")
+    private String title;
+    @Value("${fruit.quantity}")
+    private Integer quantity;
+ 
+    @GetMapping("/properties")
+    public String a(){
+        return title+":"+quantity;
+    }
+}
+</code>
+<h2>二. 通过对象配置</h2>
+可以防止参数名的拼写错误
+使用@ConfigurationProperties注解并提供前缀, 提供对应的属性名及settergetter, 同时标记为组件
+<code>
+@Component
+@ConfigurationProperties(prefix = "fruit")
+public class FruitConfig {
+    String title;
+    Integer quantity;
+    //getter,setter
+}
+ 
+@RestController
+public class ConfigController {
+    @Autowired
+    private FruitConfig fruitConfig;
+ 
+    @GetMapping("/config")
+    public String a(){
+        return fruitConfig.title+":"+fruitConfig.quantity;
+    }
+}
+</code>
+
+<h1>使用 Log4j2 作为日志框架</h1>
+<h2>排除Logback引用log4j2</h2>
+Spring Boot默认会包含 spring-boot-starter-logging 依赖，这个依赖使用 Logback 作为日志框架
+<code xml>
+&lt;dependency&gt;
+    &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+    &lt;artifactId&gt;spring-boot-starter-web&lt;/artifactId&gt;
+    &lt;exclusions&gt;
+        &lt;exclusion&gt;
+            &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+            &lt;artifactId&gt;spring-boot-starter-logging&lt;/artifactId&gt;
+        &lt;/exclusion&gt;
+    &lt;/exclusions&gt;
+&lt;/dependency&gt;
+&lt;dependency&gt;
+    &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+    &lt;artifactId&gt;spring-boot-starter-log4j2&lt;/artifactId&gt;
+&lt;/dependency&gt;
+</code>
+<h2>配置文件</h2>
+<code xml>
+&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;
+&lt;Configuration status=&quot;fatal&quot;&gt;
+    &lt;Properties&gt;
+        &lt;Property name=&quot;baseDir&quot; value=&quot;D:\Dropbox\workspace\idea\practice\demo14\logs&quot;/&gt;
+        &lt;Property name=&quot;p_console_color&quot; value=&quot;[%d{MM:dd HH:mm:ss.SSS}] %highlight{[%level]} [%logger{36}] - %highlight{%msg} %n&quot;/&gt;
+        &lt;Property name=&quot;p_file&quot; value=&quot;[%d{MM:dd HH:mm:ss.SSS}] [%level] [%logger{36}] - %msg%n&quot;/&gt;
+        &lt;Property name=&quot;p_file_lineNo&quot; value=&quot;[%d{MM:dd HH:mm:ss.SSS}] [%level] [%logger{36}] [%C{1}.%M:%L] - %msg%n&quot;/&gt;
+    &lt;/Properties&gt;
+ 
+    &lt;Appenders&gt;
+        &lt;!-- info级别及以上输出控制台 --&gt;
+        &lt;Console name=&quot;console&quot; target=&quot;SYSTEM_OUT&quot;&gt;
+            &lt;ThresholdFilter level=&quot;info&quot; onMatch=&quot;ACCEPT&quot;/&gt;
+            &lt;PatternLayout pattern=&quot;${p_console_color}&quot; disableAnsi=&quot;false&quot;/&gt;
+        &lt;/Console&gt;
+ 
+        &lt;!-- debug级别单独输出文件 --&gt;
+        &lt;RollingFile name=&quot;debug&quot;
+                     fileName=&quot;${baseDir}/debug.log&quot;
+                     filePattern=&quot;${baseDir}/debug_%i.log.%d{yyyy-MM-dd}&quot;&gt;
+            &lt;Filters&gt;
+                &lt;ThresholdFilter level=&quot;DEBUG&quot;/&gt;
+                &lt;ThresholdFilter level=&quot;INFO&quot; onMatch=&quot;DENY&quot; onMismatch="NEUTRAL"/&gt;
+            &lt;/Filters&gt;
+            &lt;PatternLayout pattern=&quot;${p_file_lineNo}&quot;/&gt;
+            &lt;Policies&gt;
+                &lt;TimeBasedTriggeringPolicy interval="1" modulate="true"/&gt;
+                &lt;SizeBasedTriggeringPolicy size=&quot;10 MB&quot;/&gt;
+            &lt;/Policies&gt;
+        &lt;/RollingFile&gt;
+ 
+        &lt;!-- info级别单独输出文件 --&gt;
+        &lt;RollingFile name=&quot;info&quot;
+                     fileName=&quot;${baseDir}/info.log&quot;
+                     filePattern=&quot;${baseDir}/info_%i.log.%d{yyyy-MM-dd}&quot;&gt;
+            &lt;Filters&gt;
+                &lt;ThresholdFilter level=&quot;INFO&quot;/&gt;
+                &lt;ThresholdFilter level=&quot;ERROR&quot; onMatch=&quot;DENY&quot; onMismatch="NEUTRAL"/&gt;
+            &lt;/Filters&gt;
+            &lt;PatternLayout pattern=&quot;${p_file}&quot;/&gt;
+            &lt;Policies&gt;
+                &lt;TimeBasedTriggeringPolicy interval="1" modulate="true"/&gt;
+                &lt;SizeBasedTriggeringPolicy size=&quot;10 MB&quot;/&gt;
+            &lt;/Policies&gt;
+        &lt;/RollingFile&gt;
+ 
+        &lt;!-- error级别及以上单独输出文件 --&gt;
+        &lt;RollingFile name=&quot;error&quot;
+                     fileName=&quot;${baseDir}/error.log&quot;
+                     filePattern=&quot;${baseDir}/error_%i.log.%d{yyyy-MM-dd}&quot;&gt;
+            &lt;Filters&gt;
+                &lt;ThresholdFilter level=&quot;ERROR&quot;/&gt;
+            &lt;/Filters&gt;
+            &lt;PatternLayout pattern=&quot;${p_file}&quot;/&gt;
+            &lt;Policies&gt;
+                &lt;TimeBasedTriggeringPolicy interval="1" modulate="true"/&gt;
+                &lt;SizeBasedTriggeringPolicy size=&quot;10 MB&quot;/&gt;
+            &lt;/Policies&gt;
+        &lt;/RollingFile&gt;
+ 
+    &lt;/Appenders&gt;
+ 
+    &lt;Loggers&gt;
+        &lt;Root level=&quot;DEBUG&quot;&gt;
+            &lt;appender-ref ref=&quot;error&quot;/&gt;
+            &lt;appender-ref ref=&quot;info&quot;/&gt;
+            &lt;appender-ref ref=&quot;console&quot;/&gt;
+            &lt;appender-ref ref=&quot;debug&quot;/&gt;
+        &lt;/Root&gt;
+    &lt;/Loggers&gt;
+ 
+&lt;/Configuration&gt;
+</code>
+
+<h1>AOP统一处理请求响应日志</h1>
+<code>
+//import org.slf4j.Logger;
+//import org.slf4j.LoggerFactory;
+ 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+ 
+@Aspect
+@Component
+public class WebLogAspect {
+    //private static final Logger logger = LoggerFactory.getLogger(WebLogAspect.class);
+    private static final Logger logger = LogManager.getLogger(WebLogAspect.class);
+    /*
+        当使用 spring-boot-starter-log4j2 时，Log4j2 是的实际日志实现
+        Spring Boot 默认使用的是 SLF4J 作为日志门面(Slf4j常与Logback组合使用)，它提供了一个统一的日志接口，但实际的日志记录由Log4j2完成
+        虽然 SLF4J 也可以用于与 Log4j2 兼容的项目，但在这种配置下，直接使用 Log4j2 的 API 更符合实际的日志实现
+     */
+ 
+    @Pointcut("execution(public * com.ida.demo14.controller.*.*(..))")
+    public void webLog() { }
+ 
+    //@Before("webLog()")
+    public void doBefore(JoinPoint joinPoint) {
+        //Spring MVC 将 HttpServletRequest 绑定到当前线程的 RequestContextHolder 中(通过 ThreadLocal 实现将数据与当前线程关联)，这使得在任何线程中（包括 AOP 切面方法中）都可以访问当前请求的属性。
+        //RequestContextHolder 是 Spring 提供的一个类，用于获取当前线程的请求属性
+        //ServletRequestAttributes 的实例封装了当前 HTTP 请求的各种信息，包括 HttpServletRequest 对象
+        ServletRequestAttributes requestAttributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        HttpServletRequest request = requestAttributes.getRequest();
+ 
+        String url = request.getRequestURL().toString();
+        String httpMethod = request.getMethod();
+        String ip = request.getRemoteAddr();
+        String classAndMethod = joinPoint.getSignature().getDeclaringTypeName() + "." + joinPoint.getSignature().getName();
+        Object[] args = joinPoint.getArgs();
+ 
+        logger.info("URL : " + url);
+        logger.info("HTTP_METHOD : " + httpMethod);
+        logger.info("IP : " + ip);
+        logger.info("CLASS_METHOD : " + classAndMethod);
+        logger.info("ARGS : " + Arrays.toString(args));
+    }
+ 
+    //@AfterReturning(returning = "res", pointcut = "webLog()")
+    public void doAfterReturning(Object res) throws JsonProcessingException {
+        //ObjectMapper 是 Jackson 库中的一个类, Spring Boot 会自动包含 Jackson 作为默认的 JSON 处理库
+        //writeValueAsString(Object value)：将 Java 对象转换为 JSON 字符串
+        //readValue(String content, Class<T> valueType)：将 JSON 字符串转换为指定类型的 Java 对象
+        logger.info("RESPONSE : " + new ObjectMapper().writeValueAsString(res));
+    }
+ 
+    //@Around("webLog()")
+    @Around("execution(public * com.ida.demo14.controller.*.*(..))")
+    public Object doAround(ProceedingJoinPoint joinPoint) throws Throwable {
+        // 获取 HTTP 请求信息
+        ServletRequestAttributes requestAttributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        HttpServletRequest request = requestAttributes.getRequest();
+ 
+        String url = request.getRequestURL().toString();
+        String httpMethod = request.getMethod();
+        String ip = request.getRemoteAddr();
+        String classAndMethod = joinPoint.getSignature().getDeclaringTypeName() + "." + joinPoint.getSignature().getName();
+        Object[] args = joinPoint.getArgs();
+ 
+        logger.info("URL : " + url);
+        logger.info("HTTP_METHOD : " + httpMethod);
+        logger.info("IP : " + ip);
+        logger.info("CLASS_METHOD : " + classAndMethod);
+        logger.info("ARGS : " + Arrays.toString(args));
+ 
+        Object result = joinPoint.proceed();
+ 
+        logger.info("RESPONSE : " + new ObjectMapper().writeValueAsString(result));
+ 
+        return result;
+    }
+}
+</code>
+<h1>RequestContextHolder</h1>
+RequestContextHolder 是 Spring 提供的一个工具类，用于访问与当前请求相关的上下文信息。它主要用于在非 Servlet 环境中访问 HttpServletRequest 或 HttpServletResponse
+    例如在拦截器、AOP 切面、异步任务和非 MVC 环境下访问请求信息或其他无法直接注入 HttpServletRequest 的地方
+RequestContextHolder 中的请求上下文信息是线程局部变量（ThreadLocal）存储的，因此在多线程环境下要小心处理，避免造成内存泄漏或数据不一致
+
+<h1>全局json日期格式化</h1>
+boot默认的json工具为jackson, 实体类中的Date类型字段未进行注解配置时返回日期为零时区
+<h2>通过注解配置日期格式和时区</h2>
+<code>
+@JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone ="GMT+8")
+private Date createTime;
+@JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone ="GMT+8")
+private Date updateTime;
+</code>
+<h2>通过配置文件配置日期格式</h2>
+application.properties
+<code properties>
+spring.jackson.date-format=yyyy-MM-dd HH:mm:ss
+</code>
+<h2>通过配置类配置日期格式和时区</h2>
+要包括时区设置，你需要创建一个配置类来自定义 ObjectMapper。这样你可以设置日期格式和时区。
+Spring Boot 的 ObjectMapper 不支持直接在 application.properties 文件中配置时区，因此需要通过配置类来实现
+<code>
+@Configuration
+public class JacksonConfig {
+    @Bean
+    public ObjectMapper objectMapper() {
+        ObjectMapper mapper = new ObjectMapper(); //ObjectMapper 是 Jackson 库中的一个类
+        mapper.registerModule(new JavaTimeModule()); // 注册 JavaTimeModule 来处理 Java 8 时间类
+ 
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss"); // 设置日期格式
+        dateFormat.setTimeZone(TimeZone.getTimeZone("GMT+8")); // 配置时区
+        mapper.setDateFormat(dateFormat);
+ 
+        mapper.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false); // 禁用将日期格式化为时间戳
+        return mapper;
+    }
+}
+</code>
+
+<h1>全局数据预处理</h1>
+@InitBinder 是 Spring MVC 中的一个注解，用于定制数据绑定过程。它允许你在请求处理前对请求数据进行格式化、转换或验证。
+通常与 @Controller 或 @RestController 配合使用，用于初始化 WebDataBinder 实例。
+
+将请求中的字符串格式化为日期
+<code>
+@Controller
+public class SampleController {
+ 
+    @InitBinder
+    public void initBinder(WebDataBinder binder) {
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+        binder.registerCustomEditor(Date.class, new CustomDateEditor(dateFormat, true));
+    }
+ 
+    @GetMapping("/example")
+    public ResponseEntity&lt;String> example(@RequestParam("date") Date date) {
+        return ResponseEntity.ok("Date: " + date);
+    }
+}
+</code>
+
+自定义转换逻辑
+<code>
+public class CustomStringEditor extends PropertyEditorSupport {
+    @Override
+    public void setAsText(String text) throws IllegalArgumentException {
+        // 例如将文本转换为大写
+        setValue(text != null ? text.toUpperCase() : null);
+    }
+}
+ 
+@ControllerAdvice
+public class GlobalControllerAdvice {
+ 
+    @InitBinder
+    public void initBinder(WebDataBinder binder) {
+        // 注册自定义的 PropertyEditor
+        binder.registerCustomEditor(String.class, new CustomStringEditor());
+    }
+}
+ 
+@RestController
+public class SampleController {
+ 
+    @GetMapping("/example")
+    public String example(@RequestParam("text") String text) {
+        return "Converted text: " + text;
+    }
+}
+</code>
+
+<h1>Bean Validation</h1>
+在 Spring Boot 项目中，使用 Bean Validation（例如 Hibernate Validator）来验证用户输入是一种常见且有效的方法。
+Hibernate Validator 是 Hibernate 框架的一部分，它实现了 Java Bean Validation 规范（JSR 303 和 JSR 380）
+<h2>依赖</h2>
+SpringBoot2.3.0以后版本没有引入javax.validation，需要手动引入对应版本
+<code xml>
+&lt;dependency>
+    &lt;groupId>org.springframework.boot&lt;/groupId>
+    &lt;artifactId>spring-boot-starter-validation&lt;/artifactId>
+&lt;/dependency>
+</code>
+<h2>注解列表</h2>
+@Valid为开关
+在未通过验证时可以通过message属性提示信息
+
+    @NotNull
+    @NotEmpty
+        集合、数组、字符串等不能为空（长度或大小大于 0）
+    @NotBlank
+        字符串不为空且至少包含一个非空白字符, 仅适用于字符串
+    @Size
+        字符串、集合、数组的大小在指定范围内。
+        @Size(min = 2, max = 14, message = "必须介于2-14")
+    @Pattern
+        确保字符串匹配指定的正则表达式。
+        @Pattern(regexp = "[a-zA-Z0-9]+")
+        @Pattern(regexp = "male|female", message = "性别必须是男性或女性")
+数值类型
+    @Min 不小于指定的最小值。@Min(18)
+    @Max 不大于指定的最大值。
+    @Positive 值为正数
+    @PositiveOrZero 值为正数或零
+    @Negative 值为负数
+    @NegativeOrZero 负数或零
+    @DecimalMin 
+        不小于指定的最小值。适用于小数和整数。DecimalMin("0.0")
+    @DecimalMax 不大于指定的最大值
+    @Digits 数值的整数部分和小数部分的位数符合指定限制。
+        @Digits(integer = 3, fraction = 2)
+
+日期和时间
+    @Past
+        确保日期在过去。
+        @Past(message = "出生年不能大于当前时间")
+        private Date birthday;
+    @PastOrPresent
+        确保日期在过去或当前时间。
+    @Future
+        确保日期在将来。
+    @FutureOrPresent
+        确保日期在将来或当前时间。
+
+自定义注解
+    @Email
+        确保字符串为有效的电子邮件地址。
+        适用于字符串。
+    @AssertTrue
+        确保布尔值为 true。
+    @AssertFalse
+        确保布尔值为 false。
+
+<h2>自定义验证注解</h2>
+例如创建一个@ValidAge, 数值类型,不能为null,范围在18-65之间
+<code>
+@Documented
+@Constraint(validatedBy = AgeValidator.class)
+@Target({ ElementType.METHOD, ElementType.FIELD })
+@Retention(RetentionPolicy.RUNTIME)
+public @interface ValidAge {
+    String message() default "Invalid age";
+    Class&lt;?>[] groups() default {};
+    Class&lt;? extends Payload>[] payload() default {};
+}
+ 
+public class AgeValidator implements ConstraintValidator&lt;ValidAge, Integer> {
+    @Override
+    public boolean isValid(Integer value, ConstraintValidatorContext context) {
+        return value != null && value >= 18 && value &lt;= 65;
+    }
+}
+</code>
+</pre>
+</body>
+</html>

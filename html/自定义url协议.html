@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>自定义url协议</title>
+ </head>
+ <body>
+  <span id="anchor">20240510094910-_工具使用</span>
+  <pre>
+<h1>新建协议</h1>
+<code null>
+//HKEY_CLASSES_ROOT目录下新建4层文件夹,最外层是协议名称
+ida\shell\open\command
+ 
+//最里层新建字符串值设置启动路径
+"D:\Dropbox\local\src\guide.bat" "%1"
+//guide.bat作为向导
+//"%1"表示捕获URL中的参数
+</code>
+
+<h2>注册表方式</h2>
+表头声明不可省略
+<code shell>
+Windows Registry Editor Version 5.00
+[HKEY_CLASSES_ROOT\ida]
+@="ida Protocol"
+"URL Protocol"=""
+[HKEY_CLASSES_ROOT\ida\shell]
+@=""
+[HKEY_CLASSES_ROOT\ida\shell\open]
+@=""
+[HKEY_CLASSES_ROOT\ida\shell\open\command]
+@="\"D:\\Dropbox\\local\\src\\guide.bat\" \"%1\""
+</code>
+
+<h1>url中文参数解码</h1>
+decodeURI.js
+<code js>
+msg = decodeURI(WScript.Arguments(0));
+arr = msg.split(':');
+switch (arr[1].charAt(0)) {
+    case "1":
+    case "2":
+    case "3":
+        WScript.Echo(arr[2]);
+        break;
+}
+</code>
+
+<h1>忽略打开外部协议时的弹窗确认</h1>
+<code null>
+计算机\HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Google\Chrome
+//新建字符串值,名称&amp;数据
+AutoLaunchProtocolsFromOrigins
+[{"allowed_origins": ["http://test1","http://test2"], "protocol": "ida"}]
+</code>
+https://stackoverflow.com/questions/75209468/google-chrome-urlallowlist-doesnt-work-on-win-10-pro
+
+<h1>向导例</h1>
+guide.bat
+<code batch>
+@echo off
+setlocal enabledelayedexpansion
+
+@REM D\C\B\A(当前脚本自身所在目录)
+set "A=%~dp0"
+pushd "%A%" && cd ..
+set "B=%CD%"
+cd ..
+set "C=%CD%"
+cd ..
+set "D=%CD%"
+popd
+
+@REM 确保路径结尾带有 "\"
+for %%X in (A B C D) do (
+    if not "!%%X:~-1!"=="\" set "%%X=!%%X!\"
+)
+
+@REM 不要设%temp%这个变量,跟jar包调用webp-imageio.dll有冲突
+set "temp1=%systemroot%\temp\1001.txt"
+set "temp2=%systemroot%\temp\1002.txt"
+cscript -nologo -e:jscript %B%src\decodeURI.js %1 &gt; %temp1%
+ 
+set "jar_path=%B%src\generator.jar"
+set "jre_path=D:\java\JDK\temurin-1.8\bin\java"
+set "vscode_path=C:\Users\ida\AppData\Local\Programs\Microsoft VS Code\Code.exe"
+set "githubdesktop_path=C:\Users\ida\AppData\Local\GitHubDesktop\GitHubDesktop.exe"
+ 
+for /f "tokens=2 delims=:|@" %%i in (%1) do (set code=%%i)
+if "%code%" == "1" goto case_1 @REM create new page
+if "%code%" == "2" goto case_2 @REM edit local page
+if "%code%" == "3" goto case_3 @REM delete
+if "%code%" == "4" goto case_4 @REM generate volume
+if "%code%" == "5" goto case_5 @REM generate webp
+ 
+:case_1
+@REM create new page
+@REM ida:1:分类id
+@REM pdf开头加@
+set /p title=Enter the title:
+echo %title% &gt; %temp2%
+find "@" %temp2%
+if %errorlevel% equ 0 (
+    set type="pdf"
+    goto case_1_a
+) else (
+    setlocal
+    if exist "%B%html\%title%.html" (
+        echo File exists!
+        pause
+        exit
+    )
+    endlocal
+    set type="html"
+    goto case_1_b
+)
+ 
+:case_1_a
+for /f "usebackq delims=" %%a in ("%temp1%") do (
+    set "categery_id=%%a"
+)
+"%jre_path%" -jar -Dfile.encoding=UTF-8 "%jar_path%" 1 "%C2%local" "%title%" "%categery_id%" "%type%"
+goto end
+ 
+:case_1_b
+for /f "usebackq delims=" %%a in ("%temp1%") do (
+    set "categery_id=%%a"
+)
+"%jre_path%" -jar -Dfile.encoding=UTF-8 "%jar_path%" 1 "%C2%local" "%title%" "%categery_id%" "%type%"
+tasklist /FI "IMAGENAME eq javaw.exe" | findstr /C:"%jar_path%" &gt;nul
+if %errorlevel% neq 0 (
+    start "" "%vscode_path%" "%B%html\%title%.html"
+)
+goto end
+ 
+:case_2
+@REM edit page
+@REM ida:2:标题
+for /f "usebackq delims=" %%a in ("%temp1%") do (
+    set "title=%%a"
+)
+"%jre_path%" -jar -Dfile.encoding=UTF-8 "%jar_path%" 2 "%C2%local" "%title%"
+tasklist /FI "IMAGENAME eq javaw.exe" | findstr /C:"%jar_path%" &gt;nul
+if %errorlevel% neq 0 start "" "%vscode_path%" "%B%\html\%title%.html" 
+goto end
+ 
+:case_3
+@REM delete
+@REM ida:3:类型@标题
+for /f "tokens=1,2 delims=@" %%a in (%temp1%) do (
+    set "type=%%a"
+    set "title=%%b"
+)
+if "%type%" == "html" move "%B%html\%title%.html" "%B%html\_deleted"
+if "%type%" == "pdf" move "%B%assets\%title%.pdf" "%B%assets\_deleted"
+"%jre_path%" -jar -Dfile.encoding=UTF-8 "%jar_path%" 3 "%C2%local" "%type%" "%title%"
+goto end
+ 
+:case_4
+@REM generate volume
+@REM ida:4
+"%jre_path%" -jar -Dfile.encoding=UTF-8 "%jar_path%" 4 "%C2%local"
+tasklist /FI "IMAGENAME eq javaw.exe" | findstr /C:"%jar_path%" &gt;nul
+if %errorlevel% neq 0 start "" "%githubdesktop_path%"
+goto end
+ 
+:case_5
+@REM generate webp
+@REM ida:5
+"%jre_path%" -jar -Dfile.encoding=UTF-8 "%jar_path%" 5 "%C2%local" 0.8
+pause
+goto end
+ 
+:end
+del %temp1% %temp2%
+exit
+</code>
+</pre>
+ </body>
+</html>

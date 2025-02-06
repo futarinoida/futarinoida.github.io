@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>枚举</title>
+</head>
+<body><span id="anchor">20240616183123-_java</span>
+<pre>
+枚举类最终会被编译为被&nbsp;final&nbsp;修饰的普通类，它的所有属性也都会被&nbsp;static&nbsp;和&nbsp;final&nbsp;关键字修饰，所以枚举类在项目启动时就会被 JVM 加载并初始化，而这个执行过程是线程安全的，所以枚举类也是线程安全的类,可以避免反射和序列化问题
+
+compareTo() 比较两个枚举成员在定义时的顺序,返回的是索引值的差值
+values()：返回 enum 实例的数组，数组中的元素严格保持在 enum 中声明时的顺序。
+name()：返回实例名。
+ordinal()：返回实例声明时的次序，从0开始。
+getDeclaringClass()：返回实例所属的 enum 类型。
+equals()：判断是否为同一个对象。
+
+可以使用 ==来比较enum实例
+如果枚举中没有定义方法，也可以在最后一个实例后面加逗号、分号或什么都不加
+JDK7后switch支持enum类型
+<code>
+interface INumberEnum {
+    int getCode();
+    String getDescription();
+}
+//错误码
+public enum ErrorCode implements INumberEnum{
+    OK(0, "成功"),
+    ERROR_A(100, "错误A"),
+    ERROR_B(200, "错误B");
+
+    ErrorCode(int number, String description) {
+        this.code = number;
+        this.description = description;
+    }
+
+    private int code;
+    private String description;
+
+    @Override
+    public int getCode() {
+        return code;
+    }
+
+    @Override
+    public String getDescription() {
+        return description;
+    }
+
+    public static void main(String args[]) {
+        for (ErrorCode s : ErrorCode.values()) {
+            System.out.println("code: " + s.getCode() + ", description: " + s.getDescription());
+        }
+    }
+}
+</code>
+
+策略枚举,通过枚举嵌套枚举的方式,将枚举常量分类处理
+<code>
+public enum PayrollDay {
+    MONDAY(PayType.WEEKDAY), 
+    TUESDAY(PayType.WEEKDAY), 
+    WEDNESDAY(PayType.WEEKDAY), 
+    THURSDAY(PayType.WEEKDAY), 
+    FRIDAY(PayType.WEEKDAY), 
+    SATURDAY(PayType.WEEKEND), 
+    SUNDAY(PayType.WEEKEND);
+    //常量
+    private final PayType payType;
+    //构造
+    PayrollDay(PayType payType) {
+        this.payType = payType;
+    }
+    //普通方法
+    double pay(double hoursWorked, double payRate) {
+        return payType.pay(hoursWorked, payRate);
+    }
+
+    //嵌套枚举
+    private enum PayType {
+        WEEKDAY {
+            double overtimePay(double hours, double payRate) {
+                return hours &lt;= HOURS_PER_SHIFT ? 0 : (hours - HOURS_PER_SHIFT) * payRate / 2;
+            }
+        },
+        WEEKEND {
+            double overtimePay(double hours, double payRate) {
+                return hours * payRate / 2;
+            }
+        };
+        //常量
+        private static final int HOURS_PER_SHIFT = 8;
+        //抽象方法
+        abstract double overtimePay(double hrs, double payRate);
+        //普通方法
+        double pay(double hoursWorked, double payRate) {
+            double basePay = hoursWorked * payRate;
+            return basePay + overtimePay(hoursWorked, payRate);
+        }
+    }
+    //测试
+    public static void main(String[] args) {
+        System.out.println("时薪100的人在周五工作8小时的收入：" + PayrollDay.FRIDAY.pay(8.0, 100));
+        System.out.println("时薪100的人在周六工作8小时的收入：" + PayrollDay.SATURDAY.pay(8.0, 100));
+    }
+}
+------------------------
+时薪100的人在周五工作8小时的收入：800.0
+时薪100的人在周六工作8小时的收入：1200.0
+</code>
+
+在接口中组织枚举类
+<code>
+interface ColorInterface {
+    enum ColorEnum implements ColorInterface {
+        GREEN, YELLOW, RED
+    }
+    enum NewColorEnum implements ColorInterface {
+        NEW_GREEN, NEW_YELLOW, NEW_RED
+    }
+}
+
+public class EnumTest {
+    public static void main(String[] args) {
+        // 赋值第一个枚举类
+        ColorInterface colorEnum = ColorInterface.ColorEnum.RED;
+        System.out.println(colorEnum);
+        // 赋值第二个枚举类
+        colorEnum = ColorInterface.NewColorEnum.NEW_RED;
+        System.out.println(colorEnum);
+    }
+}
+-----------------
+RED
+NEW_RED
+</code>
+
+EnumSet&nbsp;
+<code>
+public class EnumTest {
+    public static void main(String[] args) {
+        List&lt;Colorenum&gt; list = new ArrayList&lt;Colorenum&gt;();
+        list.add(ColorEnum.RED);
+        list.add(ColorEnum.RED);  // 重复元素
+        list.add(ColorEnum.YELLOW);
+        list.add(ColorEnum.GREEN);
+        // 去掉重复数据
+        EnumSet&lt;Colorenum&gt; enumSet = EnumSet.copyOf(list);
+        System.out.println(&quot;去重：&quot; + enumSet);
+        // 获取指定范围的枚举（获取所有的失败状态）
+        EnumSet&lt;ErrorCodeEnum&gt; errorCodeEnums = EnumSet.range(ErrorCodeEnum.ERROR, ErrorCodeEnum.UNKNOWN_ERROR);
+        System.out.println(&quot;所有失败状态：&quot; + errorCodeEnums);
+    }
+}
+
+enum ColorEnum {
+    RED("红色", 1), GREEN("绿色", 2), BLANK("白色", 3), YELLOW("黄色", 4);
+    private String name;
+    private int index;
+
+    private ColorEnum(String name, int index) {
+        this.name = name;
+        this.index = index;
+    }
+}
+
+enum ErrorCodeEnum {
+    SUCCESS(1000, "success"),
+    ERROR(2001, "parameter error"),
+    SYS_ERROR(2002, "system error"),
+    NAMESPACE_NOT_FOUND(2003, "namespace not found"),
+    NODE_NOT_EXIST(3002, "node not exist"),
+    NODE_ALREADY_EXIST(3003, "node already exist"),
+    UNKNOWN_ERROR(9999, "unknown error");
+
+    private int code;
+    private String msg;
+
+    ErrorCodeEnum(int code, String msg) {
+        this.code = code;
+        this.msg = msg;
+    }
+}
+-----------------
+去重：[RED, GREEN, YELLOW]
+所有失败状态：[ERROR, SYS_ERROR, NAMESPACE_NOT_FOUND, NODE_NOT_EXIST, NODE_ALREADY_EXIST, UNKNOWN_ERROR]
+</code>
+
+枚举单例
+<code>
+//枚举类型在类加载时就会被初始化，这意味着在第一次使用枚举类型的任何成员时，所有枚举实例都会被创建
+//类似于饿汉式没有懒加载, 如果在不需要懒加载的情况下，推荐使用枚举单例模式。
+//当一个序列化的对象被反序列化时，会创建一个新的对象，这就破坏了单例模式的初衷
+//Java 语言规范不允许通过反射来创建枚举类型的新实例
+//防止反序列化攻击：枚举类不会被反序列化破坏单例。即使在面对复杂的序列化或者反射攻击的情况下，枚举单例也能保证单例的实现。
+//序列化问题：枚举类型默认提供了序列化机制，保证在序列化和反序列化过程中枚举实例的唯一性。
+//简洁明了：枚举单例的实现非常简单明了，而饿汉式单例需要编写更多的代码来实现单例的特性，例如需要在构造函数中处理实例已存在的情况等。
+public enum SingletonEnum {
+    INSTANCE("Initial value");
+    private String value;
+    // 构造方法
+    SingletonEnum(String value) {
+        this.value = value;
+    }
+    //getter,setter
+    // 实现单例的具体逻辑
+    public void doSomething() {
+        System.out.println("SingletonEnum is doing something with value: " + value);
+    }
+}
+ 
+public class Main {
+    public static void main(String[] args) {
+        public static void main(String[] args) {
+            SingletonEnum singleton = SingletonEnum.INSTANCE;
+            System.out.println(singleton.getValue()); // 输出 "Initial value"
+            
+            singleton.setValue("Hello, World!");
+            singleton.doSomething(); // 输出 "SingletonEnum is doing something with value: Hello, World!"
+    
+            SingletonEnum anotherSingleton = SingletonEnum.INSTANCE;
+            System.out.println(anotherSingleton.getValue()); // 输出 "Hello, World!"
+        }
+    }
+}
+</code>
+
+假设我们有一个游戏，游戏中有三个角色：战士、法师和牧师。每个角色都有自己的属性：血量、攻击力和防御力。
+我们可以使用枚举类型来表示这三个角色，代码如下：
+<code>
+enum Role {
+    WARRIOR("战士", 100, 50, 30),
+    MAGE("法师", 80, 70, 20),
+    PRIEST("牧师", 60, 30, 50);
+ 
+    private String name; // 角色名称
+    private int hp; // 角色血量
+    private int attack; // 角色攻击力
+    private int defense; // 角色防御力
+ 
+    // 构造方法
+    Role(String name, int hp, int attack, int defense) {
+        this.name = name;
+        this.hp = hp;
+        this.attack = attack;
+        this.defense = defense;
+    }
+ 
+    public void setHp(int hp) {
+        this.hp = hp;
+    }
+    public String getName() {
+        return name;
+    }
+    public int getHp() {
+        return hp;
+    }
+    public int getAttack() {
+        return attack;
+    }
+    public int getDefense() {
+        return defense;
+    }
+}
+ 
+class Player {
+    private Role role; // 玩家角色
+
+    public Role getRole() {
+        return role;
+    }
+
+    public Player(Role role) {
+        this.role = role;
+    }
+
+    public void attack(Player target) {
+        int damage = this.role.getAttack() - target.getRole().getDefense();
+        if (damage > 0) {
+            int newHp = target.getRole().getHp() - damage;
+            // 防止血量出现负值
+            target.getRole().setHp(Math.max(newHp, 0));
+        }
+    }
+}
+ 
+public class GameTest {
+    public static void main(String[] args) {
+        Player player1 = new Player(Role.WARRIOR);
+        Player player2 = new Player(Role.MAGE);
+        System.out.println("玩家1选择了" + player1.getRole().getName());
+        System.out.println("玩家2选择了" + player2.getRole().getName());
+
+        player1.attack(player2);
+
+        System.out.println("玩家2的血量为：" + player2.getRole().getHp());
+    }
+}
+-----------------
+玩家1选择了战士
+玩家2选择了法师
+玩家2的血量为：50
+</code>
+</pre>
+</body>
+</html>

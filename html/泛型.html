@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>泛型</title>
+ </head>
+ <body>
+  <span id="anchor">20240307183503-_java</span>
+  <pre>
+所有的集合接口和实现都大量地使用它
+泛型允许我们为集合提供一个可以容纳的对象类型
+避免了在运行时出现 ClassCastException
+不需要使用显式转换和 instanceOf 操作符
+运行时不会产生类型检查的字节码指令
+<code>
+//A及A的子类
+&lt;? extends A&gt;
+//A及A的超类
+&lt;? super A&gt;
+//作为泛型方法时
+public static &lt;T&gt; void printValue(T t) {}
+//作为泛型类时
+public class NumGeneric&lt;T&gt; {}
+</code>
+<code>
+public class NumGeneric1&lt;T&gt; {
+    private T num;
+    public void setNum(T num) {
+        this.num = num;
+    }
+ 
+    public static void main(String[] args) {
+        NumGeneric1&lt;Integer&gt; intNum = new NumGeneric1&lt;&gt;();
+        intNum.setNum(10);
+        System.out.println(intNum.num);
+        NumGeneric1&lt;Float&gt; floatNum = new NumGeneric1&lt;&gt;();
+        floatNum.setNum(5.5f);
+        System.out.println(floatNum.num);
+    }
+}
+</code>
+<code>
+public class NumGeneric2&lt;x,y&gt;{
+    private x num1;
+    private y num2;
+ 
+    public void genNum(x num1, y num2) {
+        this.num1=num1;
+        this.num2=num2;
+    }
+    public void setNum1(x num1) {
+        this.num1 = num1;
+    }
+    public void setNum2(y num2) {
+        this.num2 = num2;
+    }
+ 
+    public static void main(String[] args) {
+        NumGeneric2&lt;Integer, Float&gt; numObj = new NumGeneric2&lt;&gt;();
+        numObj.genNum(10,5.5f);
+        System.out.println(numObj.num1);
+        System.out.println(numObj.num2);
+        numObj.setNum1(11);
+        numObj.setNum2(5.6f);
+        System.out.println(numObj.num1);
+        System.out.println(numObj.num2);
+    }
+}
+</code>
+</pre>
+ </body>
+</html>

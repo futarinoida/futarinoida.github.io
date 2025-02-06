@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>Maven</title>
+</head>
+<body><span id="anchor">20240410210148-_工具使用</span>
+<pre>
+项目设置遵循统一的规则,保证不同开发环境的兼容性
+自动下载和管理项目所依赖的库和JAR文件及其依赖关系
+可扩展的插件机制, 使用简单功能丰富
+
+<h1>POM</h1>
+POM (Project Object Model)项目对象模型
+groupId
+    组织或项目的唯一标识符
+artifactId
+    项目的唯一标识符, 项目名称用途cms,oa..
+version
+    项目的版本号。版本+单词,1.0.0-RELEASE(发布版),ALPHA,BETA,SNAPSHOT
+packaging
+    构件的打包类型，默认是jar。常见的值有jar、war、pom等。例如：pom表示该项目是一个POM项目，主要用于聚合其他项目。
+classifier
+    附加分类符，用于区分相同groupId、artifactId和version的不同构件。例如：sources表示源代码包，javadoc表示Javadoc包。
+type
+    构件的类型，通常与packaging相同，默认是jar。这个属性在声明依赖时可以使用，例如：pom、jar、war等。
+scope
+    依赖范围，指定依赖在哪些阶段有效。常见的值有：
+        compile：默认值，依赖在编译、测试和运行时都有效。
+        provided：依赖在编译和测试时有效，但运行时由容器（如Servlet容器）提供。
+        runtime：依赖在测试和运行时有效，编译时不需要。
+        test：依赖仅在测试时有效。
+        system：类似于provided，但依赖必须显式指定路径。
+        import：用于导入依赖管理范围。
+optional
+    可选依赖，表示该依赖是可选的，默认为false
+    当值为true时,下游项目在构建时不会自动包含这些可选依赖项, 标记可选依赖项可以防止下游项目引入不必要的库，从而减小构建的复杂性和大小
+    假设你有一个项目A，它依赖于项目B，而项目B依赖于项目C。如果项目B中的项目C依赖被标记为可选，那么项目A在构建时将不会自动包含项目C
+
+
+<h1>本地,中央和远程仓库</h1>
+Maven 会在构建项目时优先从本地仓库查找依赖项，如果未找到，则会从配置的远程仓库(由第三方或组织托管的附加仓库)中下载依赖项,如果在本地仓库和所有配置的远程仓库中都没有找到所需的依赖项，Maven 最后会尝试从社区中央仓库下载(https://repo.maven.apache.org/maven2)
+
+默认本地地址${user.home}/.m2/repository
+    修改本地地址,在maven的config目录下setting.xml中localRepository中指定新的本地仓库路径
+    idea构建工具maven设置中指定maven的安装目录,应用setting.xml文件地址和仓库新地址
+
+远程仓库配置,例如墙国阿里云
+<code xml>
+&lt;repositories&gt;
+    &lt;repository&gt;
+        &lt;id&gt;aliyun&lt;/id&gt;
+        &lt;url&gt;https://maven.aliyun.com/repository/public&lt;/url&gt;
+    &lt;/repository&gt;
+    ..
+&lt;/repositories&gt;
+</code>
+
+<h1>maven打包jar</h1>
+<h2>演示说明</h2>
+<code xml>
+&lt;project xmlns=&quot;http://maven.apache.org/POM/4.0.0&quot;
+         xmlns:xsi=&quot;http://www.w3.org/2001/XMLSchema-instance&quot;
+         xsi:schemaLocation=&quot;http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd&quot;&gt;
+    &lt;modelVersion&gt;4.0.0&lt;/modelVersion&gt;
+ 
+    &lt;!-- 项目信息 --&gt;
+    &lt;groupId&gt;com.example&lt;/groupId&gt;
+    &lt;artifactId&gt;my-app&lt;/artifactId&gt;
+    &lt;version&gt;1.0.0&lt;/version&gt;
+    &lt;packaging&gt;jar&lt;/packaging&gt; &lt;!-- 指定打包类型为 JAR --&gt;
+ 
+    &lt;!-- 项目描述 --&gt;
+    &lt;name&gt;My Application&lt;/name&gt;
+    &lt;description&gt;A simple Java application&lt;/description&gt;
+    &lt;url&gt;http://www.example.com/my-app&lt;/url&gt;
+ 
+    &lt;!-- 依赖项 --&gt;
+    &lt;dependencies&gt;
+        &lt;!-- 你的项目依赖项 --&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;org.springframework&lt;/groupId&gt;
+            &lt;artifactId&gt;spring-core&lt;/artifactId&gt;
+            &lt;version&gt;5.3.8&lt;/version&gt;
+        &lt;/dependency&gt;
+        &lt;!-- 更多依赖项 --&gt;
+    &lt;/dependencies&gt;
+ 
+    &lt;!-- 构建配置 --&gt;
+    &lt;build&gt;
+        &lt;plugins&gt;
+            &lt;!-- Maven 编译插件：指定 Java 源代码和目标版本 --&gt;
+            &lt;plugin&gt;
+                &lt;groupId&gt;org.apache.maven.plugins&lt;/groupId&gt;
+                &lt;artifactId&gt;maven-compiler-plugin&lt;/artifactId&gt;
+                &lt;version&gt;3.8.1&lt;/version&gt;
+                &lt;configuration&gt;
+                    &lt;source&gt;1.8&lt;/source&gt;
+                    &lt;target&gt;1.8&lt;/target&gt;
+                &lt;/configuration&gt;
+                &lt;!-- maven-compiler-plugin 的 compile 目标绑定到 compile 阶段 --&gt;
+                &lt;executions&gt;
+                    &lt;execution&gt;
+                        &lt;id&gt;default-compile&lt;/id&gt;
+                        &lt;phase&gt;compile&lt;/phase&gt;
+                        &lt;goals&gt;
+                            &lt;goal&gt;compile&lt;/goal&gt;
+                        &lt;/goals&gt;
+                    &lt;/execution&gt;
+                &lt;/executions&gt;
+            &lt;/plugin&gt;
+ 
+            &lt;!-- Maven JAR 插件：配置生成 JAR 文件的名称和位置 --&gt;
+            &lt;plugin&gt;
+                &lt;groupId&gt;org.apache.maven.plugins&lt;/groupId&gt;
+                &lt;artifactId&gt;maven-jar-plugin&lt;/artifactId&gt;
+                &lt;version&gt;3.2.0&lt;/version&gt;
+                &lt;configuration&gt;
+                    &lt;outputDirectory&gt;${project.build.directory}&lt;/outputDirectory&gt;
+                    &lt;finalName&gt;${project.artifactId}-${project.version}&lt;/finalName&gt;
+                &lt;/configuration&gt;
+                &lt;!-- maven-jar-plugin 的 jar 目标绑定到 package 阶段 --&gt;
+                &lt;executions&gt;
+                    &lt;execution&gt;
+                        &lt;id&gt;default-jar&lt;/id&gt;
+                        &lt;phase&gt;package&lt;/phase&gt;
+                        &lt;goals&gt;
+                            &lt;goal&gt;jar&lt;/goal&gt;
+                        &lt;/goals&gt;
+                    &lt;/execution&gt;
+                &lt;/executions&gt;
+            &lt;/plugin&gt;
+ 
+            &lt;!-- Maven Assembly 插件：如果需要打包成可执行的 JAR 文件，可以使用这个插件，并指定主类 --&gt;
+            &lt;plugin&gt;
+                &lt;groupId&gt;org.apache.maven.plugins&lt;/groupId&gt;
+                &lt;artifactId&gt;maven-assembly-plugin&lt;/artifactId&gt;
+                &lt;version&gt;3.3.0&lt;/version&gt;
+                &lt;configuration&gt;
+                    &lt;archive&gt;
+                        &lt;manifest&gt;
+                            &lt;mainClass&gt;com.example.Main&lt;/mainClass&gt; &lt;!-- 指定主类 --&gt;
+                        &lt;/manifest&gt;
+                    &lt;/archive&gt;
+                    &lt;descriptorRefs&gt;
+                        &lt;descriptorRef&gt;jar-with-dependencies&lt;/descriptorRef&gt;
+                    &lt;/descriptorRefs&gt;
+                &lt;/configuration&gt;
+                &lt;executions&gt;
+                    &lt;execution&gt;
+                        &lt;id&gt;make-assembly&lt;/id&gt;
+                        &lt;phase&gt;package&lt;/phase&gt;
+                        &lt;goals&gt;
+                            &lt;goal&gt;single&lt;/goal&gt;
+                        &lt;/goals&gt;
+                    &lt;/execution&gt;
+                &lt;/executions&gt;
+            &lt;/plugin&gt;
+        &lt;/plugins&gt;
+    &lt;/build&gt;
+&lt;/project&gt;
+</code>
+<h3>Phase（阶段）</h3>
+构建生命周期的一个阶段，代表一组任务的集合
+    default（默认生命周期）：处理项目的编译、测试、打包、部署等任务。
+        validate：验证项目是否正确且所有必要信息都可用。
+        compile：编译项目的源代码。
+        test：使用合适的单元测试框架测试编译的源代码。
+        package：将编译后的代码打包成可分发的格式（例如 JAR、WAR）。
+        verify：运行任何检查以验证包的有效性和质量。
+        install：将包安装到本地仓库，以供本地其他项目使用。
+        deploy：将最终的包复制到远程仓库，以共享给其他开发人员和项目。
+    clean（清理生命周期）：处理项目的清理任务。
+        pre-clean：执行清理前需要完成的工作。
+        clean：清理上一次构建生成的所有文件。
+        post-clean：执行清理后需要完成的工作。
+    site（站点生命周期）：生成项目站点文档。
+        pre-site：执行生成站点文档前需要完成的工作。
+        site：生成项目的站点文档。
+        post-site：执行生成站点文档后需要完成的工作。
+        site-deploy：将生成的站点文档发布到特定的服务器。
+<h3>Goal（目标）</h3>
+goal 是插件执行的具体任务
+    每个插件包含一个或多个目标
+        每个目标可以绑定到一个或多个生命周期阶段
+当 Maven 执行一个阶段时，它会执行该阶段绑定的所有目标。
+    每个目标可以直接在命令行中指定，也可以在 pom.xml 文件中配置。
+
+mvn clean compile
+    依次执行 clean 阶段及其之前的所有阶段，然后执行 compile 阶段及其之前的所有阶段
+mvn compile
+    执行 compile 阶段及其之前的所有阶段
+mvn org.apache.maven.plugins:maven-compiler-plugin:compile
+    只执行 maven-compiler-plugin 插件的 compile 目标，而不管生命周期阶段
+
+<h2>简化</h2>
+Maven 编译插件 (maven-compiler-plugin):
+    Maven 默认使用 JDK 1.5 来编译代码。指定 source 和 target 版本是为了使用特定的 JDK 版本（如 Java 8）。但如果你项目使用的是默认的 JDK 版本，可以省略。
+Maven JAR 插件 (maven-jar-plugin):
+    maven-jar-plugin 是 Maven 默认会在 package 阶段执行的插件。如果不需要特殊配置（例如自定义 JAR 文件名或位置），可以省略，因为 Maven 会自动执行默认配置。
+Maven Assembly 插件 (maven-assembly-plugin):
+    用于创建包含所有依赖项的可执行 JAR 文件，必要时才配置。
+执行配置部分：
+    executions 部分允许你定义插件在构建生命周期的不同阶段执行的任务。对于许多插件，默认绑定的目标已经足够，因此可以省略自定义的 executions 配置。
+<code xml>
+&lt;project xmlns=&quot;http://maven.apache.org/POM/4.0.0&quot;
+         xmlns:xsi=&quot;http://www.w3.org/2001/XMLSchema-instance&quot;
+         xsi:schemaLocation=&quot;http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd&quot;&gt;
+    &lt;modelVersion&gt;4.0.0&lt;/modelVersion&gt;
+    
+    &lt;!-- 项目信息 --&gt;
+    &lt;groupId&gt;com.example&lt;/groupId&gt;
+    &lt;artifactId&gt;my-app&lt;/artifactId&gt;
+    &lt;version&gt;1.0.0&lt;/version&gt;
+    &lt;packaging&gt;jar&lt;/packaging&gt;
+    
+    &lt;!-- 依赖项 --&gt;
+    &lt;dependencies&gt;
+        &lt;!-- .. --&gt;
+    &lt;/dependencies&gt;
+    
+    &lt;!-- 构建配置 --&gt;
+    &lt;build&gt;
+        &lt;plugins&gt;
+            &lt;!-- Maven 编译插件 --&gt;
+            &lt;plugin&gt;
+                &lt;groupId&gt;org.apache.maven.plugins&lt;/groupId&gt;
+                &lt;artifactId&gt;maven-compiler-plugin&lt;/artifactId&gt;
+                &lt;version&gt;3.8.1&lt;/version&gt;
+                &lt;configuration&gt;
+                    &lt;source&gt;1.8&lt;/source&gt;
+                    &lt;target&gt;1.8&lt;/target&gt;
+                &lt;/configuration&gt;
+            &lt;/plugin&gt;
+            
+            &lt;!-- Maven Assembly 插件 --&gt;
+            &lt;plugin&gt;
+                &lt;groupId&gt;org.apache.maven.plugins&lt;/groupId&gt;
+                &lt;artifactId&gt;maven-assembly-plugin&lt;/artifactId&gt;
+                &lt;version&gt;3.3.0&lt;/version&gt;
+                &lt;configuration&gt;
+                    &lt;archive&gt;
+                        &lt;manifest&gt;
+                            &lt;mainClass&gt;com.example.Main&lt;/mainClass&gt;
+                        &lt;/manifest&gt;
+                    &lt;/archive&gt;
+                    &lt;descriptorRefs&gt;
+                        &lt;!-- 生成包含所有依赖项的 JAR 文件 --&gt;
+                        &lt;descriptorRef&gt;jar-with-dependencies&lt;/descriptorRef&gt;
+                    &lt;/descriptorRefs&gt;
+                &lt;/configuration&gt;
+                &lt;executions&gt;
+                    &lt;execution&gt;
+                        &lt;id&gt;make-assembly&lt;/id&gt;
+                        &lt;phase&gt;package&lt;/phase&gt;
+                        &lt;goals&gt;
+                            &lt;goal&gt;single&lt;/goal&gt;
+                        &lt;/goals&gt;
+                    &lt;/execution&gt;
+                &lt;/executions&gt;
+            &lt;/plugin&gt;
+        &lt;/plugins&gt;
+    &lt;/build&gt;
+&lt;/project&gt;
+</code>
+虽然已经配置了 descriptorRef jar-with-dependencies/descriptorRef，但如果没有配置 executions 元素，Maven 并不知道在构建生命周期的哪个阶段执行这个插件以及执行哪个目标。
+    descriptorRefjar-with-dependencies/descriptorRef 本身只是指定了要使用的预定义描述符，但并没有指定插件的执行时机。
+descriptorRef 的作用
+    descriptorRefjar-with-dependencies/descriptorRef 是 Maven Assembly 插件的一个配置项，用于告诉插件创建一个包含所有依赖项的 JAR 文件。这个配置指向一个预定义的描述符，该描述符告诉插件如何构建这个包含依赖项的 JAR 文件。
+缺少 executions 配置的情况
+    如果缺少 executions 配置，虽然指定了要创建包含所有依赖项的 JAR 文件，但 Maven 在构建过程中并不知道何时执行这个任务。因此，构建过程中不会生成包含依赖项的 JAR 文件，导致生成的 JAR 文件没有包含依赖项的清单。
+添加 executions 配置的作用
+    通过添加 executions 配置，你明确指定了在构建生命周期的某个阶段（如 package 阶段）执行插件的 single 目标。这样 Maven 知道何时执行这个任务，确保在构建过程中生成包含所有依赖项的 JAR 文件。
+
+<h1>maven打包war</h1>
+<code xml>
+&lt;project xmlns=&quot;http://maven.apache.org/POM/4.0.0&quot;
+         xmlns:xsi=&quot;http://www.w3.org/2001/XMLSchema-instance&quot;
+         xsi:schemaLocation=&quot;http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd&quot;&gt;
+    &lt;modelVersion&gt;4.0.0&lt;/modelVersion&gt;
+    
+    &lt;!-- 项目信息 --&gt;
+    &lt;groupId&gt;com.example&lt;/groupId&gt;
+    &lt;artifactId&gt;my-web-app&lt;/artifactId&gt;
+    &lt;version&gt;1.0.0&lt;/version&gt;
+    &lt;packaging&gt;war&lt;/packaging&gt; &lt;!-- 指定打包类型为 WAR --&gt;
+    
+    &lt;!-- 项目描述 --&gt;
+    &lt;name&gt;My Web Application&lt;/name&gt;
+    &lt;description&gt;A simple Java web application&lt;/description&gt;
+    &lt;url&gt;http://www.example.com/my-web-app&lt;/url&gt;
+    
+    &lt;!-- 依赖项 --&gt;
+    &lt;dependencies&gt;
+        &lt;!-- Servlet API 依赖项（scope 设置为 provided，表示运行时由应用服务器提供） --&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;javax.servlet&lt;/groupId&gt;
+            &lt;artifactId&gt;javax.servlet-api&lt;/artifactId&gt;
+            &lt;version&gt;4.0.1&lt;/version&gt;
+            &lt;scope&gt;provided&lt;/scope&gt;
+        &lt;/dependency&gt;
+        &lt;!-- Spring Web 依赖项 --&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;org.springframework&lt;/groupId&gt;
+            &lt;artifactId&gt;spring-web&lt;/artifactId&gt;
+            &lt;version&gt;5.3.8&lt;/version&gt;
+        &lt;/dependency&gt;
+        &lt;!-- 更多依赖项 --&gt;
+    &lt;/dependencies&gt;
+    
+    &lt;!-- 构建配置 --&gt;
+    &lt;build&gt;
+        &lt;finalName&gt;${artifactId}-${version}&lt;/finalName&gt; &lt;!-- 指定最终生成的 WAR 文件名 --&gt;
+        &lt;plugins&gt;
+            &lt;!-- Maven 编译插件 --&gt;
+            &lt;plugin&gt;
+                &lt;groupId&gt;org.apache.maven.plugins&lt;/groupId&gt;
+                &lt;artifactId&gt;maven-compiler-plugin&lt;/artifactId&gt;
+                &lt;version&gt;3.8.1&lt;/version&gt;
+                &lt;configuration&gt;
+                    &lt;source&gt;1.8&lt;/source&gt;
+                    &lt;target&gt;1.8&lt;/target&gt;
+                &lt;/configuration&gt;
+            &lt;/plugin&gt;
+            
+            &lt;!-- Maven WAR 插件 --&gt;
+            &lt;plugin&gt;
+                &lt;groupId&gt;org.apache.maven.plugins&lt;/groupId&gt;
+                &lt;artifactId&gt;maven-war-plugin&lt;/artifactId&gt;
+                &lt;version&gt;3.3.1&lt;/version&gt;
+            &lt;/plugin&gt;
+        &lt;/plugins&gt;
+    &lt;/build&gt;
+&lt;/project&gt;
+</code>
+
+<h1>Maven命令</h1>
+mvn -v
+    maven版本信息
+mvn archetype:generate
+    通过命令向导创建maven工程结构
+mvn compile
+    编译项目的源代码。
+mvn test
+    运行测试用例
+mvn clean
+    清理项目，删除target目录。
+mvn package
+    将编译后的代码打包成JAR文件。
+mvn install
+    将打包后的构件安装到本地仓库。
+ 
+mvn deploy
+    将打包后的构件部署到远程仓库。
+mvn package -DskipTests
+    跳过执行测试用例，但会编译测试代码
+
+<h1>boot项目</h1>
+spring-boot-maven-plugin是 Spring Boot 项目中最重要的插件。它用于打包 Spring Boot 应用为可执行 JAR 文件
+Spring Boot 项目默认使用 Java 1.8 或更高版本编译代码，因此 maven-compiler-plugin 的配置已经在 spring-boot-starter-parent 中内置
+Spring Boot 项目默认打包为可执行 JAR 文件（通过内嵌的 Tomcat、Jetty 等 Servlet 容器），因此不需要显式配置 maven-war-plugin
+<code xml>
+&lt;build>
+    &lt;plugins>
+        &lt;plugin>
+            &lt;groupId>org.springframework.boot&lt;/groupId>
+            &lt;artifactId>spring-boot-maven-plugin&lt;/artifactId>
+        &lt;/plugin>
+    &lt;/plugins>
+&lt;/build>
+</code>
+
+<h1>Since Maven 3.8.1 http repositories are blocked</h1>
+自 Maven 3.8.1 起，为了安全起见，HTTP 仓库被默认阻止。如果你的项目或 Maven 配置中使用了 HTTP URL 的仓库，你需要更新为 HTTPS，或者配置 Maven 使用支持 HTTP 的镜像。
+
+
+</pre>
+</body>
+</html>

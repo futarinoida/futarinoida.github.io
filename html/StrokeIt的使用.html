@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>StrokeIt的使用</title>
+ </head>
+ <body>
+  <span id="anchor">20240307183503-_工具使用</span>
+  <pre>
+<h1>键名表示</h1>
+<code null>
+supported Keys from the Keystroke plugin
+Key Description
+[BACK] [BACK_DOWN] [BACK_UP] BACKSPACE key
+[TAB] [TAB_DOWN] [TAB_UP] TAB key
+[RETURN] [RETURN_DOWN] [RETURN_UP] ENTER key
+[SHIFT] [SHIFT_DOWN] [SHIFT_UP] SHIFT key
+[CTRL] [CTRL_DOWN] [CTRL_UP] CTRL key
+[ALT] [ALT_DOWN] [ALT_UP] ALT key
+[CAPITAL] [CAPITAL_DOWN] [CAPITAL_UP] CAPS LOCK
+[ESCAPE] [ESCAPE_DOWN] [ESCAPE_UP] ESC key
+[SPACE] [SPACE_DOWN] [SPACE_UP] SPACEBAR
+[PRIOR] [PRIOR_DOWN] [PRIOR_UP] PAGE UP key
+[END] [END_DOWN] [END_UP] END key
+[HOME] [HOME_DOWN] [HOME_UP] HOME key
+[NUMLOCK] [NUMLOCK_DOWN] [NUMLOCK_UP] NUM LOCK&gt;key
+[SCROLL] [SCROLL_DOWN] [SCROLL_UP] SCROLL LOCK key
+[LEFT_DOWN] [LEFT_UP] LEFT ARROW key
+[UP] [UP_DOWN] [UP_UP] UP ARROWkey
+[RIGHT_DOWN] [RIGHT_UP] RIGHT ARROW key
+[DOWN] [DOWN_DOWN] [DOWN_UP] DOWN ARROW key
+[SNAPSHOT] [SNAPSHOT_DOWN] [SNAPSHOT_UP] PRINT SCREEN key for Windows 3.0 and later
+[INSERT] [INSERT_DOWN] [INSERT_UP] INS key
+[DELETE] [DELETE_DOWN] [DELETE_UP] DEL key
+[WIN] [WIN_DOWN] [WIN_UP] Left Windows key (Microsoft Natural Keyboard)
+[LWIN] [LWIN_DOWN] [LWIN_UP] Left Windows key (Microsoft Natural Keyboard)
+[RWIN] [RWIN_DOWN] [RWIN_UP] Right Windows key (Microsoft Natural Keyboard)
+[APPS] [APPS_DOWN] [APPS_UP] Applications key (Microsoft Natural Keyboard)
+[NUMPAD0] [NUMPAD0_DOWN] [NUMPAD0_UP] Numeric keypad0 key
+[NUMPAD1] [NUMPAD1_DOWN] [NUMPAD1_UP] Numeric keypad1 key
+[NUMPAD2] [NUMPAD2_DOWN] [NUMPAD2_UP] Numeric keypad2 key
+[NUMPAD3] [NUMPAD3_DOWN] [NUMPAD3_UP] Numeric keypad3 key
+[NUMPAD4] [NUMPAD4_DOWN] [NUMPAD4_UP] Numeric keypad4 key
+[NUMPAD5] [NUMPAD5_DOWN] [NUMPAD5_UP] Numeric keypad5 key
+[NUMPAD6] [NUMPAD6_DOWN] [NUMPAD6_UP] Numeric keypad6 key
+[NUMPAD7] [NUMPAD7_DOWN] [NUMPAD7_UP] Numeric keypad7 key
+[NUMPAD8] [NUMPAD8_DOWN] [NUMPAD8_UP] Numeric keypad8 key
+[NUMPAD9] [NUMPAD9_DOWN] [NUMPAD9_UP] Numeric keypad9 key
+[MULTIPLY] [MULTIPLY_DOWN] [MULTIPLY_UP] Multiply key
+[ADD] [ADD_DOWN] [ADD_UP] Add key
+[SEPARATOR] [SEPARATOR_DOWN] [SEPARATOR_UP] Separator key
+[SUBTRACT] [SUBTRACT_DOWN] [SUBTRACT_UP] Subtract key
+[DECIMAL] [DECIMAL_DOWN] [DECIMAL_UP] Decimal key
+[DIVIDE] [DIVIDE_DOWN] [DIVIDE_UP] Dividekey
+[F1] [F1_DOWN] [F1_UP] F1 key
+[F2] [F2_DOWN] [F2_UP] F2 key
+[F3] [F3_DOWN] [F3_UP] F3 key
+[F4] [F4_DOWN] [F4_UP] F4 key
+[F5] [F5_DOWN] [F5_UP] F5 key
+[F6] [F6_DOWN] [F6_UP] F6 key
+[F7] [F7_DOWN] [F7_UP] F7 key
+[F8] [F8_DOWN] [F8_UP] F8 key
+[F9] [F9_DOWN] [F9_UP] F9 key
+[F10] [F10_DOWN] [F10_UP] F10 key
+[F11] [F11_DOWN] [F11_UP] F11 key
+[F12] [F12_DOWN] [F12_UP] F12 key
+[F13] [F13_DOWN] [F13_UP] F13 key
+[F14] [F14_DOWN] [F14_UP] F14 key
+[F15] [F15_DOWN] [F15_UP] F15 key
+[F16] [F16_DOWN] [F16_UP] F16 key
+[F17] [F17_DOWN] [F17_UP] F17 key
+[F18] [F18_DOWN] [F18_UP] F18 key
+[F19] [F19_DOWN] [F19_UP] F19 key
+[F20] [F20_DOWN] [F20_UP] F20 key
+[F21] [F21_DOWN] [F21_UP] F21 key
+[F22] [F22_DOWN] [F22_UP] F22 key
+[F23] [F23_DOWN] [F23_UP] F23 key
+[F24] [F24_DOWN] [F24_UP] F24 key
+[CANCEL] [CANCEL_DOWN] [CANCEL_UP] Control-break processing
+[CLEAR] [CLEAR_DOWN] [CLEAR_UP] CLEAR key
+[PAUSE] [PAUSE_DOWN] [PAUSE_UP] PAUSE key
+[SELECT] [SELECT_DOWN] [SELECT_UP] SELECTkey
+[EXECUTE] [EXECUTE_DOWN] [EXECUTE_UP] EXECUTE key
+[HELP] [HELP_DOWN] [HELP_UP] HELP key
+\\ BACKSLASH key
+\\[ square bracket
+</code>
+
+<h1>eg</h1>
+<code null>
+//excel删除单元格所属行(整体上移)
+//shift + 空格(选中单元格所在行), shift + f10(右键菜单),D(删除)
+[SHIFT_DOWN][SPACE_DOWN][SPACE_UP][SHIFT_UP][SHIFT_DOWN][F10_DOWN][F10_UP][SHIFT_UP]d
+
+//excel单元格上方插入新行
+//ctrl + shift + =, R(整行)
+[CTRL_DOWN][SHIFT_DOWN]=[SHIFT_UP][CTRL_UP][ALT_DOWN]r[ALT_UP][RETURN]
+</code>
+</pre>
+ </body>
+</html>

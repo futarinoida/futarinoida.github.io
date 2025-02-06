@@ -1,0 +1,1273 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>Hibernate</title>
+</head>
+<body><span id="anchor">20240616183123-_数据库</span>
+<pre>
+JDBC 是底层 API，操作较为繁琐。
+    为了简化数据库操作，通常使用 ORM 框架（如 Hibernate、MyBatis），它们基于 JDBC 实现了更高级别的抽象。
+        commons DButils: 是对jdbc进行了相对简单的包装, 主要就是能自动封装查询结构 集, 需要在代码中写 sql 语句
+        Mybatis: 进一步封装 jdbc, Sql 语句写在配置文件中, 面向对象操作, 有一 二级缓存功能
+            Apache Commons DbUtils 适合简化 JDBC 操作，特别是当你只需要执行简单的 SQL 查询和更新时。它轻量级且易于使用，没有复杂的配置。
+            MyBatis 适合需要高级映射和动态 SQL 支持的场景，尤其是当你需要处理复杂的查询和结果映射时。它提供了丰富的功能，但也需要更多的配置
+        Hibernate: 对 jdbc 封装得最彻底的框架, 纯面向对象, 可以不用写 SQL
+
+Java Persistence API (JPA) 是一个 Java 的持久化标准，提供了一个更高层次的抽象，用于在 Java 对象和数据库表之间自动进行对象关系映射。
+JPA 实现了 ORM（对象关系映射）机制，允许开发者通过注解或 XML 配置来定义实体类与数据库表之间的映射关系
+    MyBatis 不属于 JPA（Java Persistence API）,MyBatis 和 JPA 都可以用于数据库持久化操作，但它们各自有不同的设计目标和适用场景
+    JPA 规范的框架（如 Hibernate, EclipseLink)
+    JPA注解
+        @Entity：将类标记为实体类。
+        @Id：标记实体类的主键字段。
+        @GeneratedValue：指定主键生成策略。
+        @Column：映射实体类字段到数据库列。
+        @Table：指定实体类对应的数据库表。
+        @OneToOne、@OneToMany、@ManyToOne、@ManyToMany：定义实体间的关系。
+        @JoinColumn、@JoinTable：定义关系中的连接列或连接表。
+
+JPQL：是 JPA 标准的一部分，适用于所有 JPA 提供者。
+    如果你的应用程序使用 JPA 标准，并且希望保持实现的灵活性和可移植性，可以使用 JPQL。
+HQL：是 Hibernate 特有的，虽然与 JPQL 类似，但包含一些特定于 Hibernate 的扩展。
+    如果你使用的是 Hibernate 并且需要一些 Hibernate 特定的功能，可以使用 HQL。
+两者在语法上非常相似，因此在 Hibernate 中使用 JPQL 和 HQL 之间的切换相对简单
+
+<h1>Hibernate 对比 MyBatis</h1>
+hibernate对数据库结构提供了较为完整的封装。简单来说，hibernate就是将对象数据保存到数据库，将数据库数据读入到对象中, 不适合多表关联查询, 难以调优, 对大批量数据更新存在问题
+    mybatis主要着力点在于java对象与SQL之间的映射关系。适合高级查询, 可以sql调优
+
+hibernate与数据库管联只需在xml文件中配置即可，通过它强大的映射结构和hql语言，大大降低了对象与数据库（Oracle、MySQL等）的耦合性, 所有的HQL语句都与具体使用的数据库无关，移植性很好
+    mybatis所有的sql都是依赖所用数据库的，仅有基本的字段映射，对象数据以及对象实际关系仍然需要通过手写sql来实现和管理, 所以不能更换数据库，与数据库的耦合性直接取决于程序员写sql的方法, 移植性差
+
+hibernate日志系统非常健全，涉及广泛，包括：sql记录、关系异常、优化警告、缓存提示、脏数据警告等
+    mybatis则除了基本记录功能外，功能薄弱很多
+
+Hibernate对查询对象有着良好的管理机制，用户无需关心SQL。所以在使用二级缓存时如果出现脏数据，系统会报出错误并提示。
+    MyBatis的二级缓存配置都是在每个具体的表-对象映射中进行详细配置，这样针对不同的表可以自定义不同的缓存机制。并且Mybatis可以在命名空间中共享相同的缓存配置和实例，通过Cache-ref来实现。
+
+<h1>依赖</h1>
+Hibernate 5.x 开始, hibernate-entitymanager 被合并进 hibernate-core 中
+    只需要依赖 hibernate-core 模块，不再需要单独添加 hibernate-entitymanager 模块
+
+hibernate-core
+    Hibernate 的核心模块, 主要包含 Hibernate 的核心 API 和实现，例如 Session、Transaction、Query 等类
+<code xml>
+&lt;dependency>
+    &lt;groupId>org.hibernate&lt;/groupId>
+    &lt;artifactId>hibernate-core&lt;/artifactId>
+    &lt;version>5.6.7.Final&lt;/version>
+&lt;/dependency>
+</code>
+hibernate-entitymanager
+    Hibernate 4.x 的一个模块，主要提供 JPA 规范的实现，包含了与 JPA 相关的功能和接口，如 EntityManager、EntityManagerFactory
+    依赖于 hibernate-core，因为它实现了 Hibernate 的持久化机制。
+<code xml>
+&lt;dependency>
+    &lt;groupId>org.hibernate&lt;/groupId>
+    &lt;artifactId>hibernate-entitymanager&lt;/artifactId>
+    &lt;version>5.6.7.Final&lt;/version>
+&lt;/dependency>
+</code>
+
+<h1>配置文件形式</h1>
+当同时存在 hibernate.cfg.xml、hibernate.properties 和 persistence.xml 时
+    如果你使用的是 JPA (Java Persistence API)，persistence.xml 是 JPA 的配置文件。JPA 实现（如 Hibernate）会从这个文件中读取配置信息。
+        persistence.xml 的配置会覆盖 hibernate.cfg.xml 和 hibernate.properties 中的相应配置。
+    如果你使用的是 Hibernate（而非 JPA），则 hibernate.cfg.xml 是主要的配置文件。
+        如果 persistence.xml 不存在，Hibernate 会优先加载 hibernate.cfg.xml 中的配置。
+        hibernate.cfg.xml 的配置优先于 hibernate.properties
+    当 persistence.xml 和 hibernate.cfg.xml 都存在时，hibernate.properties 的配置会被忽略。
+        如果只存在 hibernate.properties，则 Hibernate 会从这个文件中加载配置
+
+<h2>hibernate.cfg.xml</h2>
+这是 Hibernate 的传统配置文件形式
+<code xml>
+&lt;!DOCTYPE hibernate-configuration PUBLIC "-//Hibernate/Hibernate Configuration DTD 3.0//EN"
+        "http://hibernate.sourceforge.net/hibernate-configuration-3.0.dtd">
+&lt;hibernate-configuration>
+    &lt;session-factory>
+        &lt;!-- 数据库连接信息 -->
+        &lt;property name="hibernate.connection.driver_class">com.mysql.cj.jdbc.Driver&lt;/property>
+        &lt;property name="hibernate.connection.url">jdbc:mysql://localhost:3306/testdb?serverTimezone=UTC&amp;useUnicode=true&amp;characterEncoding=utf-8&amp;useSSL=true&lt;/property>
+        &lt;property name="hibernate.connection.username">root&lt;/property>
+        &lt;property name="hibernate.connection.password">root&lt;/property>
+ 
+        &lt;!-- 物理命名策略, 将逻辑名称（例如实体类中的属性名或表名）转换为物理名称（数据库中的列名或表名）注解形式 @Column(name = "first_name") -->
+        &lt;property name="hibernate.physical_naming_strategy">org.springframework.boot.orm.jpa.hibernate.SpringPhysicalNamingStrategy&lt;/property>
+        &lt;!-- 隐式命名策略, 当你没有在实体类中使用 @Table 或 @Column 注解指定表名或列名时, 它会根据你的 Java 类名和属性名推断出默认的表名和列名 -->
+        &lt;property name="hibernate.implicit_naming_strategy">org.springframework.boot.orm.jpa.hibernate.SpringImplicitNamingStrategy&lt;/property>
+
+        &lt;!-- 连接池配置 -->
+        &lt;property name="hibernate.hikari.minimumIdle">5&lt;/property>
+        &lt;property name="hibernate.hikari.maximumPoolSize">20&lt;/property>
+        &lt;property name="hibernate.hikari.idleTimeout">30000&lt;/property>
+        &lt;property name="hibernate.hikari.connectionTimeout">30000&lt;/property>
+        &lt;property name="hibernate.hikari.maxLifetime">1800000&lt;/property>
+ 
+        &lt;!-- 方言告诉 Hibernate 如何生成特定数据库的 SQL 语句。MySQL8Dialect 表示使用 MySQL 8 的 SQL 语法和特性 -->
+        &lt;property name="hibernate.dialect">org.hibernate.dialect.MySQL8Dialect&lt;/property>
+ 
+        &lt;!-- 如何管理当前的会话上下文, thread 表示每个线程有自己的会话，这在多线程环境下非常有用。managed（由容器管理）, jta（用于事务管理器） -->
+        &lt;property name="hibernate.current_session_context_class">thread&lt;/property>
+ 
+        &lt;!-- 启用 SQL 日志输出, 在控制台输出执行的 SQL 语句 -->
+        &lt;property name="hibernate.show_sql">true&lt;/property>
+        &lt;property name="hibernate.format_sql">true&lt;/property>
+        &lt;property name="hibernate.use_sql_comments">true&lt;/property>
+
+&lt;!--
+    配置 Hibernate 在启动时如何处理数据库模式（Schema）, 未明确配置时默认行为 none
+        开发阶段，通常设置为 update 或 create 来便于快速迭代和测试
+        生产环境中，推荐设置为 validate 或 none，以避免自动更改数据库模式，防止意外的数据丢失或模式不一致问题
+    update: 如果你对实体类进行了更改（如添加或删除列），尝试相应地更新数据库表结构，不会删除现有数据。这适用于开发阶段，但不推荐在生产环境中使用。
+    create: 每次启动应用程序时删除现有的数据库表和数据，然后重新创建表。这会丢失现有数据。
+    create-drop: 每次启动应用程序时删除现有表并重新创建, 应用关闭时，表和数据也会被删除, 适用于测试环境在每次测试后清理数据库
+    validate: 验证数据库数据库表结构是否与 Hibernate 实体匹配，不做任何修改。
+    none: 不做任何模式相关的操作。
+-->
+        &lt;property name="hibernate.hbm2ddl.auto">update&lt;/property>
+ 
+        &lt;!-- 使用注解映射实体类时的包扫描路径 -->
+        &lt;mapping package="com.ida.demo0.entity"/>
+    &lt;/session-factory>
+&lt;/hibernate-configuration>
+</code>
+
+<h2>hibernate.properties</h2>
+这种方式适合喜欢使用属性文件而不是 XML 文件的用户
+<code properties>
+# 数据库连接信息
+hibernate.connection.driver_class=com.mysql.cj.jdbc.Driver
+hibernate.connection.url=jdbc:mysql://localhost:3306/testdb?serverTimezone=UTC&useUnicode=true&characterEncoding=utf-8&useSSL=true
+hibernate.connection.username=root
+hibernate.connection.password=root
+ 
+# 物理命名策略
+hibernate.physical_naming_strategy=org.springframework.boot.orm.jpa.hibernate.SpringPhysicalNamingStrategy
+ 
+# 隐式命名策略
+hibernate.implicit_naming_strategy=org.springframework.boot.orm.jpa.hibernate.SpringImplicitNamingStrategy
+ 
+# 连接池配置
+hibernate.hikari.minimumIdle=5
+hibernate.hikari.maximumPoolSize=20
+hibernate.hikari.idleTimeout=30000
+hibernate.hikari.connectionTimeout=30000
+hibernate.hikari.maxLifetime=1800000
+ 
+# 方言
+hibernate.dialect=org.hibernate.dialect.MySQL8Dialect
+ 
+# 会话上下文管理
+hibernate.current_session_context_class=thread
+ 
+# SQL 日志输出
+hibernate.show_sql=true
+hibernate.format_sql=true
+hibernate.use_sql_comments=true
+ 
+# 数据库模式处理
+hibernate.hbm2ddl.auto=update
+ 
+# 包扫描路径, 其值的选项包括 class, hbm, 和 all，以及这些值的组合
+# 在 Spring Boot 应用程序中，通常不需要手动设置此属性，因为自动配置已经处理了实体扫描和映射设置。如果你使用注解来定义实体类，Spring Boot 会自动扫描类路径中的所有实体类
+hibernate.archive.autodetection=class
+</code>
+
+<h2>persistence.xml</h2>
+这是 JPA 的标准配置文件，用于 JPA 实现（如 Hibernate）时使用。它在 META-INF 目录下，并使用 XML 格式配置
+<code xml>
+&lt;persistence xmlns="http://xmlns.jcp.org/xml/ns/persistence"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/persistence
+        http://xmlns.jcp.org/xml/ns/persistence/persistence_2_1.xsd"
+    version="2.1">
+ 
+    &lt;persistence-unit name="yourPersistenceUnit">
+        &lt;provider>org.hibernate.jpa.HibernatePersistenceProvider&lt;/provider>
+ 
+        &lt;!-- JDBC connection settings -->
+        &lt;properties>
+            &lt;property name="javax.persistence.jdbc.driver" value="com.mysql.cj.jdbc.Driver"/>
+            &lt;property name="javax.persistence.jdbc.url" value="jdbc:mysql://localhost:3306/yourdb"/>
+            &lt;property name="javax.persistence.jdbc.user" value="yourusername"/>
+            &lt;property name="javax.persistence.jdbc.password" value="yourpassword"/>
+ 
+            &lt;!-- Specify dialect -->
+            &lt;property name="hibernate.dialect" value="org.hibernate.dialect.MySQLDialect"/>
+ 
+            &lt;!-- Specify connection pool settings (HikariCP in this example) -->
+            &lt;property name="hibernate.hikari.minimumIdle" value="5"/>
+            &lt;property name="hibernate.hikari.maximumPoolSize" value="20"/>
+            &lt;property name="hibernate.hikari.idleTimeout" value="30000"/>
+            &lt;property name="hibernate.hikari.connectionTimeout" value="30000"/>
+            &lt;property name="hibernate.hikari.maxLifetime" value="1800000"/>
+ 
+            &lt;!-- Specify schema handling -->
+            &lt;property name="hibernate.hbm2ddl.auto" value="update"/>
+ 
+            &lt;!-- Specify whether to show SQL queries -->
+            &lt;property name="hibernate.show_sql" value="true"/>
+        &lt;/properties>
+    &lt;/persistence-unit>
+&lt;/persistence>
+</code>
+
+<h2>Java Config</h2>
+对于现代 Java 应用，使用 Java 配置类进行 Hibernate 配置是一个较为流行的方式，尤其是在 Spring 框架中。这种方式提供了更强的类型安全和编译时检查
+<code>
+Configuration configuration = new Configuration()
+    .setProperty("hibernate.connection.driver_class", "com.mysql.cj.jdbc.Driver")
+    .setProperty("hibernate.connection.url", "jdbc:mysql://localhost:3306/yourdb")
+    .setProperty("hibernate.connection.username", "yourusername")
+    .setProperty("hibernate.connection.password", "yourpassword")
+    .setProperty("hibernate.dialect", "org.hibernate.dialect.MySQLDialect")
+    .setProperty("hibernate.hbm2ddl.auto", "update")
+    .setProperty("hibernate.show_sql", "true")
+    .setProperty("hibernate.hikari.minimumIdle", "5")
+    .setProperty("hibernate.hikari.maximumPoolSize", "20")
+    .setProperty("hibernate.hikari.idleTimeout", "30000")
+    .setProperty("hibernate.hikari.connectionTimeout", "30000")
+    .setProperty("hibernate.hikari.maxLifetime", "1800000");
+ 
+sessionFactory = configuration.buildSessionFactory();
+</code>
+
+<h1>实体类的映射</h1>
+<h2>xml方式</h2>
+<code xml>
+&lt;mapping class="com.example.User"/>
+&lt;mapping resource="mappings/Order.hbm.xml"/>
+</code>
+resource属性指定了映射文件的位置(resources目录下)，这些文件包含了实体类的映射信息。例如，这些文件定义了表名、列名以及类与表之间的字段映射关系
+    resource 属性不能直接指定为文件夹。你需要为每个映射文件指定具体的文件路径
+        也可以使用代码从文件夹中动态加载所有映射文件, 从而替代此属性
+class属性用于指定实体类的全限定名。这种方式通常在以下几种场景下使用
+    同时使用注解和 XML 映射文件来定义实体类的映射时, class用于指定那些你希望通过 XML 映射配置的类(例如包含某些复杂的映射情况)
+    在大型项目中，你可能会使用 XML 配置文件来集中管理所有实体类。这样做可以将实体类与 Hibernate 的配置分离，使项目的配置和实体类管理更加有序
+    在一些情况下，实体类的配置可能是动态的，或者是由代码生成工具自动生成的。在这种情况下，你可以通过代码动态地添加实体类配置
+<code>
+Configuration configuration = new Configuration().configure();
+configuration.addAnnotatedClass(User.class);
+configuration.addAnnotatedClass(Order.class);
+SessionFactory sessionFactory = configuration.buildSessionFactory();
+</code>
+<h3>映射文件.hbm.xml</h3>
+<code xml>
+&lt;!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD//EN" "http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+&lt;hibernate-mapping>
+    &lt;class name="com.example.User" table="user">
+        &lt;id name="id" column="id">
+            &lt;generator class="native"/>
+        &lt;/id>
+        &lt;property name="name" column="name"/>
+        &lt;property name="createTime" column="create_time"/>
+    &lt;/class>
+&lt;/hibernate-mapping>
+</code>
+
+<h3>从文件夹中动态加载所有映射文件</h3>
+使用自定义代码来扫描目录，并将文件添加到 Hibernate 的配置中
+<code>
+Configuration configuration = new Configuration().configure();
+ 
+URL mappingsUrl = HibernateUtil.class.getClassLoader().getResource("mappings");
+if (mappingsUrl != null) {
+    File mappingsDir = new File(mappingsUrl.toURI());
+    if (mappingsDir.exists() && mappingsDir.isDirectory()) {
+        for (File file : Objects.requireNonNull(mappingsDir.listFiles())) {
+            if (file.getName().endsWith(".hbm.xml")) {
+                configuration.addResource("mappings/" + file.getName());
+            }
+        }
+    }
+}
+ 
+sessionFactory = configuration.buildSessionFactory();
+</code>
+
+<h2>注解方式</h2>
+使用 JPA 注解（如 @Entity、@Table、@Id 等）直接在实体类中定义映射, 配置文件中指定扫描的包路径，自动识别带注解的实体类
+<code xml>
+&lt;!-- xml配置包扫描会出现Unable to locate persister的问题, 而指定class却正常 -->
+&lt;mapping package="com.ida.demo0.entity"/>
+</code>
+Spring Boot中使用 @EntityScan 注解来自动扫描实体类
+
+<h1>事务</h1>
+在 Hibernate 中事务是必需的：无论是读取还是写入操作，事务都是保证数据一致性和隔离性的关键机制。
+    即使是只进行查询（读取操作），在 Hibernate 中也应该开启事务
+        事务隔离级别决定了一个事务中读取的数据在多大程度上不受其他事务的影响。没有事务，读取的数据可能会出现脏读、不可重复读等问题
+        Hibernate 底层使用 JDBC 进行数据库操作。JDBC 要求所有数据库操作都在事务中进行，即使是只读查询。某些数据库在没有事务的情况下执行查询可能会抛出异常或导致不可预测的行为。
+        会话管理：Hibernate 的 Session 需要在事务中进行管理。即使是读取操作，Hibernate 也需要在事务中跟踪实体的状态和缓存
+        自动脏检查：Hibernate 会在事务提交时自动检测并同步实体的状态到数据库。如果没有事务，可能无法正确执行这些操作
+        只读事务：对于只读查询，可以将事务标记为只读，这样数据库可以进行相应的优化。例如，在某些数据库中，只读事务可能会使用更低的隔离级别或减少锁的使用，从而提高查询性能。
+    只读优化：对于只读查询，可以将事务标记为只读，以提高性能。
+    使用框架简化：考虑使用事务管理框架（如 Spring）来简化事务管理，减少样板代码。
+
+<h1>配置连接池</h1>
+在早期版本的 Hibernate（如 Hibernate 3 和 Hibernate 4），默认的连接池是 C3P0。然而，从 Hibernate 4.3.0 开始，默认的连接池变为 Hibernate 内部的一个非常简单的内置连接池。这个内置连接池适合开发和测试环境，但不建议在生产环境中使用。
+在 Hibernate 5.x 中，HikariCP 是默认的连接池，因此不需要显式地设置 hibernate.connection.provider_class, 仍然需要显式地添加 HikariCP 的依赖
+在 Spring Boot 中，HikariCP 作为默认的连接池实现，不需要显式引入依赖
+<h2>HikariCP </h2>
+HikariCP以其高效和低延迟著称，适合需要高并发和低延迟的场景
+<code xml>
+&lt;dependency>
+    &lt;groupId>com.zaxxer&lt;/groupId>
+    &lt;artifactId>HikariCP&lt;/artifactId>
+    &lt;version>5.0.1&lt;/version>
+&lt;/dependency>
+</code>
+<code xml>
+&lt;!-- hibernate.cfg.xml -->
+&lt;hibernate-configuration>
+    &lt;session-factory>
+        &lt;!-- JDBC Database connection settings -->
+        &lt;property name="hibernate.connection.driver_class">com.mysql.jdbc.Driver&lt;/property>
+        &lt;property name="hibernate.connection.url">jdbc:mysql://localhost:3306/yourdb&lt;/property>
+        &lt;property name="hibernate.connection.username">yourusername&lt;/property>
+        &lt;property name="hibernate.connection.password">yourpassword&lt;/property>
+ 
+        &lt;!-- HikariCP settings -->
+        &lt;property name="hibernate.hikari.minimumIdle">5&lt;/property>
+        &lt;property name="hibernate.hikari.maximumPoolSize">20&lt;/property>
+        &lt;property name="hibernate.hikari.idleTimeout">30000&lt;/property>
+        &lt;property name="hibernate.hikari.connectionTimeout">30000&lt;/property>
+        &lt;property name="hibernate.hikari.maxLifetime">1800000&lt;/property>
+ 
+        ..
+    &lt;/session-factory>
+&lt;/hibernate-configuration>
+</code>
+hibernate.properties形式
+<code properties>
+hibernate.connection.driver_class=com.mysql.jdbc.Driver
+hibernate.connection.url=jdbc:mysql://localhost:3306/yourdb
+hibernate.connection.username=yourusername
+hibernate.connection.password=yourpassword
+ 
+hibernate.hikari.minimumIdle=5
+hibernate.hikari.maximumPoolSize=20
+hibernate.hikari.idleTimeout=30000
+hibernate.hikari.connectionTimeout=30000
+hibernate.hikari.maxLifetime=1800000
+ 
+hibernate.connection.provider_class=com.zaxxer.hikari.hibernate.HikariConnectionProvider
+</code>
+
+<h2>c3p0</h2>
+<code xml>
+&lt;dependency>
+    &lt;groupId>com.mchange&lt;/groupId>
+    &lt;artifactId>c3p0&lt;/artifactId>
+    &lt;version>0.9.5.5&lt;/version>
+&lt;/dependency>
+&lt;dependency>
+    &lt;groupId>org.hibernate&lt;/groupId>
+    &lt;artifactId>hibernate-c3p0&lt;/artifactId>
+    &lt;version>5.6.7.Final&lt;/version>
+&lt;/dependency>
+</code>
+<code xml>
+&lt;!-- hibernate.cfg.xml -->
+..
+        &lt;!-- C3P0 connection pool settings -->
+        &lt;property name="hibernate.c3p0.min_size">5&lt;/property>
+        &lt;property name="hibernate.c3p0.max_size">20&lt;/property>
+        &lt;property name="hibernate.c3p0.timeout">300&lt;/property>
+        &lt;property name="hibernate.c3p0.max_statements">50&lt;/property>
+        &lt;property name="hibernate.c3p0.idle_test_period">3000&lt;/property>
+        
+        &lt;!-- Specify the connection pool provider -->
+        &lt;property name="hibernate.connection.provider_class">org.hibernate.connection.C3P0ConnectionProvider&lt;/property>
+..
+</code>
+
+<h2>druid</h2>
+<code xml>
+&lt;dependency>
+    &lt;groupId>com.alibaba&lt;/groupId>
+    &lt;artifactId>druid&lt;/artifactId>
+    &lt;version>1.2.16&lt;/version>
+&lt;/dependency>
+</code>
+<code xml>
+&lt;!-- hibernate.cfg.xml -->
+..
+        &lt;!-- Druid connection pool settings -->
+        &lt;property name="hibernate.connection.provider_class">org.hibernate.connection.DatasourceConnectionProviderImpl&lt;/property>
+        &lt;property name="hibernate.connection.datasource">java:comp/env/jdbc/druid&lt;/property>
+        
+        &lt;!-- Additional Druid specific properties -->
+        &lt;property name="druid.initialSize">5&lt;/property>
+        &lt;property name="druid.minIdle">5&lt;/property>
+        &lt;property name="druid.maxActive">20&lt;/property>
+        &lt;property name="druid.timeBetweenEvictionRunsMillis">60000&lt;/property>
+        &lt;property name="druid.minEvictableIdleTimeMillis">300000&lt;/property>
+        &lt;property name="druid.validationQuery">SELECT 1&lt;/property>
+        &lt;property name="druid.testWhileIdle">true&lt;/property>
+        &lt;property name="druid.testOnBorrow">false&lt;/property>
+        &lt;property name="druid.testOnReturn">false&lt;/property>
+        &lt;property name="druid.poolPreparedStatements">true&lt;/property>
+..
+</code>
+
+<h1>缓存</h1>
+<h2>一级缓存</h2>
+一级缓存是 Hibernate 的基础缓存机制，默认开启且不需要额外配置
+    每个 Hibernate Session 对象都有独立的一级缓存。这个缓存仅在当前会话范围内有效，当会话关闭时，缓存中的数据也会被清除
+    如果在同一个会话中多次查询相同的实体，Hibernate 会从缓存中返回数据，而不会多次访问数据库
+    执行 CRUD 操作时，Hibernate 会首先检查一级缓存，如果实体已经存在缓存中，则直接返回，不会查询数据库
+
+验证一级缓存, 同一个session内查询
+比较两者的内存地址, 或看是否生成了sql语句
+<code>
+@Test
+public void query() {
+    HibernateUtil.excute(session -> {
+        User user = session.get(User.class, 11L);
+        System.out.println(user);
+ 
+        User user2 = session.get(User.class, 11L);
+        System.out.println(user2);
+ 
+        return null;
+    });
+}
+</code>
+
+<h2>二级缓存</h2>
+二级缓存是一个跨会话的缓存，它适用于多个 Session 对象共享的数据。
+    与一级缓存不同，二级缓存需要显式配置
+    对于常用且不经常变化的数据（如应用中的字典表数据），使用二级缓存可以显著提高性能
+
+配置 Hibernate 的缓存提供者（例如 Ehcache、Hazelcast、Infinispan）依赖。
+    Ehcache支持分布式缓存
+<code xml>
+&lt;!-- Hibernate Ehcache -->
+&lt;dependency>
+    &lt;groupId>org.hibernate&lt;/groupId>
+    &lt;artifactId>hibernate-ehcache&lt;/artifactId>
+    &lt;version>5.6.7.Final&lt;/version>
+&lt;/dependency>
+&lt;dependency>
+    &lt;groupId>net.sf.ehcache&lt;/groupId>
+    &lt;artifactId>ehcache&lt;/artifactId>
+    &lt;version>2.10.6&lt;/version>
+&lt;/dependency>
+
+</code>
+配置启用二级缓存，策略只读、非严格读写、读写等。
+<code xml>
+&lt;!-- 允许二级缓存,查询缓存 -->
+&lt;property name="hibernate.cache.use_second_level_cache">true&lt;/property>
+&lt;property name="hibernate.cache.use_query_cache">true&lt;/property>
+&lt;!-- 统计功能会记录有关会话、查询、缓存命中率等信息,会消耗资源,默认禁用, 适用于开发环境 -->
+&lt;property name="hibernate.generate_statistics">true&lt;/property>
+&lt;!-- 使用Ehcache作为缓存提供者 -->
+&lt;property name="hibernate.cache.region.factory_class">org.hibernate.cache.ehcache.EhCacheRegionFactory&lt;/property>
+&lt;!-- Ehcache缓存配置文件 -->
+&lt;property name="net.sf.ehcache.configurationResourceName">ehcache.xml&lt;/property>
+  
+&lt;!-- 使用配置形式为指定类启用二级缓存, 使用读写策略;  等效于在实体类上使用 @Cache(usage = CacheConcurrencyStrategy.READ_WRITE)  -->
+&lt;class-cache class="com.example.User" usage="read-write"/>
+</code>
+或 
+<code>
+Configuration configuration = new Configuration();
+configuration.setProperty("hibernate.cache.use_query_cache", "true");
+configuration.setProperty("hibernate.cache.region.factory_class", "org.hibernate.cache.ehcache.EhCacheRegionFactory");
+configuration.setProperty("hibernate.cache.use_second_level_cache", "true");
+configuration.setProperty("hibernate.generate_statistics", "true");
+SessionFactory sessionFactory = configuration.buildSessionFactory();
+</code>
+ehcache.xml配置, 放置在 src/main/resources 目录下
+<code xml>
+&lt;ehcache xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="http://www.ehcache.org/ehcache.xsd"
+         updateCheck="false" monitoring="autodetect">
+  
+    &lt;!-- 外置缓存的物理介质可以是内存也可以是硬盘 -->
+    &lt;diskStore path="java.io.tmpdir/ehcache" />
+ 
+    &lt;defaultCache
+        maxEntriesLocalHeap="1000"
+        eternal="false"
+        timeToIdleSeconds="120"
+        timeToLiveSeconds="120"
+        overflowToDisk="false"
+        statistics="true"/>
+&lt;/ehcache>
+</code>
+验证二级缓存, 为实体类启用二级缓存, 跨session查询
+    不能通过比较两者的内存地址来判断
+        因为即使 Hibernate 使用了二级缓存来避免重复的数据库查询，每个 Session 仍然会创建新的对象实例，因此对象的内存地址不同。
+        这是 Hibernate 管理对象状态、持久化和事务的一部分，确保每个 Session 中的对象是独立的。
+    查看是否生成的sql语句, 或输出缓存命中率(启用generate_statistics统计功能后通过sessionFactory.getStatistics()获取)
+<code>
+@Test
+public void query2() {
+    // 第一次加载，应该从数据库加载
+    HibernateUtil.excute(session -> {
+        User user = session.get(User.class, 11L);
+        System.out.println(user);
+        return null;
+    });
+ 
+    // 第二次加载，使用新的Session，应该从二级缓存加载
+    HibernateUtil.excute(session -> {
+        User user2 = session.get(User.class, 11L);
+        System.out.println(user2);
+        return null;
+    });
+}
+</code>
+<code>
+//..excute
+} finally {
+    // 输出缓存命中率
+    Statistics stats = sessionFactory.getStatistics();
+    System.out.println("Second Level Cache Hit Count: " + stats.getSecondLevelCacheHitCount());
+    System.out.println("Second Level Cache Miss Count: " + stats.getSecondLevelCacheMissCount());
+    System.out.println("Second Level Cache Put Count: " + stats.getSecondLevelCachePutCount());
+ 
+    session.close();
+}
+</code>
+
+<h2>查询缓存</h2>
+查询缓存依赖二级缓存来存储查询结果, 启用查询缓存时，也需要配置二级缓存
+    使用查询缓存时，在查询对象中明确启用缓存
+<code>
+@Test
+public void query3() {
+    // 第一次使用查询缓存
+    HibernateUtil.excute(session -> {
+        Query query = session.createQuery("FROM User WHERE name = :name"); //HQL
+        query.setParameter("name", "杰克");
+        query.setCacheable(true);
+        List&lt;User> users = query.list();
+        users.forEach(System.out::println);
+        return null;
+    });
+ 
+    // 第二次使用相同的查询，检查是否命中查询缓存
+    HibernateUtil.excute(session -> {
+        Query query = session.createQuery("FROM User WHERE name = :name");
+        query.setParameter("name", "杰克");
+        query.setCacheable(true);
+        List&lt;User> users = query.list();
+        users.forEach(System.out::println);
+        return null;
+    });
+}
+</code>
+
+<h1>CRUD简易封装(Hibernate API)</h1>
+<h2>工具类</h2>
+<code>
+public class HibernateUtil {
+    public static final SessionFactory sessionFactory;
+ 
+    static {
+        try {
+            sessionFactory = new Configuration().configure().buildSessionFactory();
+        } catch (Exception e){
+            throw new ExceptionInInitializerError(e);
+        }
+    }
+ 
+    //public static Object excute(Function&lt;Session, Object> func) {
+    //将 Object 改为泛型类型，这样可以避免类型转换，增强代码的类型安全性
+    public static &lt;T> T excute(Function&lt;Session, T> func) {
+        Session session = sessionFactory.openSession();
+        Transaction transaction = session.beginTransaction();
+        try {
+            T object = func.apply(session);
+            transaction.commit();
+            return object;
+        } catch(RuntimeException e){
+            if (transaction != null) {
+                transaction.rollback();
+            }
+            throw e;
+        } finally {
+            session.close();
+        }
+    }
+}
+</code>
+<h2>测试类</h2>
+<code>
+public class HibernateTest {
+    @Test
+    public void insert() {
+        HibernateUtil.excute(session -> {
+            User user = new User();
+            user.setName("杰克");
+            user.setCreatTime(new Date());
+            session.save(user);
+            return null;
+        });
+    }
+
+    @Test
+    public void query() {
+        HibernateUtil.excute(session -> {
+            User user = session.get(User.class, 10L);
+            System.out.println(user);
+            return null;
+        });
+    }
+
+    @Test
+    public void update() {
+        HibernateUtil.excute(session -> {
+            User user = session.get(User.class, 10L);
+            user.setName("Updated Name");
+            session.update(user);
+            return null;
+        });
+    }
+
+    @Test
+    public void delete() {
+        HibernateUtil.excute(session -> {
+            User user = session.get(User.class, 10L);
+            session.delete(user);
+            return null;
+        });
+    }
+}
+</code>
+
+<h1>查询</h1>
+在 Hibernate 中，使用 session.get(entityClass, id) 方法获取实体时，不需要手动指定查询条件，因为它是通过主键（即实体的标识符 id）来直接查找实体的, 适用于通过主键获取单个实体的场景
+    在这种情况下，id 就是查询条件，因此你不需要手动编写 SQL 或 HQL 查询
+    当你使用 session.get 方法时，Hibernate 首先会检查一级缓存（即当前 Session 中是否已经存在该实体），如果存在则直接返回，不会再次查询数据库。
+    如果一级缓存中不存在，Hibernate 会向数据库发送查询，获取实体数据并将其放入一级缓存。
+    session.get 是一个立即加载方法，意味着它会立即访问数据库并返回完整的实体。如果实体不存在，返回 null。
+        另一个类似的方法是 session.load(entityClass, id)，它使用延迟加载策略，如果访问的实体不存在，会抛出异常 ObjectNotFoundException。
+
+如果你需要基于其他字段进行查询，或者想要更加灵活的查询条件，可以使用 HQL 或 Criteria API
+<h2>查询多个实体对象</h2>
+<h3>HQL</h3>
+HQL 是专为 Hibernate 设计的，操作起来类似于 SQL，但针对的是实体类。它支持丰富的查询功能，如关联查询、聚合等，并且可以通过面向对象的方式进行查询
+<code>
+@Test
+public void hqlMultiQuery() {
+    HibernateUtil.excute(session -> {
+        String hql = "FROM User";
+        List&lt;User> users = session.createQuery(hql, User.class).list();
+        users.forEach(System.out::println);
+        return null;
+    });
+}
+</code>
+<h3>Criteria API</h3>
+Criteria API 提供了类型安全和动态查询构建的能力。它允许你在代码中构建复杂的查询，避免了硬编码查询字符串的问题, 在 Hibernate 5.x 及 JPA 中广泛使用，尤其是在需要动态构建查询的情况下
+
+<h3>Native SQL</h3>
+对于复杂的查询，特别是那些 HQL 或 Criteria API 无法实现的查询，使用原生 SQL 查询是一个强大的工具。它允许你直接使用数据库的原生 SQL 功能
+<code>
+@Test
+public void nativeMultiQuery() {
+    HibernateUtil.excute(session -> {
+        //适用于只查询一个实体表的情况
+        String sql = "SELECT * FROM testdb.user";
+        List&lt;User> users = session.createNativeQuery(sql, User.class).getResultList();
+        users.forEach(System.out::println);
+ 
+        //将复杂的结果集映射为对象
+        String sql2 = "SELECT id, name, creatTime FROM testdb.user";
+        List&lt;User> users2 = session.createNativeQuery(sql2)
+                .addScalar("id", StandardBasicTypes.LONG)
+                .addScalar("name", StandardBasicTypes.STRING)
+                .addScalar("creatTime", StandardBasicTypes.TIMESTAMP)
+                .setResultTransformer(Transformers.aliasToBean(User.class))
+                .list();
+        users2.forEach(System.out::println);
+ 
+        return null;
+    });
+}
+</code>
+
+<h1>实体类关联关系</h1>
+一对一
+    有两个实体类：User 和 Address，并且每个 User 关联一个 Address，这是一个一对一的关系
+一对多
+    一个用户可以有多个订单
+多对一
+    多个订单属于一个用户
+多对多
+    一个学生可以选修多门课程，一门课程也可以有多个学生选修
+
+<h2>外键</h2>
+外键字段是数据库表设计的核心部分，它们定义了表之间的关系。
+在 JPA/Hibernate 中，实体类的映射关系需要与数据库表结构一致。
+    即使 Hibernate 可以根据实体类生成表结构，通常仍然建议在数据库表创建时明确地定义外键字段
+数据库设计工具和迁移工具（如 Flyway 或 Liquibase）可以帮助管理和更新数据库结构。
+    如果在应用开发过程中依赖 Hibernate 自动更新表结构，可能会遇到不一致或无法预见的情况。
+    使用迁移工具可以提供更好的控制和透明度
+虽然 Hibernate 提供了 hibernate.hbm2ddl.auto 配置选项来自动更新数据库表结构，但在生产环境中，动态生成外键字段并不是最佳实践
+    在开发阶段，可以使用 Hibernate 的自动更新功能来快速迭代，但在生产环境中，依赖数据库迁移工具和手动管理的方式更为稳妥
+
+<h2>一对一</h2>
+CascadeType.ALL: 表示对 User 实体的所有操作（如保存、删除）都会级联到关联的 Address 实体
+    例如在删除 User 时一并删除其关联的 Address
+
+@JoinColumn: 在 User 实体类中指定了 address_id 作为外键，这个外键关联到 Address 实体的 id 字段
+    User 表中的 address_id 是外键，指向 Address 表中的 id 字段
+    作为外键的主要作用是建立和维护 User 和 Address 实体之间的一对一关联关系，确保数据的完整性，简化复杂数据模型的操作，并避免数据冗余
+        hibernate.hbm2ddl.auto属性配置为update、create等, 启用了自动创建表结构的功能时, Hibernate会自动处理外键字段的创建
+        如果没有启用自动生成，需要手动在数据库中添加外键字段
+
+从数据库中读取 User 实体时，Hibernate 会自动加载并填充与之关联的 Address 实体
+
+Hibernate 对于 @OneToOne 关系会使用 FetchType.LAZY 懒加载策略，这意味着只有在你显式访问 user.getAddress() 时，Hibernate 才会查询并加载 Address 实体。
+    如果希望在加载 User 时立即加载 Address，可以将 fetch 属性设为 FetchType.EAGER
+
+<code>
+@Entity
+public class User {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+ 
+    private String name;
+ 
+    @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    @JoinColumn(name = "address_id", referencedColumnName = "id")
+    private Address address;
+ 
+    // getters and setters
+}
+ 
+@Entity
+public class Address {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+ 
+    private String street;
+    private String city;
+    private String country;
+ 
+    // getters and setters
+}
+</code>
+通过这种配置，可以在创建 User 实体时，直接包含 Address 实体
+<code>
+User user = new User();
+user.setName("John Doe");
+ 
+Address address = new Address();
+address.setStreet("123 Main St");
+ 
+user.setAddress(address);
+ 
+session.save(user);
+</code>
+
+<h3>hbm.xml形式</h3>
+如果你的实体类的主键属性已经在 Java 类中明确声明了类型（如 Long id;），Hibernate 可以自动推断出该字段的类型，因此在 .hbm.xml 文件中通常不需要显式指定 type 属性
+<code xml>
+&lt;!-- User.hbm.xml -->
+&lt;hibernate-mapping>
+    &lt;class name="com.example.User" table="user">
+        &lt;id name="id" column="id">
+            &lt;generator class="identity"/>
+        &lt;/id>
+        &lt;property name="name" column="name" type="string"/>
+ 
+        &lt;one-to-one name="address" class="com.example.Address" cascade="all" fetch="eager">
+            &lt;column name="address_id"/>
+        &lt;/one-to-one>
+    &lt;/class>
+&lt;/hibernate-mapping>
+ 
+&lt;!-- Address.hbm.xml -->
+&lt;hibernate-mapping>
+    &lt;class name="com.example.Address" table="address">
+        &lt;id name="id" column="id">
+            &lt;generator class="identity"/>
+        &lt;/id>
+        &lt;property name="street" column="street" type="string"/>
+        &lt;property name="city" column="city" type="string"/>
+        &lt;property name="country" column="country" type="string"/>
+    &lt;/class>
+&lt;/hibernate-mapping>
+</code>
+
+<h2>一对多</h2>
+<code>
+@Entity
+@Table(name = "user")
+public class User {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    private String name;
+ 
+    //mappedBy = "user" 表示 User 实体类的一对多关系由 Order 实体类中的 user 字段映射
+    //当删除用户时,一并删除该用户的所有订单
+    //从 User 的 orders 集合中移除了某个 Order, 那么该 Order 实体会自动从数据库中删除, 避免数据库中遗留无效数据
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true) 
+    private List&lt;Order> orders = new ArrayList&lt;>();
+ 
+    // Getters and Setters
+}
+ 
+@Entity
+@Table(name = "orders")
+public class Order {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    private String orderDetails;
+ 
+    //当加载 Order 实体时，不会立即加载与之关联的 User 实体。只有当你实际访问 Order 实体的 getUser() 方法时，Hibernate 才会发送一条额外的 SQL 查询来获取 User 实体的数据
+    @ManyToOne(fetch = FetchType.LAZY) 
+    @JoinColumn(name = "user_id") //在 orders 表中将创建一个名为 user_id 的列，用于存储 User 实体的外键。
+    private User user; //它只是用来在 Java 代码中表示 Order 实体与 User 实体的关联, 不需要在数据库表中创建user列
+ 
+    // Getters and Setters
+}
+</code>
+获取用户的订单列表
+    当从数据库中读取User对象时，如果你配置了@OneToMany和@ManyToOne的关系，并且设置了正确的抓取策略和级联操作，Hibernate会自动将Order列表还原到User对象中
+<code>
+User user = session.get(User.class, userId);
+List&lt;Order> orders = user.getOrders();
+</code>
+Order对象成员使用 private User user 而不是 private Long userId 的原因
+    在 Hibernate 中，使用实体类之间的关系映射（如 @ManyToOne）时，推荐直接使用实体对象而不是仅仅使用外键字段（如 userId）。原因如下：
+        自动管理外键：
+            使用实体对象（如 User）时，Hibernate 会自动管理外键字段的设置，确保数据库中的数据一致性。这意味着在保存或更新 Order 时，Hibernate 会自动设置 user_id 外键字段。
+        面向对象的设计：
+            直接使用 User 对象遵循面向对象编程的原则，使代码更加直观和易于维护。通过对象的关系直接导航（如 order.getUser().getName()），避免手动管理外键字段的复杂性。
+        延迟加载：
+            使用实体对象可以利用延迟加载功能，只在需要时才加载相关数据，这在性能优化上有优势。
+        级联操作：
+            通过实体对象可以方便地配置级联操作，如删除用户时自动删除其相关的订单。
+    虽然可以在 Order 类中只使用 userId，但这会让 Hibernate 失去对这些功能的支持，并且需要手动管理更多的逻辑。因此，一般推荐使用实体对象而非外键字段来表示关系。
+
+<h3>hbm.xml形式</h3>
+<code xml>
+&lt;!-- User.hbm.xml -->
+&lt;hibernate-mapping>
+    &lt;class name="com.example.User" table="user">
+        &lt;id name="id" column="id">
+            &lt;generator class="identity"/>
+        &lt;/id>
+        &lt;property name="name" column="name" type="string"/>
+ 
+        &lt;set name="orders" inverse="true" cascade="all,delete-orphan">
+            &lt;key column="user_id"/>
+            &lt;one-to-many class="com.example.Order"/>
+        &lt;/set>
+    &lt;/class>
+&lt;/hibernate-mapping>
+ 
+&lt;!-- Order.hbm.xml -->
+&lt;hibernate-mapping>
+    &lt;class name="com.example.Order" table="orders">
+        &lt;id name="id" column="id">
+            &lt;generator class="identity"/>
+        &lt;/id>
+        &lt;property name="orderDetails" column="orderDetails" type="string"/>
+ 
+        &lt;many-to-one name="user" class="com.example.User" fetch="select">
+            &lt;column name="user_id" not-null="false"/>
+        &lt;/many-to-one>
+    &lt;/class>
+&lt;/hibernate-mapping>
+</code>
+
+
+<h2>多对一</h2>
+<code>
+@Entity
+@Table(name = "orders")
+public class Order {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+ 
+    private String productName;
+ 
+    @ManyToOne
+    @JoinColumn(name = "user_id")  //orders 表将创建 user_id 外键列存储User对象的主键
+    private User user;
+ 
+    // Getters and Setters
+}
+ 
+@Entity
+@Table(name = "users")
+public class User {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+ 
+    private String name;
+ 
+    // Getters and Setters
+}
+</code>
+查询订单并获取其用户信息
+<code>
+Session session = HibernateUtil.getSessionFactory().openSession();
+Order order = session.get(Order.class, 1L);
+System.out.println("Product: " + order.getProductName());
+System.out.println("Ordered by: " + order.getUser().getName());
+session.close();
+</code>
+
+<h3>hbm.xml形式</h3>
+<code xml>
+&lt;!-- Order.hbm.xml -->
+&lt;hibernate-mapping>
+    &lt;class name="com.example.Order" table="orders">
+        &lt;id name="id" column="id">
+            &lt;generator class="identity"/>
+        &lt;/id>
+        &lt;property name="productName" column="product_name" type="string"/>
+ 
+        &lt;many-to-one name="user" class="com.example.User" fetch="select">
+            &lt;column name="user_id" not-null="true"/>
+        &lt;/many-to-one>
+    &lt;/class>
+&lt;/hibernate-mapping>
+ 
+&lt;!-- User.hbm.xml -->
+&lt;hibernate-mapping>
+    &lt;class name="com.example.User" table="users">
+        &lt;id name="id" column="id">
+            &lt;generator class="identity"/>
+        &lt;/id>
+        &lt;property name="name" column="name" type="string"/>
+    &lt;/class>
+&lt;/hibernate-mapping>
+</code>
+
+<h2>多对多</h2>
+<code>
+@Entity
+@Table(name = "student")
+public class Student {
+ 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+ 
+    private String name;
+ 
+    //创建中间表student_course
+    //joinColumns 指定了当前实体的主键在中间表中的列名
+    //inverseJoinColumns 指定了关联实体（Course）的主键在中间表中的列名
+    @ManyToMany(cascade = { CascadeType.ALL })
+    @JoinTable(
+        name = "student_course", 
+        joinColumns = { @JoinColumn(name = "student_id") }, 
+        inverseJoinColumns = { @JoinColumn(name = "course_id") }
+    )
+    private Set&lt;Course> courses = new HashSet&lt;>();
+ 
+    // getters and setters
+}
+ 
+@Entity
+@Table(name = "course")
+public class Course {
+ 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+ 
+    private String name;
+ 
+    @ManyToMany(mappedBy = "courses") //多对多关系由Stutdent类中的courses来映射
+    private Set&lt;Student> students = new HashSet&lt;>();
+ 
+    // getters and setters
+}
+</code>
+
+<h3>hbm.xml形式</h3>
+<code xml>
+&lt;!-- Student.hbm.xml -->
+&lt;hibernate-mapping>
+    &lt;class name="com.example.Student" table="student">
+        &lt;id name="id" column="id">
+            &lt;generator class="identity"/>
+        &lt;/id>
+        &lt;property name="name" column="name" type="string"/>
+ 
+        &lt;set name="courses" table="student_course" cascade="all">
+            &lt;key column="student_id"/>
+            &lt;many-to-many column="course_id" class="com.example.Course"/>
+        &lt;/set>
+    &lt;/class>
+&lt;/hibernate-mapping>
+ 
+&lt;!-- Course.hbm.xml -->
+&lt;hibernate-mapping>
+    &lt;class name="com.example.Course" table="course">
+        &lt;id name="id" column="id">
+            &lt;generator class="identity"/>
+        &lt;/id>
+        &lt;property name="name" column="name" type="string"/>
+ 
+        &lt;set name="students" table="student_course" inverse="true">
+            &lt;key column="course_id"/>
+            &lt;many-to-many column="student_id" class="com.example.Student"/>
+        &lt;/set>
+    &lt;/class>
+&lt;/hibernate-mapping>
+</code>
+
+<h1>Hibernate Validator</h1>
+Hibernate Validator 是 Hibernate 框架的一部分，它实现了 Java Bean Validation 规范（JSR 303 和 JSR 380）
+如果你使用的是 Spring Boot 的 starter-validation，已经包含了 Hibernate Validato
+在传统的 Spring 项目和非 Spring 项目中，需要显式添加 Hibernate Validator 的依赖
+    jakarta.el 是 Hibernate Validator 依赖的表达式语言库，用于解析注解中的表达式
+<code xml>
+&lt;dependency>
+    &lt;groupId>org.hibernate.validator&lt;/groupId>
+    &lt;artifactId>hibernate-validator&lt;/artifactId>
+    &lt;version>8.0.0.Final&lt;/version>
+&lt;/dependency>
+&lt;dependency>
+    &lt;groupId>org.glassfish&lt;/groupId>
+    &lt;artifactId>jakarta.el&lt;/artifactId>
+    &lt;version>4.0.2&lt;/version>
+&lt;/dependency>
+</code>
+
+<h1>日期类型的处理</h1>
+对于 java.util.Date和java.util.Calendar ，Hibernate将其映射为数据库中的 TIMESTAMP 类型。
+    @Temporal 注解在 Hibernate 中用于指定如何将 Java 的日期或时间类型映射到数据库的日期或时间字段
+        只能用于 java.util.Date 和 java.util.Calendar 类型，用于明确地告诉 Hibernate 在数据库中使用哪种时间类型, 因为java.util.Date 和 java.util.Calendar 同时包含日期和时间
+            @Temporal(TemporalType.DATE) 映射为数据库中的 DATE 类型
+            @Temporal(TemporalType.TIME) 映射为数据库中的 TIME 类型
+            @Temporal(TemporalType.TIMESTAMP) 映射为数据库中的 TIMESTAMP 类型
+    无论是写入还是读取，@Temporal 注解都会确保 Java 中的 java.util.Date 或 java.util.Calendar 类型与数据库的日期时间类型之间的正确映射
+
+对于 LocalDate 映射为数据库中的 DATE 类型
+对于 LocalDateTime映射为数据库中的 TIMESTAMP 类型
+
+<h2>自定义日期格式</h2>
+<code>
+@Converter(autoApply = true)
+public class LocalDateAttributeConverter implements AttributeConverter&lt;LocalDate, String> {
+    private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+ 
+    @Override
+    public String convertToDatabaseColumn(LocalDate attribute) {
+        return attribute != null ? attribute.format(formatter) : null;
+    }
+ 
+    @Override
+    public LocalDate convertToEntityAttribute(String dbData) {
+        return dbData != null ? LocalDate.parse(dbData, formatter) : null;
+    }
+}
+ 
+@Entity
+public class User {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+ 
+    @Convert(converter = LocalDateAttributeConverter.class)
+    private LocalDate birthDate;
+ 
+    // getters and setters
+}
+</code>
+
+<h1>序列化问题</h1>
+实体类需要标记 Serializable
+代理对象的序列化
+    Hibernate 使用代理（proxy）来延迟加载实体（Lazy Loading）。这些代理对象通常不应该被序列化
+    如果某些属性不应参与序列化（如与 Hibernate 相关的内部状态），可以将这些属性标记为 transient
+关联的序列化
+    一对一和多对一关联: 这些通常没有特别的问题，但确保相关的实体类也实现了 Serializable 接口
+    一对多和多对多关联: 这些关联可能包含大量数据。如果这些数据被序列化，可能会导致性能问题。
+        使用 transient 关键字来避免序列化不必要的关联数据，或者通过配置映射文件来控制数据的序列化行为
+
+<h1>与spring整合</h1>
+<h2>pom.xml</h2>
+<code xml>
+&lt;dependencies>
+    &lt;!-- Spring Core -->
+    &lt;dependency>
+        &lt;groupId>org.springframework&lt;/groupId>
+        &lt;artifactId>spring-core&lt;/artifactId>
+        &lt;version>5.3.21&lt;/version>
+    &lt;/dependency>
+    &lt;dependency>
+        &lt;groupId>org.springframework&lt;/groupId>
+        &lt;artifactId>spring-context&lt;/artifactId>
+        &lt;version>5.3.21&lt;/version>
+    &lt;/dependency>
+    &lt;dependency>
+        &lt;groupId>org.springframework&lt;/groupId>
+        &lt;artifactId>spring-beans&lt;/artifactId>
+        &lt;version>5.3.21&lt;/version>
+    &lt;/dependency>
+    &lt;!-- Spring ORM -->
+    &lt;dependency>
+        &lt;groupId>org.springframework&lt;/groupId>
+        &lt;artifactId>spring-orm&lt;/artifactId>
+        &lt;version>5.3.21&lt;/version>
+    &lt;/dependency>
+    &lt;!-- Hibernate -->
+    &lt;dependency>
+        &lt;groupId>org.hibernate&lt;/groupId>
+        &lt;artifactId>hibernate-core&lt;/artifactId>
+        &lt;version>5.6.14.Final&lt;/version>
+    &lt;/dependency>
+    &lt;!-- Database Driver -->
+    &lt;dependency>
+        &lt;groupId>mysql&lt;/groupId>
+        &lt;artifactId>mysql-connector-java&lt;/artifactId>
+        &lt;version>8.0.26&lt;/version>
+    &lt;/dependency>
+&lt;/dependencies>
+</code>
+<h2>applicationContext.xml</h2>
+<code xml>
+&lt;beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:tx="http://www.springframework.org/schema/tx"
+       xsi:schemaLocation="
+        http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/tx
+        http://www.springframework.org/schema/tx/spring-tx.xsd">
+ 
+    &lt;!-- 数据源配置 -->
+    &lt;bean id="dataSource" class="org.springframework.jdbc.datasource.DriverManagerDataSource">
+        &lt;property name="driverClassName" value="com.mysql.cj.jdbc.Driver"/>
+        &lt;property name="url" value="jdbc:mysql://localhost:3306/your_database"/>
+        &lt;property name="username" value="your_username"/>
+        &lt;property name="password" value="your_password"/>
+    &lt;/bean>
+ 
+    &lt;!-- Hibernate 配置 -->
+    &lt;bean id="sessionFactory" class="org.springframework.orm.hibernate5.LocalSessionFactoryBean">
+        &lt;property name="dataSource" ref="dataSource"/>
+        &lt;property name="packagesToScan" value="com.example.entity"/>
+        &lt;property name="hibernateProperties">
+            &lt;props>
+                &lt;prop key="hibernate.dialect">org.hibernate.dialect.MySQL8Dialect&lt;/prop>
+                &lt;prop key="hibernate.show_sql">true&lt;/prop>
+                &lt;prop key="hibernate.hbm2ddl.auto">update&lt;/prop>
+            &lt;/props>
+        &lt;/property>
+    &lt;/bean>
+ 
+    &lt;!-- 事务管理器配置 -->
+    &lt;bean id="transactionManager" class="org.springframework.orm.hibernate5.HibernateTransactionManager">
+        &lt;property name="sessionFactory" ref="sessionFactory"/>
+    &lt;/bean>
+ 
+    &lt;!-- 启用注解驱动的事务管理 -->
+    &lt;tx:annotation-driven transaction-manager="transactionManager"/>
+&lt;/beans>
+</code>
+<h2>dao</h2>
+<code>
+@Repository
+public class UserDao {
+    @Resource
+    private SessionFactory sessionFactory;
+ 
+    public User getUserById(Long id) {
+        Session session = sessionFactory.getCurrentSession();
+        return session.get(User.class, id);
+    }
+ 
+    public void saveUser(User user) {
+        Session session = sessionFactory.getCurrentSession();
+        session.save(user);
+    }
+}
+</code>
+<h2>service</h2>
+<code>
+@Service
+public class UserService {
+    @Autowired
+    private UserDao userDao;
+ 
+    @Transactional
+    public User getUserById(Long id) {
+        return userDao.getUserById(id);
+    }
+ 
+    @Transactional
+    public void saveUser(User user) {
+        userDao.saveUser(user);
+    }
+}
+</code>
+
+<h1>与spring boot整合</h1>
+在 Spring Boot 项目中，Hibernate 通常作为 spring-boot-starter-data-jpa 依赖的一部分
+
+<h2>pom.xml</h2>
+<code xml>
+&lt;dependencies>
+    &lt;!-- Spring Boot Starter Data JPA -->
+    &lt;dependency>
+        &lt;groupId>org.springframework.boot&lt;/groupId>
+        &lt;artifactId>spring-boot-starter-data-jpa&lt;/artifactId>
+    &lt;/dependency>
+ 
+    &lt;!-- MySQL Connector -->
+    &lt;dependency>
+        &lt;groupId>mysql&lt;/groupId>
+        &lt;artifactId>mysql-connector-java&lt;/artifactId>
+    &lt;/dependency>
+ 
+    &lt;!-- Ehcache -->
+    &lt;dependency>
+        &lt;groupId>net.sf.ehcache&lt;/groupId>
+        &lt;artifactId>ehcache&lt;/artifactId>
+        &lt;version>2.10.6&lt;/version>
+    &lt;/dependency>
+&lt;/dependencies>
+</code>
+<h2>application.properties</h2>
+<code properties>
+# 数据库连接配置
+spring.datasource.url=jdbc:mysql://localhost:3306/yourdatabase
+spring.datasource.username=root
+spring.datasource.password=yourpassword
+ 
+# Hibernate 配置
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQL8Dialect
+# 物理命名, 隐式命名策略
+spring.jpa.hibernate.naming.physical-strategy=org.springframework.boot.orm.jpa.hibernate.SpringPhysicalNamingStrategy
+spring.jpa.hibernate.naming.implicit-strategy=org.springframework.boot.orm.jpa.hibernate.SpringImplicitNamingStrategy
+ 
+# 使用 HikariCP 连接池 (Spring Boot 默认)
+spring.datasource.hikari.maximum-pool-size=10
+ 
+# Hibernate 二级缓存配置
+spring.jpa.properties.hibernate.cache.use_second_level_cache=true
+spring.jpa.properties.hibernate.cache.region.factory_class=org.hibernate.cache.ehcache.EhCacheRegionFactory
+</code>
+</pre>
+</body>
+</html>

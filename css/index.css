@@ -1,0 +1,31 @@
+body {
+    margin: 0;
+    padding: 0;
+    display: flex;
+}
+iframe {
+    border: none;
+    height: 100vh;
+    background-color: #c3ffe1;
+}
+#content {
+    flex: 75;
+}
+#side {
+    flex: 25;
+}
+
+#search {
+    position: absolute;
+    top:55px;
+}
+input#searchInput {
+    width: 170px;
+}
+#searchResults{position:absolute}
+#searchResults::-webkit-scrollbar-thumb{background:#ff0}
+#searchResults::-webkit-scrollbar-track{background:#adadad}
+#searchHistory{position:absolute;display: none;width: 177px;}
+option:hover {
+    background: aliceblue;
+}

@@ -1,0 +1,1895 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>MySQL</title>
+ </head>
+ <body>
+  <span id="anchor">20240424154238-_数据库</span>
+mysql使用锁来防止其他事务在特定条件下修改或访问同一数据行,如行级锁,表级锁
+mysql会检测是否存在死锁,并会选择一个死锁的事务进行回滚,确保系统中至少有一个事务可以继续执行
+
+  <pre>
+windows下安装后使用configurator配置密码, 将mysql的bin目录加入系统PATH
+命令行测试
+<code sql>
+mysql --version
+mysql -uroot -p
+show databases;
+exit
+</code>
+在idea中添加mysql数据源
+
+<h1>配置文件</h1>
+windows配置文件名为my.ini
+linux中配置文件名为my.cnf
+<code ini>
+[client] #图形界面
+port=3306
+[mysql] #命令行客户端
+#有报警时主机上的蜂鸣器不要响
+no-beep
+[mysqld] #数据库设置
+port=3306
+#进行数据目录迁移时,将Data文件夹移动到目标位置后,修改此地址,命令行关闭重启服务生效
+datadir=C:/ProgramData/MySQL/MySQL Server 8.3/Data
+authentication_policy=*,,
+#INNODB支持事务机制
+default-storage-engine=INNODB
+#开启严格模式,未开启时,例如一个规定为字符串格式的内容如果传入了一个整数,则自动将其转换为字符串
+sql-mode="ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION" #
+#用文件记录日志
+log-output=FILE
+#0关闭日志输出,1开启
+general-log=0
+#自定义日志文件名
+general_log_file="DESKTOP-D4A35C8.log"
+#开启慢查询日志
+slow-query-log=1
+#自定义慢查询日志文件名
+slow_query_log_file="DESKTOP-D4A35C8-slow.log"
+#大于多少秒的SQL查询会被记录在慢查询日志
+long_query_time=10
+#自定义错误日志文件名
+log-error="DESKTOP-D4A35C8.err"
+log-bin="DESKTOP-D4A35C8-bin"
+#数据库id,集群时才有意义
+server-id=1
+#开启表名自动转小写
+lower_case_table_names=1
+#导入导出数据时的文件中转地址
+secure-file-priv="C:/ProgramData/MySQL/MySQL Server 8.3/Uploads"
+#最大连接数
+max_connections=151
+ 
+#linux下参考配置
+[client]
+port=3306
+[mysql]
+no-beep
+[mysqld]
+#服务端口号 默认3306
+port = 3306
+#mysql安装根目录
+basedir = /usr/local/mysql
+#mysql数据文件所在位置
+datadir = /usr/local/mysql/data 
+#密码认证插件
+default_authentication_plugin=caching_sha2_password
+ #默认存储引擎
+default-storage-engine=INNODB
+#开启严格模式
+sql-mode="STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION"
+#用文件记录日志
+log-output=FILE
+#关闭日志输出
+general-log=0
+#日志文件名称
+general_log_file="DESKTOP-HB42AU2.log"
+开启慢查询日志
+slow_query_log = 1
+#慢查询日志文件名称
+slow_query_log_file = slow.log
+#大于多少秒的执行SQL被记录在慢查询日志
+long_query_time=10
+#数据库ID
+server-id=1
+#把表名转换为小写
+lower_case_table_names=1
+#导入导出数据的目录地址
+sercure-file-priv= "/usr/local/mysql/uploads"
+#最大连接数
+max_connections=151
+table_open_cache=2000
+tmp_table_size=16M
+#线程数量
+thread_cache_size=10
+myisam_max_sort_file_size=100G
+myisam_sort_buffer_size=8M
+key_buffer_size=8M
+read_buffer_size=0
+read_rnd_buffer_size=256K
+sort_buffer_size=256K
+</code>
+<p>
+参数名称:含义:典型值
+port:MySQL 服务的监听端口号:3306
+bind-address:MySQL 服务绑定的IP地址:0.0.0.0（绑定所有IP地址）或 127.0.0.1（仅本地访问）
+max_connections:允许的最大并发连接数:151（默认），可以设置为 500 或更多，取决于需求和硬件资源
+default-storage-engine:默认的存储引擎:InnoDB（推荐）或 MyISAM
+innodb_buffer_pool_size:InnoDB缓冲池大小，用于缓存数据和索引:128M（默认），可以设置为 1G 或更多，取决于内存大小和数据量
+query_cache_size:查询缓存大小:0（默认禁用），可以设置为 64M 或更多，取决于应用的查询特性
+key_buffer_size:MyISAM键缓存大小:8M（默认），如果使用MyISAM，可以设置为 128M 或更多
+table_open_cache:表缓存的数量:2000（默认），可以设置为 4000 或更多，取决于打开表的数量和内存大小
+max_allowed_packet:服务器允许的最大通信包大小:16M（默认），可以设置为 64M 或更多，取决于应用需求
+thread_cache_size:线程缓存大小:9（默认），可以设置为 50 或更多，取决于并发连接数和负载情况
+log_error:错误日志文件路径:/var/log/mysql/error.log（典型路径），可以根据需要进行调整
+slow_query_log:是否启用慢查询日志:1（启用）或 0（禁用），建议启用以监控慢查询
+slow_query_log_file:慢查询日志文件路径:/var/log/mysql/slow.log（典型路径），可以根据需要进行调整
+long_query_time:慢查询的时间阈值（秒）:10（默认），可以设置为 1 或更小，以捕捉更多慢查询
+character-set-server:服务器字符集:utf8mb4（推荐）或 latin1
+collation-server:服务器字符序:utf8mb4_general_ci（推荐）或 latin1_swedish_ci
+skip-networking:是否禁用网络访问:0（默认允许网络访问），可以设置为 1（禁用网络访问，仅允许本地连接）
+skip-name-resolve:是否禁用主机名解析:1（启用），可以提高性能
+innodb_file_per_table:每个表使用独立的表空间:1（启用，推荐）
+</p>
+
+<h1>字符集</h1>
+数据库编码方式 和 表编码方式 以及 插入数据（字符串）的编码方式
+
+MySQL 5.7 及之前版本默认的字符集是 latin1 ，MySQL 8.0 版本默认的字符集是 utf8mb4
+utf8 其实是 utf8mb3 的别名，只使用 1～3 个字节表示字符。
+utf8mb4 使用 1～4 个字节表示字符，能够存储更多的 emoji 表情及任何新增的 Unicode 字符。
+    utf8mb4是utf8 字符集的超集
+
+查看MYSQL数据库服务器和数据库字符集
+<code sql>
+    SHOW VARIABLES WHERE Variable_name LIKE 'character\_set\_%' OR Variable_name LIKE 'collation%';
+</code>
+修改系统字符集参数，这样以后创建的库表默认字符集就是 utf8mb4
+<code bash>
+vi /etc/my.cnf
+ 
+[mysqld]
+character-set-server = utf8mb4
+collation-server = utf8mb4_general_ci
+# MySQL 服务器将不再执行字符集握手，而是直接使用服务器端的默认字符集来处理数据
+# 忽略应用连接自己设置的字符编码，保持与全局设置一致
+skip-character-set-client-handshake
+[client]
+default-character-set=utf8mb4
+[mysql]
+default-character-set=utf8mb4
+</code>
+修改数据库字符集
+    对于已经创建的数据库，如果原来是 utf8 字符集，则可以这么修改
+<code sql>
+alter database `testdb` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+</code>
+修改表及字段字符集
+    对于已经创建的表，修改全局及数据库的字符集并不会影响原表及字段的字符集。原有的 utf8 表可以采用如下方法修改
+<code sql>
+# 修改表字符集
+alter table `tb_name` default character set utf8mb4;
+ 
+# 修改某字段字符集
+alter table `tb_name` modify col_name varchar(20) character set utf8mb4;
+ 
+# 同时修改表及字段字符集
+alter table `tb_name` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ 
+# 如果某个库里面表比较多 可以拼接出要执行的批量修改语句
+SELECT
+    CONCAT( 'ALTER TABLE ', TABLE_NAME, ' CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;') as alter_list
+FROM
+    information_schema.`TABLES`
+WHERE
+    TABLE_SCHEMA = 'testdb';
+</code>
++----------------------------------------------------------------------------+
+| alter_list                                                                 |
++----------------------------------------------------------------------------+
+| ALTER TABLE a CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci; |
+| ALTER TABLE b CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci; |
++----------------------------------------------------------------------------+
+
+<h1>数据类型</h1>
+如果确定是整数，就用INT；
+如果确定是小数，就用定点数DECIMAL(M,D)
+如果是日期与时间，就用DATETIME
+字段如果为非负数，就用UNSIGNED
+支持位运算符
+    SELECT 5 & 3;
+    SELECT id, value1, value2, value1 & value2 AS bitwise_and FROM bitwise_example;
+
+整数类型：
+    TINYINT、SMALLINT、MEDIUMINT、INT(或INTEGER)、BIGINT(相当JAVA中LONG类型)
+    整型中有三个可选的属性，分别是数据显示宽度、无符号(UNSIGNED)、零填充(ZEROFILL)
+        ZEROFILL（前导零） 只是影响数据的展示，存储的数据仍然是实际的整数值，只有在检索数据时才会被填充零。
+            id INT(5) ZEROFILL,
+        零填充对于需要显示特定格式的数据非常有用，比如需要显示订单号、客户编号或者其他类似标识符时，保持固定长度可以使数据更易于阅读和比较。
+浮点类型：
+    FLOAT、DOUBLE
+定点数类型：
+    DECIMAL(M, D): 定点数类型，用于精确存储数值，M 是数字的最大位数(整数位数加上小数位数)，D 是小数位的位数。
+        price DECIMAL(10, 2) NOT NULL,
+        表示最大长度为10位，其中小数点后有2位，因此这个字段可以存储的最大值是 99999999.99
+位类型：
+    BIT
+日期时间类型：
+    YEAR、TIME、DATE、DATETIME、TIMESTAMP
+        在32位系统中，时间戳的最大值为2,147,483,647秒，这个值对应于UTC时间2038年1月19日03:14:07。当时间戳超过这个值时，32位整数会溢出，从而导致时间戳变为负数，回到1970年或更早的时间。
+        TIMESTAMP 类型直接使用Unix时间戳存储时间数据，在32位系统上会受到2038年问题的影响。
+        而DATETIME 类型使用自定义格式存储时间数据，不受2038年问题的影响。
+            升级到64位系统：在64位系统中，时间戳可以使用64位整数表示，有效时间范围可以扩展到大约292,000,000,000年，因此避免了2038年问题
+            可以使用DATETIME类型，而不是TIMESTAMP类型。DATETIME类型支持的日期范围是 1000-01-01 00:00:00 到 9999-12-31 23:59:59，足够应对大多数需求。
+文本字符串类型：
+    CHAR、VARCHAR、TINYTEXT、TEXT、MEDIUMTEXT、LONGTEXT
+枚举类型：
+    ENUM
+        role ENUM('admin', 'editor', 'viewer') NOT NULL
+集合类型：
+    SET, 可以选择其中一个或多个, 使用逗号分隔多个选项
+        name VARCHAR(100) NOT NULL,
+        favorite_colors SET('Red', 'Green', 'Blue', 'Yellow', 'Black')
+            ('Charlie', 'Green,Black')
+二进制字符串类型：
+    BINARY、VARBINARY、TINYBLOB、BLOB、MEDIUMBLOB、LONGBLOB
+JSON类型：
+    JSON对象、JSON数组, 主要用于存储和查询半结构化数据，但并不适合大量的复杂查询或索引
+        name VARCHAR(100) NOT NULL,
+        contact_info JSON
+            ('Alice', '{"email": "alice@example.com", "phone": "+1234567890", "address": {"city": "New York", "zip": "10001"}}')
+    查询JSON数据
+        JSON_EXTRACT(contact_info, '$.email') AS email
+    更新JSON数据
+        SET contact_info = JSON_SET(contact_info, '$.phone', '+1122334455')
+    从JSON对象中删除特定字段
+        SET contact_info = JSON_REMOVE(contact_info, '$.address')
+空间数据类型（了解）：
+    单值类型：GEOMETRY、POINT、LINESTRING、POLYGON；
+    集合类型：MULTIPOINT、MULTILINESTRING、MULTIPOLYGON、GEOMETRYCOLLECTION
+
+<h1>语法</h1>
+SQL语句关键字不区分大小写,忽略语句中空格和换行,每一条语句以分号结尾
+在 SQL 中，反引号（``）通常用来引用数据库对象（如表名、列名等），特别是当对象名包含空格或与 SQL 关键字冲突时。使用反引号可以确保数据库正确解析包含特殊字符或空格的对象名。
+如果表名或列名没有包含特殊字符或空格，使用反引号引用是可选的，但是在一些数据库中，使用反引号引用对象名可以提高代码的可读性和可移植性。
+
+SQL语言分为三类
+    DML 数据操作语言
+        添加,修改,删除,查询
+    DCL 数据控制语言
+        用户,权限,事务
+    DDL 数据定义语言
+        逻辑库,数据表,视图,索引
+
+MySQL语法和标准SQL语法的差异
+    MySQL 的语法在很大程度上符合 SQL 标准，但也有一些特定的语法和功能是 MySQL 独有的或者与标准有所不同的。以下是一些 MySQL 与标准 SQL 不同之处的示例：
+        字符串比较大小写敏感性： 
+            在 MySQL 中，默认情况下，字符串比较是不区分大小写的（例如，'Hello' = 'hello' 返回 true）。但在标准 SQL 中，字符串比较通常是区分大小写的。
+        字符串拼接： 
+            MySQL 使用 CONCAT() 函数来拼接字符串，而标准 SQL 使用双竖线 ||。例如，在 MySQL 中，将两个字符串拼接在一起可以这样做：CONCAT('Hello', 'World')，而在标准 SQL 中，应该是 'Hello' || 'World'。
+        LIMIT 子句： 
+            MySQL 使用 LIMIT 子句来限制结果集的返回行数，而标准 SQL 使用 FETCH FIRST 或 OFFSET 语法来实现类似的功能。
+        AUTO_INCREMENT 列： 
+            MySQL 使用 AUTO_INCREMENT 关键字来指定一个列为自增列，而标准 SQL 中通常使用 IDENTITY 关键字。
+        日期和时间函数： 
+            MySQL 提供了许多与日期和时间相关的特定函数，如 NOW()、DATE_ADD()、DATE_SUB() 等，这些函数在标准 SQL 中可能没有直接对应的函数或者语法。
+    需要注意的是，虽然 MySQL 有一些与标准 SQL 不同的地方，但大部分情况下，它们仍然可以与标准 SQL 兼容，并且可以通过设置来使其更加符合标准。
+
+<h2>库操作</h2>
+<code sql>
+-- 显示所有逻辑库
+SHOW DATABASES;
+ 
+-- 创建逻辑库
+CREATE DATABASE IF NOT EXISTS demo;
+ 
+-- 使用指定逻辑库
+USE demo;
+ 
+-- 删除指定逻辑库
+DROP DATABASE demo;
+</code>
+<h2>表操作</h2>
+<code sql>
+-- 查看当前逻辑空间里的所有表
+SHOW TABLES;
+ 
+-- 查看指定表的所有字段详情注释
+show full columns from test;
+ 
+-- 列的信息
+SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE, COLUMN_KEY
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA = 'your_database_name'
+AND TABLE_NAME = 'your_table_name';
+ 
+-- 查看指定表的表结构
+DESC student;
+ 
+-- 查看表注释,建表语句
+SHOW CREATE TABLE test;
+ 
+-- 返回总记录数
+SELECT COUNT(*) total_items FROM t_emp;
+ 
+-- 建表,添加表注释和字段注释
+CREATE TABLE student(
+  id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT COMMENT "主键,字段注释",
+  name VARCHAR(20) NOT NULL,
+  tel CHAR(11) NOT NULL UNIQUE,
+  sex ENUM("男","女") NOT NULL DEFAULT "男",
+  -- MySQL 会将 BOOLEAN 解释为别名类型,false在表中会自动转为0
+  -- MySQL 允许在 DEFAULT 子句中使用字符串，而字符串 'FALSE' 会被解释为数字 0。
+  -- 因此，虽然 MySQL 中没有严格意义上的布尔类型，但可以通过这种方式来模拟布尔类型的行为。
+  -- married BOOLEAN NOT NULL DEFAULT FALSE
+  -- 习惯上，TINYINT(1) 用于表示布尔值，其中 1 表示 TRUE，0 表示 FALSE。通过在定义表结构时将 TINYINT(1) 定义为 NOT NULL 并设置默认值为 0 或 1，可以实现类似于 BOOLEAN 的行为
+  married TINYINT(1) NOT NULL DEFAULT 0
+) ENGINE=InnoDB AUTO_INCREMENT=100 CHARSET=utf8 COMMENT="信息表";
+-- AUTO_INCREMENT=100设置自增起点, 或者ALTER TABLE t AUTO_INCREMENT = 100;
+-- 使用 InnoDB 存储引擎，它提供了事务、外键等关系型数据库的特性
+ 
+-- 拷贝表
+-- 获取数据表的完整结构
+SHOW CREATE TABLE runoob_tbl;
+-- 原表结构
+CREATE TABLE `runoob_tbl` (
+  `runoob_id` int(11) NOT NULL auto_increment,
+  `runoob_title` varchar(100) NOT NULL default '',
+  `runoob_author` varchar(40) NOT NULL default '',
+  `submission_date` date default NULL,
+  PRIMARY KEY  (`runoob_id`),
+  UNIQUE KEY `AUTHOR_INDEX` (`runoob_author`)
+) ENGINE=InnoDB 
+-- 重命名以原有结构新建
+CREATE TABLE `clone_tbl` (
+  `runoob_id` int(11) NOT NULL auto_increment,
+  `runoob_title` varchar(100) NOT NULL default '',
+  `runoob_author` varchar(40) NOT NULL default '',
+  `submission_date` date default NULL,
+  PRIMARY KEY  (`runoob_id`),
+  UNIQUE KEY `AUTHOR_INDEX` (`runoob_author`)
+) ENGINE=InnoDB;
+-- 拷贝数据
+INSERT INTO clone_tbl (runoob_id,runoob_title,runoob_author,submission_date)
+SELECT runoob_id,runoob_title,runoob_author,submission_date
+FROM runoob_tbl;
+ 
+-- 拷贝表2
+CREATE TABLE targetTable LIKE sourceTable;
+INSERT INTO targetTable SELECT * FROM sourceTable;
+-- 拷贝一个表中的一些字段:
+CREATE TABLE newadmin AS (SELECT username, password FROM admin)
+-- 将新建的表的字段改名:
+CREATE TABLE newadmin AS (SELECT id, username AS uname, password AS pass FROM admin)
+-- 拷贝一部分数据
+-- LEFT(username,1)获取字符串 username 的左边的第一个字符
+CREATE TABLE newadmin AS (SELECT * FROM admin WHERE LEFT(username,1) = 's')
+ 
+-- 拷贝表3
+CREATE TABLE source (name VARCHAR(255),age int);
+INSERT into source VALUES ("Alice",12),("Bob",8);
+CREATE TABLE `new` (id INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY);
+-- 在列之后插入新列
+ALTER TABLE `new` ADD COLUMN `name` VARCHAR(255) AFTER `id`;
+ALTER TABLE `new` ADD COLUMN `age` INT AFTER `name`;
+-- SELECT NULL
+INSERT INTO `new` (id, name, age) SELECT NULL, name, age FROM source;
+ 
+-- 临时表只在当前连接可见，当关闭连接时，MySQL 会自动删除表并释放所有空间
+-- 临时表对于需要在某个会话中存储中间结果集或进行复杂查询时非常有用。
+-- 临时表的作用范围仅限于创建它的会话。其他会话无法直接访问或引用该临时表。
+-- 新建临时表
+CREATE TEMPORARY TABLE temp_table_name (
+  column1 datatype,
+  column2 datatype,
+  ...
+);
+ 
+-- 从现有表中新建临时表
+CREATE TEMPORARY TABLE temp_table_name AS
+SELECT column1, column2, ...
+FROM source_table
+WHERE condition;
+ 
+-- 修改表注释
+ALTER TABLE test COMMENT '修改后的表注释';
+ 
+-- 修改字段注释
+ALTER TABLE test MODIFY COLUMN id INT NOT NULL DEFAULT 0 COMMENT '修改后的字段注释';
+ 
+-- 修改表名
+ALTER TABLE employees
+RENAME TO staff;
+ 
+-- 清空表记录
+DELETE FROM t_emp;
+ 
+-- 删除指定表
+DROP TABLE student;
+</code>
+<h1>字段</h1>
+<code sql>
+-- 在 MySQL 中，如果将一个字段设为主键 (primary key)，那么这个字段就默认为 NOT NULL
+-- 插入新字段
+ALTER TABLE student 
+ADD COLUMN address VARCHAR(200) NOT NULL,
+ADD COLUMN home_tel CHAR(11) NOT NULL;
+ 
+-- 在指定列的右侧插入新字段
+ALTER TABLE student
+ADD COLUMN new_column INT AFTER address;
+ 
+-- 修改字段名称
+ALTER TABLE student
+CHANGE tel phone VARCHAR(11),
+CHANGE address addr VARCHAR(200);
+ 
+-- 修改字段类型
+ALTER TABLE student
+MODIFY home_tel CHAR(31);
+ 
+-- 交换两个字段的位置
+ALTER TABLE student 
+ADD COLUMN tmp VARCHAR(11); #插入临时列
+UPDATE student SET tmp=tel, tel=remark;
+UPDATE student SET remark=tmp; #调换数据
+ALTER TABLE student CHANGE tel tmp VARCHAR(11);
+ALTER TABLE student CHANGE remark tel VARCHAR(200);
+ALTER TABLE student CHANGE tmp remark VARCHAR(11); #修改字段名
+ALTER TABLE student 
+DROP COLUMN tmp; #删除临时列
+ 
+-- 删除指定字段, COLUMN可省略
+ALTER TABLE student
+DROP home_tel,
+DROP COLUMN remark;
+</code>
+<h1>主键,外键,索引</h1>
+<code sql>
+-- 添加主键约束
+ALTER TABLE employees
+ADD PRIMARY KEY (employee_id);
+ 
+-- 在关系型数据库中，一个表可以有多个列构成主键，这种情况被称为复合主键或联合主键。这意味着多个列的值组合在一起必须是唯一的。
+-- (column1, column2) 组成了复合主键，意味着 (1, 2) 和 (1, 3) 是合法的行，但 (1, 2) 和 (1, 2) 是不合法的行，因为它们的组合不是唯一的
+CREATE TABLE example (
+    column1 INT,
+    column2 INT,
+    PRIMARY KEY (column1, column2)
+);
+ 
+-- 另一种设置数据的唯一性方法是添加一个 UNIQUE 索引
+CREATE TABLE person_tbl (
+   first_name CHAR(20) NOT NULL,
+   last_name CHAR(20) NOT NULL,
+   sex CHAR(10),
+   UNIQUE (last_name, first_name)
+);
+ 
+-- 外键约束
+-- 如果父表中未录入指定的deptno编号,则子表就不能录入该编号
+-- 如果子表的相关记录未删除前,父表无法删除指定记录
+-- 当形成外键闭环时,将无法删除任何一张表的记录
+-- 父表
+CREATE TABLE t_dept(
+  deptno INT UNSIGNED PRIMARY KEY,
+  dname VARCHAR(20) NOT NULL UNIQUE,
+  tel CHAR(4) UNIQUE
+);
+-- 子表
+CREATE TABLE t_emp(
+  empno INT UNSIGNED PRIMARY KEY,
+  deptno INT UNSIGNED,
+  FOREIGN KEY(deptno) REFERENCES t_dept(deptno)
+);
+ 
+-- 添加外键约束
+ALTER TABLE orders
+ADD CONSTRAINT fk_customer
+FOREIGN KEY (customer_id)
+REFERENCES customers (customer_id);
+ 
+-- 查看外键信息
+SELECT
+  TABLE_NAME,
+  COLUMN_NAME,
+  CONSTRAINT_NAME,
+  REFERENCED_TABLE_NAME,
+  REFERENCED_COLUMN_NAME
+FROM
+  INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+WHERE
+  TABLE_SCHEMA = 'your_database_name'
+  AND TABLE_NAME = 'your_table_name'
+  AND REFERENCED_TABLE_NAME IS NOT NULL;
+ 
+-- 创建索引,数据量很大,读的次数大于写的次数,经常被用作检索条件的字段,不要在长字段上创建索引
+CREATE TABLE t_message(
+  id INT UNSIGNED PRIMARY KEY,
+  content VARCHAR(200) NOT NULL,
+  INDEX idx_type(type)
+);
+ 
+-- 在已经存在的表上创建索引
+-- 创建了一个名为 idx_type 的索引，它包含了 t_message 表中的 type 字段, 优化对 type 字段的查询操作
+CREATE INDEX idx_type ON t_message(type);
+ALTER TABLE t_message ADD INDEX idx_type(type);
+ 
+-- 查看索引信息
+SHOW INDEX FROM t_message;
+ 
+-- 删除索引
+DROP INDEX idx_type ON t_message;
+-- 或
+ALTER TABLE employees
+DROP INDEX idx_age;
+</code>
+<h1>分页,排序,COLLATE,去重</h1>
+<code sql>
+-- LIMIT分页,单参时3表示取前3条
+-- 双参时,从索引5(第6条,索引起始为0)位置开始向后取3条
+-- LIMIT是mysql的方言
+SELECT empno,ename FROM t_emp LIMIT 5,3;
+ 
+-- 排序
+SELECT ename,sal*12 income 
+FROM t_emp 
+ORDER BY sal;
+ 
+-- 多重排序：选择员工表 employees 中的所有员工，并先按部门 ID 升序 ASC 排序，然后在相同部门中按雇佣日期降序 DESC 排序。
+SELECT * FROM employees
+ORDER BY department_id ASC, hire_date DESC 
+LIMIT 5;
+ 
+-- 多列排序：使用数字, 选择员工表 employees 中的名字和工资列，并按第三列（salary）降序 DESC 排序，然后按第一列（first_name）升序 ASC 排序
+SELECT first_name, last_name, salary
+FROM employees
+ORDER BY 3 DESC, 1 ASC;
+ 
+-- 使用 NULLS FIRST 或 NULLS LAST 处理 NULL 值
+-- 选择产品表 products 中的产品名称和价格，并按价格降序 DESC 排序，将 NULL 值排在最后
+SELECT product_name, price
+FROM products
+ORDER BY price DESC NULLS LAST;
+ 
+-- 按照中文拼音进行排序，同时忽略大小写（CI 表示 Case Insensitive，AS 表示 Accent Sensitive）
+SELECT * FROM table_name 
+ORDER BY column_name COLLATE Chinese_Pinyin_CI_AS; 
+ 
+-- 去重
+-- DISTINCT在SELECT中只能使用一次,查询多个字段时无效
+SELECT DISTINCT job FROM t_emp;
+ 
+-- 读取不重复的数据
+SELECT last_name, first_name
+FROM people
+GROUP BY last_name, first_name;
+-- 或者
+SELECT DISTINCT last_name, first_name
+FROM people;
+ 
+-- 删除重复数据
+CREATE TABLE tmp
+SELECT last_name, first_name 
+FROM people 
+GROUP BY last_name, first_name;
+ 
+DROP TABLE people;
+ALTER TABLE tmp RENAME TO people;
+</code>
+<h1>NULL值处理</h1>
+NULL 判断
+    判断NULL, IS NULL,IS NOT NULL,不可以=和!=
+NULL 运算
+    跟NULL进行任何运算得到的结果都是NULL
+NULL 排序
+    ORDER BY 子句进行排序时，NULL 值默认会被放在排序的最后
+        将 NULL 值放在最前面,使用 ORDER BY column_name ASC NULLS FIRST
+        反之使用 ORDER BY column_name DESC NULLS LAST
+NULL 比较
+    &lt;=&gt;
+        同时比较两件事情（两个字段的值是否相等，包括都为 NULL 的情况）
+        假设你有两个名单，一个是电话号码名单，一个是电子邮件名单。你想找出哪些人没有电话号码并且没有电子邮件。&lt;=> 就像在同时检查两个名单的情况下，不论电话号码还是电子邮件是否为空，都能正确地进行比较。
+<code sql>
+-- 查看联系人中哪些人的电话号码和电子邮件相同，包括那些都没填写的
+SELECT * FROM contacts WHERE phone &lt;=> email;
+</code>
+    is null
+        用于检查单个字段是否为 NULL，类似于问“某个字段是不是空的？
+        假设你有一个名单，你想找出名单中哪些人没有电话号码。IS NULL 就像在名单中找出所有电话号码为空的记录
+<code sql>
+-- 这句查询语句就像是在说：“给我所有没有填写电话号码的联系人。”
+SELECT * FROM contacts WHERE phone IS NULL;
+</code>
+NULL 取代
+    IFNULL(a,b) 返回两个参数中的第一个非NULL值。如果所有参数都是 NULL，则返回 NULL
+    COALESCE(a,b,c) 返回参数列表中第一个非NULL值。如果所有参数都是 NULL，则返回 NULL; 积聚
+聚合函数对 NULL 的处理
+    使用聚合函数（如 COUNT, SUM, AVG）时，它们会忽略 NULL 值，因此可能会得到不同于预期的结果。如果希望将 NULL 视为 0，可以使用 COALESCE 或 IFNULL
+<h1>WHERE,正则,IN</h1>
+<code sql>
+-- WHERE中不能使用别名, 避免在where中使用子查询, from子查询只查询一次, 而where子查询每次都会重来一遍
+SELECT deptno,ename,(sal+IFNULL(comm,0))*12 income,hiredate
+FROM t_emp 
+WHERE
+  (deptno=10 OR deptno=20) AND sal*12&gt;=24000 AND DATEDIFF(NOW(),hiredate)/365&gt;=20
+ORDER BY income DESC
+LIMIT 3;
+ 
+-- WHERE子句中条件执行顺序从左往右,应将索引条件或过滤量最多的条件写在最左,比较条件靠后,提高查找速度
+-- BETWEEN AND 是全闭区间
+SELECT 
+  ename,hiredate,comm
+FROM t_emp 
+WHERE 
+  comm IS NULL AND
+  hiredate BETWEEN "1981-1-1" AND "1983-1-1" AND
+  ename REGEXP "^[\\u4e00-\\u9fa5]{2,4}$";
+ 
+-- MySQL 可以通过 LIKE ...% 来进行模糊匹配, like作为where子句,%通配任意长度字符,_通配任何1个字符,如果没有使用百分号 %, LIKE 子句与等号 = 的效果是一样的
+-- MySQL 中使用 REGEXP 和 RLIKE操作符来进行正则表达式匹配,RLIKE 和 REGEXP 可以互换使用，没有区别。
+-- 匹配以字母 'a' 开头，然后是零个或多个字符，以 "o" 结尾并且长度为两个字符
+SELECT * FROM users WHERE username LIKE 'a%o_';
+ 
+SELECT column1, column2, ...
+FROM table_name
+WHERE column_name REGEXP 'pattern';
+ 
+-- IN != &lt;
+SELECT
+  empno,ename,deptno,hiredate
+FROM t_emp
+WHERE 
+  deptno IN(10,20,30) AND
+  job !="SALESMAN" AND
+  hiredate&lt;"1982-1-1";
+</code>
+<h1>聚合函数,分组</h1>
+<code sql>
+-- 聚合函数（如 COUNT, SUM, AVG）时，它们会忽略 NULL 值
+-- SUM包含字符串时一定为0,日期类型统计结果为毫秒数相加
+-- AVG统计包含字符串类型时一定为0
+ 
+-- 统计1985年后入职,底薪超过平均底薪的人数
+SELECT COUNT(*) FROM t_emp
+WHERE sal&gt;(
+  SELECT AVG(sal) FROM t_emp #相关子查询
+)
+AND hiredate&gt;"1981-1-1";
+ 
+-- 当存在多个最值时
+SELECT e.empno, e.ename, e.sal
+FROM t_emp e
+JOIN (
+    SELECT MAX(sal) max
+    FROM t_emp
+) t ON e.sal = t.max;
+ 
+-- 统计单个部门平均sal
+SELECT deptno, COUNT(*) emps, ROUND(AVG( sal )) avg_sal 
+FROM t_emp 
+WHERE deptno=10;
+ 
+-- GROUP BY 对一个数据集按规则分组,然后对每个分组进行数据聚合
+-- 使用了GROUP BY时,SELECT子句中可以包括聚合函数,或者GROUP BY子句的分组列,其余内容均不可以出现在SELECT子句中
+-- 例如GROUP BY中只有deptno字段时,SELECT中加入了ename字段将报语法错误
+-- 除非将ename字段拼接成一个字符串,可以使用GROUP_CONTACT函数进行字段拼接
+SELECT
+  deptno,
+  COUNT(*) emps,
+  GROUP_CONCAT(ename) emps_list,
+  ROUND(AVG( sal )) avg_sal
+FROM t_emp 
+GROUP BY deptno;
+ 
+-- 逐级分组
+-- 查询每个部门内每种职位的人数和平均sal
+-- 每个组包含同一个部门中的同一个职位的所有记录
+SELECT
+  deptno, job, COUNT(*) emps, GROUP_CONCAT(ename) emps_list, AVG(sal) avg_sal
+FROM t_emp 
+GROUP BY deptno,job
+ORDER BY deptno,emps DESC,avg_sal DESC;
+ 
+-- 分组后二次汇总 WITH ROLLUP
+-- 使用 WITH ROLLUP 对分组后的记录的各字段生成小计, 如组平均数, 组中最值
+SELECT
+  COALESCE(deptno,"汇总") deptno,
+  COUNT(*),
+  GROUP_CONCAT(ename) emps_list,
+  SUM(sal),
+  AVG(sal),
+  MAX(sal),
+  MIN(sal)
+FROM t_emp
+GROUP BY deptno 
+WITH ROLLUP
+ORDER BY deptno DESC;
+  
+-- 执行顺序: FROM -&gt; WHERE -&gt; GROUP BY -&gt; SELECT -&gt; ORDER BY -&gt; LIMIT
+-- HAVING用于筛选WHERE子句中不能直接筛选的分组聚合后的结果集
+-- HAVING子句必须跟在GROUP BY之后,GROUP BY执行完成后再执行HAVING
+-- 例如查询部门平均sal超过2000的部门编号
+SELECT deptno, AVG(sal)
+FROM t_emp 
+GROUP BY deptno
+HAVING AVG(sal) &gt; 2000;
+ 
+-- 查询每个部门中,1982年以后入职的员工数量超过2个人的部门编号
+-- 可以使用数字代表SELECT中要分组的字段
+-- HAVING子句只能用聚合函数和具体值进行判断,不能和字段直接进行判断
+-- 筛选出每组中（即每个部门）包含至少两条记录（即至少有两名员工）的组
+SELECT deptno
+FROM t_emp
+WHERE hiredate&gt;="1982-1-1"
+GROUP BY 1 
+HAVING
+  COUNT(*)&gt;=2;
+  #COUNT(*)&gt;=2 AND sal&gt;=AVG(sal); 语法错误
+  #COUNT(*)&gt;=2 AND AVG(sal)&gt;=2000; 正确
+ 
+SELECT deptno, sal
+FROM t_emp
+WHERE hiredate>="1982-1-1"
+GROUP BY 1,2
+HAVING
+    COUNT(*)>=1
+ 
+SELECT deptno, COUNT(*) emps
+FROM t_emp
+GROUP BY 1
+HAVING deptno IN(10,20); #此处HAVING虽然可以当作WHERE使用,但是它执行于分组之后,而WHERE在分组执行之前,筛选效率有差别,应该尽量将普通筛选条件放在WHERE里
+ 
+-- 笛卡尔积,如果有两个表 A 和 B，使用笛卡尔积来获取 A 表和 B 表的所有排列组合
+-- 如果有一个表包含了颜色选项，另一个表包含了尺寸选项，可以使用笛卡尔积生成所有颜色和尺寸的组合。
+SELECT * FROM A, B; #这将返回 A 表中的每一行与 B 表中的每一行的组合。
+SELECT empno,ename,dname 
+FROM t_emp JOIN t_dept; #无条件连接时,产生笛卡尔积
+</code>
+<h1>表连接,UNION</h1>
+<code sql>
+-- 内连接等价写法, 可以省略INNER
+-- SELECT ... FROM 表1 JOIN 表2 ON 连接条件;
+-- SELECT ... FROM 表1 JOIN 表2 WHERE 连接条件;
+-- SELECT ... FROM 表1,表2 WHERE 连接条件;
+SELECT e.empno, e.ename, d.dname
+FROM t_emp e
+JOIN t_dept d ON e.deptno=d.deptno;
+ 
+SELECT e.empno, e.ename, d.dname
+FROM t_emp e JOIN t_dept d 
+WHERE e.deptno=d.deptno;
+ 
+SELECT e.empno, e.ename, d.dname 
+FROM t_emp e, t_dept d 
+WHERE e.deptno=d.deptno;
+ 
+-- 表连接的数据表之间不一定必须要有同名字段,只要字段之间符合逻辑关系即可,相同的数据表也可以做表连接
+-- 查询每个员工的工号,姓名,部门名称,底薪,职位,工资等级
+SELECT e.empno, e.ename, d.dname, e.sal, e.job, s.grade
+FROM t_emp e, t_dept d, t_salgrade s
+WHERE e.deptno=d.deptno AND e.sal BETWEEN s.losal AND s.hisal;
+ 
+SELECT e.empno, e.ename, d.dname, e.sal, e.job, s.grade
+FROM
+  t_emp e JOIN t_dept d ON e.deptno=d.deptno 
+  JOIN t_salgrade s ON e.sal BETWEEN s.losal AND s.hisal;
+ 
+-- 子查询虽然更符合思维习惯,但是效率非常低,因为每查询一次deptno,就要重新全表查询一次ename
+-- 查询与SCOTT相同部门的员工有哪些
+SELECT ename
+FROM t_emp
+WHERE deptno=(SELECT deptno FROM t_emp WHERE ename="SCOTT") AND ename!="SCOTT";
+ 
+SELECT e2.ename
+FROM t_emp e1, t_emp e2
+WHERE e1.deptno=e2.deptno AND e1.ename="SCOTT" AND e2.ename!="SCOTT";
+ 
+-- 自连接（self-join）使用别名来区分同一表中不同的实例
+-- 查询和SCOTT相同部门的员工姓名
+-- t_emp e1 JOIN t_emp e2 合成的中间集为e1表中所有记录和e2表中所有记录的全部并列组合,(e1.ename,..e2.ename,..)
+-- 先用e1表的第一条记录依次拼凑e2的每一条记录,再用e1表的第二条记录依次拼凑e2的每一条记录..
+-- ON e1.deptno=e2.deptno, 在拼凑过程中仅当e1的该条记录的deptno和e2该条记录的deptno相同时才保留到中间集中
+-- WHERE e1.ename="SCOTT" 从中间集筛选出e1.ename字段值为scott的全部记录作为新中间集
+-- e2.ename!="SCOTT" 再从新中间集中筛选出e2.ename字段值不为scott的全部记录作为结果集
+-- SELECT e2.ename 从结果集中选择e2.ename列输出
+SELECT e2.ename
+FROM t_emp e1 JOIN t_emp e2 ON e1.deptno=e2.deptno
+WHERE e1.ename="SCOTT" AND e2.ename!="SCOTT"; 
+ 
+-- 查询sal超过平均sal的员工信息
+SELECT e.ename, e.sal
+FROM t_emp e JOIN (SELECT AVG(sal) avg FROM t_emp) e2 ON e.sal&gt;e2.avg;
+ 
+-- 查询RESESRCH部门的人数,最高sal,最低sal,平均sal,平均工龄
+SELECT
+  COUNT(e.ename) sum_emps,
+  MAX(e.sal) max_sal,
+  MIN(e.sal) min_sal,
+  AVG(e.sal) avg_sal,
+  FLOOR(AVG(DATEDIFF(NOW(),e.hiredate)/365))
+FROM t_emp e JOIN t_dept d ON e.deptno=d.deptno AND d.dname="RESEARCH";
+ 
+-- 查询每种职业的最高,最低,平均sal,最高等级和最低等级
+SELECT 
+  e.job,
+  MAX(e.sal+IFNULL(e.comm,0)),
+  MIN(e.sal+IFNULL(e.comm,0)),
+  AVG(e.sal+IFNULL(e.comm,0)),
+  MAX(s.grade),
+  MIN(s.grade)
+FROM t_emp e JOIN t_salgrade s ON e.sal+IFNULL(e.comm,0) BETWEEN s.losal AND s.hisal
+GROUP BY e.job;
+#with rollup 
+ 
+-- 查询每个底薪超过部门平均底薪的员工信息
+SELECT e.deptno, e.ename, e.sal, t.avg
+FROM t_emp e, (SELECT AVG(sal) avg,deptno FROM t_emp GROUP BY deptno) t
+WHERE e.deptno=t.deptno AND e.sal&gt;t.avg
+ORDER BY e.deptno;
+ 
+-- 左连接,保留左表,右表拿不出对应数据时就用NULL替代
+-- 内连接只返回两个表中匹配条件的行。如果某行在任一表中没有匹配的行，则该行不会出现在结果集中
+-- 可以将 LEFT JOIN 想象成左边的表是主角，它会尽量把自己的信息携带着去找右边的表，如果找到了就携带信息回来，如果找不到就带着空信息回来
+-- RIGHT JOIN 会读取右边数据表的全部数据，即使左边边表无对应数据。
+-- 在实际开发过程中，RIGHT JOIN 并不经常使用，因为它可以用 LEFT JOIN 和表的顺序交换来实现相同的效果。
+SELECT e.ename, d.dname
+FROM t_emp e LEFT JOIN t_dept d ON e.deptno=d.deptno
+ORDER BY e.ename;
+ 
+-- 查询每个部门的名称和部门人数, 包括人数为0的部门
+-- t_dept作为左表
+SELECT d.dname, COUNT(e.deptno)
+FROM t_dept d LEFT JOIN t_emp e ON d.deptno=e.deptno
+GROUP BY d.deptno;
+ 
+-- 查询每个部门的名称和部门人数, 没有部门的员工,部门名称用NULL代替
+-- UNION连接多张表,去除重复记录,UNION ALL不去除重复记录
+-- 一个左连接, 一个右连接
+-- UNION 将两个或多个 SELECT 语句的结果集组合成一个结果集，并去除重复的行
+SELECT d.dname, COUNT(e.deptno)
+FROM t_dept d LEFT JOIN t_emp e ON d.deptno=e.deptno
+GROUP BY d.deptno
+UNION
+SELECT IFNULL(d.dname,"无"), COUNT(*)
+FROM t_dept d RIGHT JOIN t_emp e ON d.deptno=e.deptno
+GROUP BY d.deptno;
+ 
+-- 由于 UNION 操作要求两个 SELECT 查询的列数和类型必须相同，因此在第二个 SELECT 查询中使用 NULL 来匹配第一个查询的 last_name 列
+SELECT first_name, last_name FROM employees
+UNION
+SELECT nick, NULL FROM employees2
+ORDER BY first_name;
+ 
+-- 查询每名员工的编号,姓名,部门,月薪,工资等级,工龄,上司编号,上司姓名,上司部门
+SELECT 
+  e.empno, e.ename, d.dname, e.sal+IFNULL(e.comm,0) income, s.grade,
+  FLOOR(DATEDIFF(NOW(),e.hiredate)/365) yr,
+  e.mgr, e2.ename, d2.dname
+FROM
+  t_emp e LEFT JOIN t_dept d ON e.deptno=d.deptno
+  LEFT JOIN t_salgrade s ON e.sal+IFNULL(e.comm,0) BETWEEN s.losal AND s.hisal
+  LEFT JOIN t_emp e2 ON e.mgr=e2.empno
+  LEFT JOIN t_dept d2 ON e2.deptno=d2.deptno
+WHERE e.deptno IN(10,20)
+ORDER BY e.empno;
+ 
+SELECT 
+  e.empno, e.ename, d.dname, e.sal+IFNULL(e.comm,0) income, s.grade,
+  FLOOR(DATEDIFF(NOW(),e.hiredate)/365) yr,
+  t.empno, t.ename, t.dname
+FROM
+  t_emp e LEFT JOIN t_dept d ON e.deptno=d.deptno
+  LEFT JOIN t_salgrade s ON e.sal+IFNULL(e.comm,0) BETWEEN s.losal AND s.hisal
+  LEFT JOIN (
+    SELECT e1.empno, e1.ename, d1.dname
+    FROM t_emp e1 JOIN t_dept d1 ON e1.deptno=d1.deptno
+  ) t ON e.mgr=t.empno
+ORDER BY e.empno;
+ 
+-- 子查询可以写在三个地方,SELECT子句,WHERE子句,FROM子句
+-- 但是只有FROM子查询是推荐的,这种子查询只会执行一次,其它两种都是相关子查询,会查询多次
+SELECT e.empno, e.ename, (SELECT dname FROM t_dept WHERE deptno=e.deptno)
+FROM t_emp e;
+
+SELECT empno, ename, sal
+FROM t_emp 
+WHERE sal&gt;=(SELECT AVG(sal) FROM t_emp);
+ 
+SELECT e.empno, e.ename, e.sal, t.avg
+FROM t_emp e JOIN (
+    SELECT deptno, AVG(sal) avg FROM t_emp GROUP BY deptno
+  ) t ON e.deptno=t.deptno AND e.sal&gt;=t.avg;
+ 
+-- 用WHERE子查询查找FORD和MARTIN两个人的同事
+SELECT ename,deptno
+FROM t_emp
+WHERE 
+  deptno IN (SELECT deptno FROM t_emp WHERE ename IN("FORD","MARTIN")) AND
+  ename NOT IN("FORD","MARTIN");
+ 
+-- 用FROM子查询查找FORD和MARTIN两个人的同事
+SELECT e.ename
+FROM t_emp e JOIN (
+    SELECT deptno FROM t_emp WHERE ename IN("FORD","MARTIN")
+  ) t ON e.deptno=t.deptno
+WHERE ename NOT IN("FORD","MARTIN");
+ 
+-- WHERE子句中的多行子查询
+-- ALL 大于结果集中的所有结果
+-- ANY 大于结果集中的任何结果
+-- EXISTS 如果括号中的子查询返回不为空
+SELECT ename
+FROM t_emp 
+WHERE 
+  sal&gt;= ALL (SELECT sal FROM t_emp WHERE ename IN ("FORD","MARTIN")) AND
+  ename NOT IN("FORD","MARTIN");
+ 
+SELECT ename,sal
+FROM t_emp
+WHERE EXISTS(
+  SELECT * FROM t_salgrade WHERE sal BETWEEN losal AND hisal AND grade IN(4,5)
+);
+</code>
+<h1>INSERT,IGNORE</h1>
+<code sql>
+-- INSERT INTO 
+-- 写上字段名后不用去查询表的数据结构,因此写入速度更快
+-- INSERT INTO里使用子查询
+-- 忘记部门编号时
+INSERT INTO t_emp (empno,ename,job,mgr,hiredate,sal,comm,deptno)
+VALUES(
+  8001,"刘娜",
+  "SALESMAN",
+  8000,"
+  1988-1-1",
+  2000,
+  NULL,
+  (SELECT deptno FROM t_dept WHERE dname="SALES")
+);
+ 
+-- mysql的INSERT INTO的方言, INTO也可以省略
+INSERT INTO t_emp
+SET empno=8002,ename="张三",job="SALESMAN",mgr=8000,
+hiredate="1990-1-1",sal=2000,comm=200,deptno=30;
+ 
+-- IGNORE 防止全部写入失败,当写入多条数据时,主键冲突重复的条目会被忽略,正确的数据会保留
+INSERT IGNORE t_dept (deptno,dname,loc) 
+VALUES
+(40,"A","US"),
+(50,"B","US");
+ 
+-- REPLACE INTO
+-- 如果插入的行违反了唯一约束，MySQL 会先删除已存在的行，然后插入新行。
+REPLACE INTO table_name (column1, column2) 
+VALUES (value1, value2);
+</code>
+<h1>UPDATE,DELETE,TRUNCATE</h1>
+<code sql>
+-- UPDATE [IGNORE] 表名
+-- SET 字段1=值1,字段2=值2,..
+-- [WHERE 条件1 ..] #不写视为全表修改
+-- [ORDER BY ..]
+-- [LIMIT ..] #UPDATE中的LIMIT只能接受一个参数,不能任意指定位置
+-- 执行顺序 WHERE -&gt; ORDER BY -&gt; LIMIT -&gt; SET
+ 
+-- 员工编号和上司编号加1
+-- 需要倒序避免主键重复 
+UPDATE t_emp 
+SET empno=empno+1,mgr=mgr+1
+ORDER BY empno DESC;
+ 
+UPDATE t_emp 
+SET empno=empno-1,mgr=mgr-1
+ORDER BY empno ASC;
+ 
+-- 将月收入前三的员工底薪减100
+UPDATE t_emp
+SET sal=sal-100
+ORDER BY sal+IFNULL(comm,0) DESC
+LIMIT 3;
+ 
+-- 将10部门中,工龄超过20的员工sal增加200
+UPDATE t_emp 
+SET sal=sal+200
+WHERE deptno=10 AND DATEDIFF(NOW(),hiredate)/365&gt;20;
+ 
+-- UPDATE表连接,可以修改多张表的信息
+ 
+-- UPDATE 表1 [LEFT|RIGHT] JOIN 表2 ON 条件
+-- SET 字段1=值1,字段2=值2,..;
+ 
+-- UPDATE 表1,表2
+-- SET 字段1=值1,字段2=值2,..
+-- WHERE 连接条件;
+ 
+-- 将ALLEN调往RESEARCH部门,职务调整为ANALYST,RESEARCH部门地点改为US
+UPDATE t_emp e JOIN t_dept d ON e.ename="ALLEN" AND d.dname="RESEARCH" #查出RESEARCH对应的deptno
+SET e.deptno=d.deptno,e.job="ANALYST",d.loc="US";
+ 
+-- 将sal低于平均sal的员工,底薪增加150
+UPDATE t_emp e JOIN (SELECT AVG(sal) avg FROM t_emp) t ON e.sal&lt;t.avg
+SET e.sal=e.sal+150;
+ 
+-- 将无部门的员工,或SALES部门低于2000的员工,调往20部门
+UPDATE t_emp e LEFT JOIN t_dept d ON e.deptno=d.deptno
+SET e.deptno=20
+WHERE e.deptno IS NULL OR (d.dname="SALES" AND e.sal&lt;2000);
+ 
+-- DELETE [IGNORE] FROM 表名
+-- [WHERE 条件1,条件2,..]
+-- [ORDER BY ..]
+-- [LIMIT ..];
+-- 删除10部门中工龄超过20年的员工记录
+DELETE FROM t_emp 
+WHERE deptno=10 AND DATEDIFF(NOW(),hiredate)/365&gt;=20;
+ 
+-- 删除20部门中sal最高的员工记录
+DELETE FROM t_emp 
+WHERE deptno=20
+ORDER BY sal+IFNULL(comm,0) DESC 
+LIMIT 1;
+ 
+-- 表连接删除多张表记录
+-- DELETE 表1,.. FROM 表1 [LEFT|RIGHT] JOIN 表2 ON 条件
+-- [WHERE 条件1,条件2,..]
+-- [ORDER BY ..]
+-- [LIMIT ..];
+-- 删除SALES部门和该部门的全部员工记录
+DELETE e,d #不能为临时表,结果集里的记录是不能删的
+FROM t_emp e JOIN t_dept d ON e.deptno=d.deptno
+WHERE d.dname="SALES"; #同时也删除了e中员工记录
+ 
+-- 删除低于部门平均底薪的员工记录
+DELETE e 
+FROM t_emp e JOIN (SELECT AVG(sal) avg FROM t_emp GROUP BY deptno) t ON e.deptno = t.deptno 
+WHERE e.sal&gt;t.avg;
+ 
+-- 删除ADAMS及其直接下属员工记录
+DELETE e 
+FROM t_emp e JOIN (SELECT empno FROM t_emp WHERE ename="ADAMS") t ON e.mgr=t.empno OR e.empno=t.empno;
+ 
+-- 删除SALES部门员工及无部门员工
+DELETE e
+FROM t_emp e LEFT JOIN (SELECT deptno FROM t_dept WHERE dname="SALES") t ON e.deptno=t.deptno OR e.deptno IS NULL;
+</code>
+<h1>数字,日期,字符,条件函数</h1>
+<code sql>
+-- ROUND,FLOOR,CEIL得到的都是整数,保留位数时乘百除百
+SELECT ABS(-1);
+SELECT ROUND(4.6288*100)/100;
+SELECT FLOOR(9.9);
+SELECT CEIL(3.1);
+SELECT POWER(2,3); #2的3次幂
+ 
+-- NOW() yyyy-MM-dd hh:mm:ss 
+-- CURDATE() yyy-MM-dd 
+-- CURTIME() hh:mm:ss 
+SELECT NOW(),CURDATE(),CURTIME();
+ 
+-- %Y年,%m月,%d日
+-- %w星期(0为周日),%W英文星期
+-- %j本年第几天,%U本年第几周
+-- %H小时(24),%h(12)
+-- %i分,%s秒
+-- %r时间(12),%T(24)
+SELECT DATE_FORMAT(NOW(),"%w %W %T");
+ 
+-- 查询1981年上半年入职人数
+SELECT COUNT(*) FROM t_emp 
+WHERE DATE_FORMAT(hiredate,"%Y")=1981 AND DATE_FORMAT(hiredate,"%m")&lt;=6;
+ 
+-- 日期偏移计算
+-- DATE_ADD(日期,INTERVAL 偏移量 时间单位)
+SELECT DATE_ADD(NOW(), INTERVAL 100 DAY);
+ 
+-- 六个月零三天前的日期,嵌套
+SELECT 
+DATE_FORMAT(
+  DATE_ADD(
+    DATE_ADD(NOW(),INTERVAL-6 MONTH),
+    INTERVAL-3 DAY
+  ),
+  "%Y/%m/%d"
+);
+ 
+-- 字符函数
+SELECT 
+  LOWER(ename),UPPER(ename),
+  LENGTH(ename), #utf8编码时,一个汉字占3个长度
+  CONCAT("$",sal),
+  INSTR(ename,"A") #字符出现位置,下标从1起,0为不存在
+FROM t_emp;
+ 
+-- 插入替换字符
+SELECT INSERT("abcd",2,1,"xy"); #在原始字符串第2个字符位置插入指定字符,并覆盖掉从此处开始的原始字符串的1个字符,axycd
+ 
+-- 替换字符
+SELECT REPLACE("abcd","ab","xy"); #xycd
+ 
+-- SUBSTR(str,m,n),下标从1起,截取第m到n个字符
+-- SUBSTRING(str,m,n),下标从1起,截取第m个开始连续n个字符
+-- LPAD("hello",10,"*")向原始字符串左侧填充星号直到整体长度为10
+-- RPAD右侧填充字符
+-- TRIM(" hello world ")去首尾空格
+-- 遮挡手机号
+SELECT LPAD(SUBSTRING("13312345678",8,4),11,"*"); #*******5678
+SELECT INSERT("13312345678",4,4,"****"); #133****5678
+-- 遮挡姓名
+SELECT RPAD(SUBSTRING("李晓娜",1,1),LENGTH("李晓娜")/3,"*"); #李**
+SELECT LPAD(SUBSTRING("李晓娜",2,LENGTH("李晓娜")/3),LENGTH("李晓娜")/3,"*"); #*晓娜
+SELECT LPAD(SUBSTRING("李晓娜",LENGTH("李晓娜")/3,1),LENGTH("李晓娜")/3,"*"); #**娜
+ 
+-- 条件函数
+-- IF(expr,result1,result2)类似三元运算
+-- 复活节发礼品,SALES部门发放礼品A,其余部门发放礼品B,列出每名员工获得的礼品
+SELECT e.ename,d.dname,IF(d.dname="SALES","A","B") present FROM t_emp e JOIN t_dept d ON e.deptno=d.deptno
+ 
+-- CASE 
+-- 季度旅游,SALES部门去A地,ACCOUNTING部门去B地,RESEARCH部门去C地,列出每名员工的旅行地点
+SELECT 
+  e.ename,
+  d.dname,
+  CASE d.dname
+    WHEN "SALES" THEN "A"
+    WHEN "ACCOUNTING" THEN "B"
+    WHEN "RESEARCH" THEN "C"
+    ELSE "C"
+  END position
+FROM t_emp e LEFT JOIN t_dept d ON e.deptno=d.deptno;
+ 
+SELECT 
+  e.ename,
+  d.dname,
+  CASE 
+    WHEN d.dname="SALES" THEN "A"
+    WHEN d.dname="ACCOUNTING" THEN "B"
+    WHEN d.dname="RESEARCH" THEN "C"
+    ELSE "C"
+  END position
+FROM t_emp e LEFT JOIN t_dept d ON e.deptno=d.deptno;
+ 
+-- 调薪方案
+-- SALES部门中工龄满20年,涨10%
+-- SALES部门中工龄不满20年,涨5%
+-- ACCOUNTING部门,涨300
+-- RESEARCH部门里低于平均底薪的员工,涨200
+-- 无部门的员工,涨100
+UPDATE 
+  t_emp e 
+  LEFT JOIN t_dept d ON e.deptno=d.deptno 
+  LEFT JOIN (SELECT deptno,AVG(sal) avg FROM t_emp GROUP BY deptno) t ON e.deptno=t.deptno
+SET e.sal=(
+  CASE 
+    WHEN d.dname="SALES" AND DATEDIFF(NOW(),e.hiredate)/365&gt;=20 THEN e.sal*1.1
+    WHEN d.dname="SALES" AND DATEDIFF(NOW(),e.hiredate)/365&lt;20 THEN e.sal*1.05
+    WHEN d.dname="ACCOUNTING" THEN e.sal+300
+    WHEN d.dname="RESEARCH" AND e.sal&gt;t.avg THEN e.sal+300
+    WHEN e.deptno IS NULL THEN e.sal+100
+    ELSE e.sal
+  END
+);
+</code>
+https://www.runoob.com/mysql/mysql-functions.html
+https://www.runoob.com/mysql/mysql-operator.html
+
+<h1>information_schema</h1>
+<code sql>
+-- SCHEMATA 表, 存储有关数据库的信息，如数据库名、字符集、排序规则等。
+SELECT * FROM information_schema.SCHEMATA;
+ 
+-- TABLES 表, 包含有关数据库中所有表的信息，如表名、数据库名、引擎、行数等。
+SELECT * FROM information_schema.TABLES WHERE TABLE_SCHEMA = 'your_database_name';
+ 
+-- COLUMNS 表, 包含有关表中列的信息，如列名、数据类型、是否允许 NULL 等。
+SELECT * FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'your_database_name' AND TABLE_NAME = 'your_table_name';
+ 
+-- STATISTICS 表, 提供有关表索引的统计信息，如索引名、列名、唯一性等。
+SELECT * FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = 'your_database_name' AND TABLE_NAME = 'your_table_name';
+ 
+-- KEY_COLUMN_USAGE 表, 包含有关表中外键的信息，如外键名、列名、关联表等。
+SELECT * FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA = 'your_database_name' AND TABLE_NAME = 'your_table_name';
+ 
+-- REFERENTIAL_CONSTRAINTS 表, 存储有关外键约束的信息，如约束名、关联表等。
+SELECT * FROM information_schema.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = 'your_database_name' AND TABLE_NAME = 'your_table_name';
+</code>
+
+<h1>当前连接信息</h1>
+<code sql>
+-- id,user,host,db,command,time,state,info
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+SELECT COUNT(*) AS connection_count FROM INFORMATION_SCHEMA.PROCESSLIST;
+</code>
+
+<h1>SQL注入</h1>
+通过把 SQL 命令插入到 Web 表单递交或输入域名或页面请求的查询字符串，最终达到欺骗服务器执行恶意的 SQL 命令。攻击者通过恶意构造的输入，成功地执行恶意的 SQL 查询，这通常发生在用户输入未经适当验证或转义的情况下，攻击者试图在输入中插入 SQL 代码，以执行意外的查询或破坏数据库。
+必须认定用户输入的数据都是不安全的并对用户输入的数据进行过滤处理
+<code sql>
+-- 假设有一个登录系统，用户通过输入用户名和密码进行身份验证：
+SELECT * FROM users WHERE username = 'input_username' AND password = 'input_password';
+-- 如果没有正确的输入验证和防范措施，攻击者可以输入类似于以下内容的用户名：
+' OR 1=1; -- '
+-- 在这种情况下，SQL 查询会变成：
+SELECT * FROM users WHERE username = '' OR 1=1; -- 'AND password = 'input_password';
+-- 这会使查询返回所有用户，因为 1=1 总是为真，注释符号 --(后面一个空格) 用于注释掉原始查询的其余部分，以确保语法正确。
+ 
+-- like 查询时，如果用户输入的值有 _ 和 %，则会出现这种情况：用户本来只是想查询 abcd_，查询结果中却有" abcd_"、"abcde"、"abcdf" 等等；用户要查询 "30%"（注：百分之三十）时也会出现问题。
+</code>
+防范 SQL 注入, 注入的检测方法一般采取辅助软件或网站平台来检测 -- 使用专门的漏洞扫描工具（如 sqlmap、Acunetix、Netsparker）对应用程序进行自动化的 SQL 注入检测。
+    使用参数化查询或预编译语句： 
+        使用参数化查询（Prepared Statements）可以有效防止 SQL 注入，因为它们在执行查询之前将输入数据与查询语句分离。
+    输入验证和转义： 
+        对用户输入进行适当的验证，并使用合适的转义函数（如mysqli_real_escape_string）来处理输入，以防止恶意注入。
+    最小权限原则： 
+        给予数据库用户最小的权限，确保它们只能执行必要的操作，以降低潜在的损害。
+    使用ORM框架： 
+        使用对象关系映射（ORM）框架（如Hibernate、Sequelize）可以帮助抽象 SQL 查询，从而降低 SQL 注入的风险。
+    禁用错误消息显示： 
+        在生产环境中，禁用显示详细的错误消息或使用自定义的错误信息对原始错误信息进行包装，以防止攻击者获取有关数据库结构的敏感信息。
+ 
+    限制查询结果集大小：在 SQL 查询中使用 LIMIT 关键字限制返回的行数，避免返回过大的结果集。
+    使用索引：为 LIKE 查询的字段添加索引，可以加快查询速度并减少对数据库的压力。
+    输入验证：在接受用户输入时进行验证，确保输入的内容符合预期，避免恶意构造的输入。
+    使用白名单：限制 LIKE 查询中 % 的使用，只允许特定的格式或者通配符使用。
+    监控和限制查询频率：监控数据库查询的频率，并设置阈值来限制频繁查询的用户或者 IP。
+    使用缓存：对查询结果进行缓存，减少对数据库的访问次数。
+    使用数据库连接池：使用连接池管理数据库连接，可以避免频繁地创建和关闭连接。
+
+<h1>事务</h1>
+应用程序 -- 事务区 -- 数据表 
+A向B转账
+    操作1, A-100 
+    操作2, B+100
+事务的提交
+    两个操作仅面向事务区
+    只有应用程序发起commit之后,mysql才会将两个操作所作的修改一次性写入数据表, 然后将事务区清空
+事务的回滚
+    假如操作1时正常完成, 操作2过程中报错, 应用程序发起rollback请求,mysql收到后将事务区清空, 不会涉及数据表的改动 
+
+Redo Log (原子性)
+    记录物理更改，比如数据页上的位置和新的值
+    负责在系统崩溃后重做已提交事务的更改
+        WAL（Write-Ahead Logging，先写日志后写数据）
+        数据库在进行修改操作时首先将操作记录到日志中,记录成功后在末尾标记Commit Record
+        然后开始进行实际修改,修改完成后在日志末尾标记End Record
+        如果在记录过程中系统崩溃,重启后检查到日志里没有Commit Record,则回滚整个事务，什么都不做
+        如果在数据修改的过程中系统崩溃,重启后检查到日志里没有End Record,则根据日志的内容重新进行修改操作。
+Undo Log (持久性)
+    记录逻辑更改，比如数据修改前的原始值。
+    负责在事务回滚时撤销未提交的更改
+        当一个事务开始执行时，数据库会在Undo Log中为该事务分配一段空间，称为Undo Log Record。
+        在事务执行过程中，所有对数据的修改都会被记录到Undo Log中，但实际的数据修改是在事务提交时才会被应用到数据库中。这样做的目的是为了确保在事务回滚或者发生异常时能够恢复数据到事务执行之前的状态。
+        当一个事务提交时，Undo Log中记录的修改会被应用到数据库中，并且相应的Undo Log Record会被标记为已提交。如果事务发生回滚或者异常，数据库会根据Undo Log中的记录将数据恢复到之前的状态，并且相应的Undo Log Record会被标记为已回滚。
+
+在 MySQL 中只有使用了 Innodb 数据库引擎的数据库或表才支持事务。
+在人员管理系统中，删除一个人员，既需要删除人员的基本资料，也要删除和该人员相关的信息，如信箱，文章等等，这样，这些数据库操作语句就构成一个事务
+事务4个条件（ACID）
+    原子性（Atomicity）
+        指事务是一个不可分割的工作单位，要么全部执行成功，要么全部不执行，不存在部分执行的情况。如果一个事务中的任何操作失败，则整个事务将被回滚到初始状态，以确保数据的一致性。
+    一致性（Consistency）
+        事务在执行前后，数据库的完整性约束没有被破坏。这意味着事务执行后，数据库从一个一致性状态转变到另一个一致性状态，不会使数据处于中间不一致的状态。
+    隔离性（Isolation）
+        多个事务并发执行时，每个事务的操作被隔离并保护不被其他事务的操作影响，从而防止数据并发访问引起的问题如脏读、不可重复读和幻读。
+    持久性（Durability）
+        一旦事务提交，其所做的修改将会永久保存在系统中，即使系统发生故障，修改的数据也不会丢失。
+
+在 MySQL 命令行的默认设置下，事务都是自动提交的，即执行 SQL 语句后就会马上执行 COMMIT 操作。
+因此要显式地开启一个事务务须使用命令 BEGIN 或 START TRANSACTION，或者执行命令 SET AUTOCOMMIT=0，用来禁止使用当前会话的自动提交。
+
+MYSQL 事务处理主要有两种方法：
+    1、用 BEGIN, ROLLBACK, COMMIT 来实现
+        BEGIN 或 START TRANSACTION：开用于开始一个事务。
+        ROLLBACK 事务回滚，取消之前的更改。
+        COMMIT：事务确认，提交事务，使更改永久生效。
+    2、直接用 SET 来改变 MySQL 的自动提交模式:
+        SET AUTOCOMMIT=0 禁止自动提交
+        SET AUTOCOMMIT=1 开启自动提交
+
+<code sql>
+START TRANSACTION; #手动开始一个事务,让多条SQL语句纳入到一个事务之下
+DELETE FROM t_emp; #在redo日志里修改
+SELECT * FROM t_emp; #,此时在redo日志里查询结果为空, 真实文件内容不变, 只要不提交事务,redo日志就不会和数据文件做同步
+[COMMIT|ROLLBACK];
+-- COMMIT提交的是一个结果,而不是将上面的语句再去执行一遍
+-- 如果不想提交事务,ROLLBACK回滚,会在redo日志中将此事务下的所有记录标记为失效,redo日志就不会和数据文件做同步,也即整体失败,保证了事务的原子性
+</code>
+<code sql>
+ -- 在事务中设置保存点，以便稍后能够回滚到该点：
+SAVEPOINT savepoint_name;
+ 
+-- 回滚到之前设置的保存点：
+ROLLBACK TO SAVEPOINT savepoint_name;
+</code>
+事务隔离级别
+    Read uncommitted 可以读未提交的, 应用场景如多窗口售票判断某一个座位是否被其它窗口订下
+<code sql>
+-- 在一个窗口中开启事务A
+START TRANSACTION; #1
+UPDATE t_emp SET sal=1; #2
+</code>
+<code sql>
+-- 在另一个窗口中开启事务B
+START TRANSACTION;
+SELECT * FROM t_emp; #[当事务A执行完第2句时] 此处查询的结果sal没有变为1,说明了事务之间的隔离性,不能读取对方事务在日志中的临时数据
+ 
+-- 设置当前会话中的事务隔离级别为可以读其它事务的未提交数据
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTD;
+-- 在当前窗口开启事务C
+START TRANSACTION;
+SELECT * FROM t_emp; #[当事务A执行完第2句时] 此处查询的结果sal变为1,说明了读取到了其它事务在日志中的临时数据
+</code>
+    read committed 可以读已提交的
+        例如银行转账,事务A存入的同时,事务B撤销了一笔支出进行回滚,事务A就需要读取其它事务已经提交的数据
+    repeatable read 可以重复读 ,这是mysql默认的事务级别
+        例如下单后商品涨价了,订单仍然要按涨价前的价格来处理,事务在执行期间多次读取同一数据时，将始终看到同样的数据快照，即使其他事务对数据进行了修改
+<code sql>
+-- 在一个窗口中开启事务A
+START TRANSACTION; #1
+UPDATE t_emp SET sal=1; #2
+COMMIT; #3
+</code>
+<code sql>
+-- 设置当前会话中的事务隔离级别为可以重复读
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ; #1 执行完此句后,执行事务A#2
+-- 在当前窗口开启事务B
+START TRANSACTION; #2 执行完此句后,事务A执行#3
+SELECT * FROM t_emp; #3 事务A执行完#3后,执行此句,查询的结果sal变为1,这是因为只有在执行查询语句的时候mysql才会把用到的数据载入到undo日志里面,由于undo日志里没有记录,所以此处的查询只有去加载真实的数据; 
+-- 要达到REPEATABLE的效果应该,事务A执行完#1#2,事务B执行完#1#2#3,这时undo日志就有了相关数据,此时事务A执行#3改变sal,事务B第二次执行#3,则得到的结果是原始sal,不会受事务A更改数据的影响
+</code>
+    Serializable 序列化,等待其它事务结束后才会开始本事务
+<code sql>
+-- 在一个窗口中开启事务A
+START TRANSACTION; #1
+UPDATE t_emp SET sal=1; #2
+COMMIT; #3
+</code>
+<code sql>
+-- 设置当前会话中的事务隔离级别为序列化
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE; #1 执行完此句后,执行事务A#2
+-- 在当前窗口开启事务B
+START TRANSACTION; #2 继续执行此句
+SELECT * FROM t_emp; #3 继续执行此句,此时查询会一直处于等待状态,除非事务A结束掉,才会返回结果
+</code>
+<h1>导出导入</h1>
+<h2>导出</h2>
+数据不多的时候导出为sql文件,否则导出为文本文件(避免导入时执行海量INSERT语句)
+idea中可通过export with mysqldrump, 指定mysqldrump.exe位置, 指定输出位置(具体文件名而不是一个目录)
+<code batch>
+::导出数据结构和业务数据
+mysqldump -u username -p database_name > dump_file.sql
+ 
+::从远程主机导出
+mysqldump -h remote_host -P port_number -u username -p database_name > dump_file.sql
+ 
+::导出指定表, 仅表结构, 压缩文件
+mysqldump -u username -p --no-data database_name table_name | gzip > dump_file.sql.gz
+ 
+::导出指定表, 仅数据, 仅符合条件的记录,比如id100之后的数据行
+mysqldump -u username -p --no-create-info database_name table_name --where="id>100" > dump_file.sql
+</code>
+<h3>SELECT ... INTO OUTFILE</h3>
+将数据库查询的结果导出为文本文件，如 CSV 或其他格式的文件
+<code sql>
+SELECT columns
+INTO OUTFILE 'file_name'
+FIELDS TERMINATED BY '\t'  -- 字段分隔符，默认是制表符 (tab)
+ENCLOSED BY ''             -- 字段包围符，默认是没有
+ESCAPED BY '\\'            -- 转义字符，默认是反斜杠 (\)
+LINES TERMINATED BY '\n'   -- 行终止符，默认是换行符 (newline)
+ 
+SELECT
+  last_name, first_name
+INTO OUTFILE 'C:/ProgramData/MySQL/MySQL Server 8.3/Uploads/user_data.csv'
+FIELDS TERMINATED BY ','
+OPTIONALLY ENCLOSED BY '"'
+LINES TERMINATED BY '\n'
+FROM people
+WHERE last_name="a";
+</code>
+
+<h2>导入</h2>
+<code batch>
+::导入本机或远程主机
+mysql -u username -p database_name &lt; dump_file.sql
+mysql -h remote_host -P port_number -u username -p database_name &lt; dump_file.sql
+ 
+::从压缩文件导入
+gzip -dc dump_file.sql.gz | mysql -u username -p database_name
+ 
+::MySQL命令行环境中执行导入
+source /path/dump_file.sql;
+</code>
+
+<h3>LOAD DATA</h3>
+适合批量导入大量数据，特别是从 CSV 或其他文本格式文件中导入数据, 追加而不是覆盖
+<code sql>
+LOAD DATA INFILE 'file_name'
+INTO TABLE table_name
+FIELDS TERMINATED BY '\t'  -- 字段分隔符，默认是制表符 (tab)
+OPTIONALLY ENCLOSED BY ''  -- 字段可选的包围符，默认是没有
+ESCAPED BY '\\'            -- 转义字符，默认是反斜杠 (\)
+LINES TERMINATED BY '\n'   -- 行终止符，默认是换行符 (newline)
+IGNORE 0 LINES             -- 忽略的行数，默认是 0 行
+ 
+LOAD DATA INFILE '/path/to/data.csv'
+INTO TABLE users
+FIELDS TERMINATED BY ','
+LINES TERMINATED BY '\n'
+(id, first_name, last_name);
+</code>
+
+<h1>用户</h1>
+<code sql>
+-- 显示所有用户
+SELECT user, host FROM mysql.user;
+ 
+-- 查看所有用户的权限信息
+SELECT Db, User, Host, Select_priv, Insert_priv, Update_priv, Delete_priv, Create_priv, Drop_priv, Grant_priv
+FROM mysql.db;
+ 
+-- 创建一个名为 newuser 的用户，密码为 password，并允许该用户从任何主机连接到 MySQL 服务器, 仅创建了用户，并没有赋予任何权限
+CREATE USER 'newuser'@'%' IDENTIFIED BY 'password';
+ 
+-- 修改密码
+ALTER USER 'newuser'@'%' IDENTIFIED BY 'newpassword';
+ 
+-- 授予 newuser 用户对 testdb 数据库的所有权限
+GRANT ALL PRIVILEGES ON testdb.* TO 'newuser'@'%';
+ 
+-- 查询用户 newuser 可以访问的数据库及其权限
+SELECT Db, User, Host, Select_priv, Insert_priv, Update_priv, Delete_priv, Create_priv, Drop_priv, Grant_priv
+FROM mysql.db
+WHERE User = 'newuser' AND Host = '%';
+ 
+-- 修改登陆权限
+update user set host='localhost' where user='newuser';
+ 
+-- 删除用户 newuser 对 testdb 数据库的 SELECT 和 INSERT 权限
+REVOKE SELECT, INSERT ON testdb.* FROM 'newuser'@'localhost';
+ 
+-- 删除用户 newuser 对 testdb 数据库的所有权限
+REVOKE ALL PRIVILEGES ON testdb.* FROM 'newuser'@'localhost';
+ 
+-- 删除用户
+use mysql;
+drop user 'newuser'@'localhost';
+</code>
+
+<h1>查询练习1</h1>
+<code sql>
+create table Student(SId varchar(10),Sname varchar(10),Sage datetime,Ssex varchar(10));
+insert into Student values('01' , '赵雷' , '1990-01-01' , '男');
+insert into Student values('02' , '钱电' , '1990-12-21' , '男');
+insert into Student values('03' , '孙风' , '1990-12-20' , '男');
+insert into Student values('04' , '李云' , '1990-12-06' , '男');
+insert into Student values('05' , '周梅' , '1991-12-01' , '女');
+insert into Student values('06' , '吴兰' , '1992-01-01' , '女');
+insert into Student values('07' , '郑竹' , '1989-01-01' , '女');
+insert into Student values('09' , '张三' , '2017-12-20' , '女');
+insert into Student values('10' , '李四' , '2017-12-25' , '女');
+insert into Student values('11' , '李四' , '2012-06-06' , '女');
+insert into Student values('12' , '赵六' , '2013-06-13' , '女');
+insert into Student values('13' , '孙七' , '2014-06-01' , '女');
+ 
+create table Course(CId varchar(10),Cname nvarchar(10),TId varchar(10));
+insert into Course values('01' , '语文' , '02');
+insert into Course values('02' , '数学' , '01');
+insert into Course values('03' , '英语' , '03');
+ 
+create table Teacher(TId varchar(10),Tname varchar(10));
+insert into Teacher values('01' , '张三');
+insert into Teacher values('02' , '李四');
+insert into Teacher values('03' , '王五');
+ 
+create table SC(SId varchar(10),CId varchar(10),score decimal(18,1));
+insert into SC values('01' , '01' , 80);
+insert into SC values('01' , '02' , 90);
+insert into SC values('01' , '03' , 99);
+insert into SC values('02' , '01' , 70);
+insert into SC values('02' , '02' , 60);
+insert into SC values('02' , '03' , 80);
+insert into SC values('03' , '01' , 80);
+insert into SC values('03' , '02' , 80);
+insert into SC values('03' , '03' , 80);
+insert into SC values('04' , '01' , 50);
+insert into SC values('04' , '02' , 30);
+insert into SC values('04' , '03' , 20);
+insert into SC values('05' , '01' , 76);
+insert into SC values('05' , '02' , 87);
+insert into SC values('06' , '01' , 31);
+insert into SC values('06' , '03' , 34);
+insert into SC values('07' , '02' , 89);
+insert into SC values('07' , '03' , 98);
+</code>
+20240708135160.webp
+<h2>查询" 01 “课程比” 02 "课程成绩高的学生的信息及课程分数</h2>
+<code sql>
+SELECT s.SId, s.Sname, s.Sage, s.Ssex, a.score, b.score
+FROM
+    student s
+        JOIN sc a ON s.SId = a.SId AND a.CId = "01"
+        JOIN sc b ON s.SId = b.SId AND b.CId = "02"
+WHERE a.score > b.score;
+</code>
+<h2>查询同时存在" 01 “课程和” 02 "课程的成绩情况</h2>
+<code sql>
+SELECT s.SId, s.Sname, s.Sage, s.Ssex, a.score, b.score
+FROM
+    student s
+        JOIN sc a ON s.SId = a.SId AND a.CId = '01'
+        JOIN sc b ON s.SId = b.SId AND b.CId = '02';
+</code>
+<h2>查询存在" 01 “课程但可能不存在” 02 "课程的成绩情况(不存在时显示为 null )</h2>
+<code sql>
+SELECT s.SId, s.Sname, s.Sage, s.Ssex, a.score, b.score
+FROM
+    student s
+        JOIN sc a ON s.SId = a.SId AND a.CId = '01'
+        Left JOIN sc b ON s.SId = b.SId AND b.CId = '02';
+</code>
+<h2>查询不存在" 01 “课程但存在” 02 "课程的成绩情况</h2>
+<code sql>
+SELECT s.*, a.score
+FROM 
+    student s
+        JOIN sc a ON s.SId = a.SId and a.CId='02'
+        left join sc b ON s.SId = b.SId and b.CId='01'
+where b.SId is null;
+</code>
+<h2>查询平均成绩大于等于 60 分的同学信息和平均分</h2>
+<code sql>
+select s.*, t.avg
+from
+    (select sc.SId id, avg(score) avg from sc group by sc.SId having avg>=60) t
+    join student s on t.id = s.SId
+</code>
+<h2>查询在 SC 表存在成绩的学生信息</h2>
+<code sql>
+SELECT DISTINCT student.*
+FROM student JOIN sc ON student.SId = sc.SId;
+ 
+select s.*
+from (select SId id from sc group by SId) t
+    left join student s on t.id = s.SId;
+</code>
+<h2>查询所有同学的学生编号、学生姓名、选课总数、所有课程的总成绩(没成绩的显示为 null )</h2>
+<code sql>
+select s.SId, s.Sname, ifnull(t.cs,0) c, t.sum
+from student s
+         left join
+     (select sc.SId id, count(*) cs, sum(score) sum from sc group by sc.SId) t
+     on s.SId = t.id;
+</code>
+<h2>查有成绩的学生信息</h2>
+<code sql>
+select s.*
+from (select sc.SId id from sc group by sc.SId) t
+         left join student s on s.SId = t.id
+</code>
+<h2>查询[李]姓老师数量</h2>
+<code sql>
+-- LIKE '李%' 通常比 SUBSTRING(Tname, 1, 1) = '李' 更快，因为 LIKE 运算符能够利用索引。
+-- 而 SUBSTRING 函数需要逐行处理字符串，无法使用索引。
+-- 如果 Tname 列有索引，使用 LIKE '李%' 可以大大提高查询性能。
+select count(*) from teacher where substring(Tname,1,1)='李';
+select count(*) from teacher where tname like '李%';
+</code>
+<h2>查询学过「张三」老师授课的同学的信息</h2>
+<code sql>
+-- 现代 SQL 优化器对 JOIN 语法的优化通常比旧式逗号分隔法更好，尤其是涉及多个表连接时。
+select stu.*
+from
+course c
+    join (select t.TId tid from teacher t where t.Tname='张三') t1 on t1.tid=c.TId
+    join sc s on c.CId=s.CId
+    join student stu on stu.SId=s.SId;
+ 
+select student.* from student,teacher,course,sc
+where
+    student.sid = sc.sid
+  and course.cid=sc.cid
+  and course.tid = teacher.tid
+  and tname = '张三';
+</code>
+<h2>查询没有学全所有课程的同学的信息</h2>
+<code sql>
+select s.*
+from
+    student s
+    left join (select sc.SId id, count(*) c from sc group by sc.SId) t on s.SId=t.id
+    join (select count(*) a from course) t2
+where t.c&lt;t2.a or t.c is null
+</code>
+<h2>查询至少有一门课与学号为" 01 "的同学所学相同的同学的信息</h2>
+<code sql>
+select distinct s.*
+from
+    student s
+    join sc c on s.SId=c.SId and c.CId in (select sc.CId from sc where sc.SId='01')
+where s.SId!='01';
+</code>
+<h2>查询和" 01 "号的同学学习的课程 完全相同的其他同学的信息</h2>
+<code sql>
+-- 使用 GROUP_CONCAT 函数来连接课程 ID，并通过子查询来比较这些连接后的字符串
+-- 使用 ORDER BY 确保课程 ID 的顺序一致，这样才可以进行正确的字符串比较
+select s.*
+from
+student s
+    join (select group_concat(CID order by CId) c, SId from sc group by SId) t on s.SId=t.SId
+    join (select group_concat(CID order by CId) c from sc where SId='01' group by SId) t2 on t.c=t2.c
+where s.SId!='01';
+</code>
+<h2>查询没学过"张三"老师讲授的任一门课程的学生姓名</h2>
+<code sql>
+-- 这是一种经典的反连接（anti-join）操作，通常用于查找不匹配的记录
+select stu.*
+from
+    teacher t
+        join course c on t.TId=c.TId and t.Tname='张三'
+        join sc s on s.CId=c.CId
+        right join student stu on s.SId=stu.SId
+where s.CId is null;
+</code>
+<h2>查询两门及其以上不及格课程的同学的学号，姓名及其平均成绩</h2>
+<code sql>
+-- sc 表被扫描了两次，一次用于计算低于 60 分的课程数量，另一次用于计算平均成绩。
+select s.SId, s.Sname, t2.a
+from
+    (select SId, count(*) c from sc where sc.score&lt;60 group by SId) t
+    join (select SId, avg(score) a from sc group by SId) t2 on t.SId=t2.SId and t.c>=2
+    join student s on s.SId=t2.SId;
+-- sc 表只被扫描了一次，所有计算和筛选条件都在一个子查询中完成。
+SELECT s.SId, s.Sname, t2.a
+FROM
+    (SELECT SId, AVG(score) AS a FROM sc GROUP BY SId HAVING SUM(score &lt; 60) >= 2) t2
+    JOIN student s ON s.SId = t2.SId;
+</code>
+<h2>检索" 01 "课程分数小于 60，按分数降序排列的学生信息</h2>
+<code sql>
+select s.*, t.score
+from
+    (select SId,score from sc where score&lt;60 and CId='01' order by score desc) t
+    join student s on t.SId=s.SId;
+-- 直接在主查询中处理连接和筛选, 避免了子查询带来的额外开销
+SELECT s.*, sc.score
+FROM
+    student s JOIN sc ON s.SId = sc.SId
+WHERE
+    sc.score &lt; 60 AND sc.CId = '01'
+ORDER BY
+    sc.score DESC;
+</code>
+<h2>按平均成绩从高到低显示所有学生的所有课程的成绩以及平均成绩</h2>
+<code sql>
+select * 
+from 
+    sc
+    left join (select SId, avg(score) a from sc group by SId) t
+    on t.SId = sc.SId
+order by t.a desc
+</code>
+<h2>查询各科成绩最高分、最低分和平均分</h2>
+<code sql>
+-- 课程 ID，课程 name，最高分，最低分，平均分，及格率，中等率，优良率，优秀率
+-- 输出课程号和选修人数，查询结果按人数降序排列，若人数相同，按课程号升序排列
+select c.*, t.选修人数,t.max,t.min,t.avg,t.及格率,t.中等率,t.优良率,t.优秀率
+from
+    course c
+    join (select
+              CId,
+              count(*) 选修人数,
+              max(score) max,
+              min(score) min,
+              avg(score) avg,
+              -- sum(case when score>=60 then 1 else 0 end)/count(*) 及格率,
+              sum(if(score>=60,1,0))/count(*) 及格率,
+              sum(if(score>=70 and score&lt;80,1,0))/count(*) 中等率,
+              sum(if(score>=80 and score&lt;90,1,0))/count(*) 优良率,
+              sum(if(score>=90,1,0))/count(*) 优秀率
+          from sc group by CId) t on c.CId=t.CId
+order by t.选修人数 desc ,t.CId;
+</code>
+<h2>按各科成绩进行排序，并显示排名， Score 重复时合并名次</h2>
+<code sql>
+-- 执行顺序: FROM -> WHERE -> GROUP BY -> SELECT -> ORDER BY -> LIMIT
+-- group by a.CId, a.SId,a.score, 将表中具有相同 CId、SId 和 score 的行进行分组
+-- count(b.higher_score)计算的是比当前学生成绩更高的记录数, 如果没有更高的(第一)则为0,为了从1开始所以+1
+select a.CId, a.SId, a.score, count(b.score)+1 rk
+from sc as a
+    left join sc as b
+on a.score&lt;b.score and a.CId = b.CId
+group by a.CId, a.SId,a.score
+order by a.CId, rk ASC;
+</code>
+<h2>查询学生的总成绩，并进行排名，总分重复时保留名次空缺</h2>
+<code sql>
+-- 内层查询执行：从表 sc 中按 sid 分组，计算每个学生的总分，并按总分从高到低排序。
+-- 外层查询执行：从内层查询生成的结果集中，逐行处理每一行，每处理一行将 @crank 的值加1，并将其作为 rank 列的值。
+-- 会话变量以 @ 开头，并且在同一会话中可以通过多个查询使用和修改
+-- SET 语句：使用 = 进行赋值。
+-- SELECT 语句：使用 := 进行赋值。因为在 SELECT 查询中，赋值操作并不是标准 SQL 的一部分，而是 MySQL 特有的语法扩展
+set @crank=0;
+select
+    q.sid, total, @crank:=@crank+1 as rnk
+from(
+    select sc.sid, sum(sc.score) as total from sc
+    group by sc.sid
+    order by total desc
+) q;
+</code>
+<h2>统计各科成绩各分数段人数：课程编号，课程名称，[100-85]，[85-70]，[70-60]，[60-0]</h2>
+<code sql>
+-- 不要想着先单表group by计算出结果再从第二张表里添上课程信息，而应该先将两张表join在一起得到所有想要的属性再对这张总表进行统计计算
+-- group by sc.CId, course.CId; select中用了几个字段,group by后面也得跟几个字段
+select course.Cname, course.CId,
+       sum(case when sc.score&lt;=100 and sc.score>85 then 1 else 0 end) as "[100-85]",
+       sum(case when sc.score&lt;=85 and sc.score>70 then 1 else 0 end) as "[85-70]",
+       sum(case when sc.score&lt;=70 and sc.score>60 then 1 else 0 end) as "[70-60]",
+       sum(case when sc.score&lt;=60 and sc.score>0 then 1 else 0 end) as "[60-0]"
+from sc left join course on sc.CId = course.CId
+group by sc.CId, course.CId;
+</code>
+<h2>查询各科成绩前三名的记录</h2>
+<code sql>
+-- 在 GROUP BY 子句中使用的列必须与 SELECT 列表中的所有非聚合列一致，而 ORDER BY 子句中的列必须是聚合列或 GROUP BY 子句中的列
+select a.CId, a.SId, a.score, count(b.score)+1 rk
+from
+    sc a
+    left join sc b on a.score&lt;b.score and a.CId=b.CId
+group by a.SId,a.CId,a.score
+having rk&lt;4
+order by a.CId,rk;
+ 
+SELECT sub.CId, sub.SId, sub.score
+FROM (
+     SELECT a.CId, a.SId, a.score, COUNT(b.score) + 1 AS rk
+     FROM sc a
+              LEFT JOIN sc b ON a.score &lt; b.score AND a.CId = b.CId
+     GROUP BY a.CId, a.SId, a.score
+     HAVING rk &lt; 4
+     ) sub
+ORDER BY sub.CId, sub.rk;
+</code>
+<h2>查询出只选修两门课程的学生学号和姓名</h2>
+<code sql>
+select s.SId id, s.Sname name
+from
+    student s
+    join sc on s.SId=sc.SId
+group by s.SId, s.Sname
+having count(*) = 2
+</code>
+<h2>统计同名同姓学生人数</h2>
+<code sql>
+select s.Sname, s.Ssex, count(*) c
+from
+    student s
+group by s.Sname, s.Ssex
+having c>1
+</code>
+<h2>查询1990年出生的学生名单</h2>
+<code sql>
+select *
+from
+    student
+-- where date_format(Sage,'%Y')=1990
+where year(Sage)=1990
+</code>
+<h2>查询每门课程的平均成绩，结果按平均成绩降序排列，平均成绩相同时，按课程编号升序排列</h2>
+<code sql>
+select
+    c.Cname,c.CId, avg(score) avg
+from
+    course c
+    join sc on c.CId=sc.CId
+group by c.Cname,c.CId
+order by avg desc ,c.CId
+</code>
+<h2>查询平均成绩大于等于 85 的所有学生的学号、姓名和平均成绩</h2>
+<code sql>
+select
+   sc.SId,s.Sname, avg(score) avg
+from
+    student s
+    join sc on s.SId=sc.SId
+group by sc.SId,s.Sname
+having avg>=85
+</code>
+<h2>查询课程名称为「数学」，且分数低于 60 的学生姓名和分数</h2>
+<code sql>
+select
+   s.Sname, sc.score
+from
+    student s
+    join sc on s.SId=sc.SId
+    join course c on sc.CId=c.CId and c.Cname='数学'
+where sc.score&lt;60
+ 
+-- 查询任何一门课程成绩在 70 分以上的姓名、课程名称和分数
+select
+   s.Sname,c.Cname, sc.score
+from
+    student s
+    join sc on s.SId=sc.SId
+    join course c on sc.CId=c.CId
+where sc.score>70
+</code>
+<h2>查询选修「张三」老师所授课程的学生中，成绩最高的学生信息及其成绩, 包括重复的</h2>
+<code sql>
+SELECT stu.*, sc.score
+FROM sc
+JOIN student stu ON sc.SId = stu.SId
+JOIN (
+    SELECT sc.score co
+    FROM sc
+    JOIN course c ON sc.CId = c.CId
+    JOIN teacher t ON c.TId = t.TId AND t.Tname = '张三'
+    ORDER BY sc.score DESC
+    LIMIT 1
+) sub
+WHERE sc.score = sub.co;
+-- 定义变量存储最高分
+SET @highest_score = (
+    SELECT sc.score
+    FROM sc
+    JOIN course c ON sc.CId = c.CId
+    JOIN teacher t ON c.TId = t.TId AND t.Tname = '张三'
+    ORDER BY sc.score DESC
+    LIMIT 1
+);
+-- 使用变量在主查询中查找对应的学生记录
+SELECT stu.*, sc.score
+FROM sc
+JOIN student stu ON sc.SId = stu.SId
+WHERE sc.score = @highest_score;
+</code>
+<h2>查询每门功课成绩最好的前两名</h2>
+<code sql>
+select sub.*
+from (select a.CId, a.SId, a.score, count(b.score) + 1 rk
+      from sc a
+               left join sc b on a.CId = b.CId and a.score &lt; b.score
+      group by a.CId, a.SId, a.score
+      order by a.CId, rk) sub
+where sub.rk &lt; 3
+-- having count(b.CId) &lt; 2 
+-- b.CId的数量是分数比当前行高的其它记录数量,要求前两名,所以最多为1,因此条件是小于2
+select a.SId, a.CId, a.score
+from sc as a
+         left join sc as b
+                   on a.CId = b.CId and a.score &lt; b.score
+group by a.CId, a.SId, a.score
+having count(b.CId) &lt; 2
+order by a.CId;
+</code>
+<h2>根据出生日期计算年龄</h2>
+<code sql>
+select * ,timestampdiff(year,Sage,now())
+from student
+</code>
+<h2>查询本周过生日的学生</h2>
+<code sql>
+select *
+from student
+where weekofyear(Sage)=weekofyear(now())
+</code>
+<h2>查询下周过生日的学生</h2>
+<code sql>
+select *
+from student
+where weekofyear(Sage)=weekofyear(now())+1
+</code>
+<h2>查询上个月过生日的学生</h2>
+<code sql>
+select *
+from student
+where month(Sage)=month(now())-1
+</code>
+</pre>
+ </body>
+</html>

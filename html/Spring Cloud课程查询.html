@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>Spring Cloud课程查询</title>
+</head>
+<body><span id="anchor">20240814232713-_项目例</span>
+<pre>
+20240604162727.webp
+课程查询案例
+    系统架构和接口设计
+    分模块构建Spring Cloud项目
+    课程列表,课程价格服务开发
+    课程服务整合, 服务注册与发现 
+    整合Feign实现服务间调用 
+    负载均衡Ribbon
+    引入服务的熔断与降级Hystrix
+    网关的集成与开发, 并接入服务Zuul
+
+spring cloud的每个模块实际上都是spring boot项目
+
+<h1>结构</h1>
+demo18
+    course-service
+        course-list 
+        course-price 
+    course-zuul 
+    eureka-server
+
+<h1>pom文件</h1>
+<h2>demo18</h2>
+java.lang.ClassNotFoundException: org.springframework.boot.context.properties.ConfigurationBeanFactoryMetadata
+    Spring Boot和Spring Cloud的版本组合
+        Spring Boot 2.3.12.RELEASE + Spring Cloud Hoxton.SR12
+        Spring Boot 2.4.9 + Spring Cloud 2020.0.4
+        Spring Boot 2.5.6 + Spring Cloud 2020.0.4
+<code xml>
+&lt;groupId>com.ida&lt;/groupId>
+&lt;artifactId>demo18&lt;/artifactId>
+&lt;version>1.0-SNAPSHOT&lt;/version>
+&lt;packaging>pom&lt;/packaging>
+&lt;!-- 子模块 -->
+&lt;modules>
+    &lt;module>course-service&lt;/module>
+    &lt;module>eureka-server&lt;/module>
+    &lt;module>course-zuul&lt;/module>
+&lt;/modules>
+ 
+&lt;properties>
+    &lt;!-- .. -->
+    &lt;!-- 版本定义 -->
+    &lt;spring-cloud.version>Hoxton.SR12&lt;/spring-cloud.version>
+    &lt;spring-boot.version>2.3.12.RELEASE&lt;/spring-boot.version>
+&lt;/properties>
+ 
+&lt;dependencyManagement>
+    &lt;dependencies>
+        &lt;!-- cloud版本管理 -->
+        &lt;dependency>
+            &lt;groupId>org.springframework.cloud&lt;/groupId>
+            &lt;artifactId>spring-cloud-dependencies&lt;/artifactId>
+            &lt;version>${spring-cloud.version}&lt;/version>
+            &lt;type>pom&lt;/type>
+            &lt;scope>import&lt;/scope>
+        &lt;/dependency>
+        &lt;!-- boot版本管理 -->
+        &lt;dependency>
+            &lt;groupId>org.springframework.boot&lt;/groupId>
+            &lt;artifactId>spring-boot-dependencies&lt;/artifactId>
+            &lt;version>${spring-boot.version}&lt;/version>
+            &lt;type>pom&lt;/type>
+            &lt;scope>import&lt;/scope>
+        &lt;/dependency>
+    &lt;/dependencies>
+&lt;/dependencyManagement>
+</code>
+
+<h2>course-service</h2>
+<code xml>
+&lt;!-- 父模块 -->
+&lt;parent>
+    &lt;groupId>com.ida&lt;/groupId>
+    &lt;artifactId>demo18&lt;/artifactId>
+    &lt;version>1.0-SNAPSHOT&lt;/version>
+&lt;/parent>
+ 
+&lt;artifactId>course-service&lt;/artifactId>
+&lt;packaging>pom&lt;/packaging>
+&lt;!-- 子模块 -->
+&lt;modules>
+    &lt;module>course-list&lt;/module>
+    &lt;module>course-price&lt;/module>
+&lt;/modules>
+</code>
+
+<h2>course-list</h2>
+<code xml>
+&lt;!-- 父模块 -->
+&lt;parent>
+    &lt;groupId>com.ida&lt;/groupId>
+    &lt;artifactId>course-service&lt;/artifactId>
+    &lt;version>1.0-SNAPSHOT&lt;/version>
+&lt;/parent>
+&lt;artifactId>course-list&lt;/artifactId>
+ 
+&lt;dependencies>
+    &lt;!-- boot依赖 -->
+    &lt;dependency>
+        &lt;groupId>org.springframework.boot&lt;/groupId>
+        &lt;artifactId>spring-boot-starter-web&lt;/artifactId>
+    &lt;/dependency>
+    &lt;!-- mysql相关 -->
+    &lt;dependency>
+        &lt;groupId>mysql&lt;/groupId>
+        &lt;artifactId>mysql-connector-java&lt;/artifactId>
+    &lt;/dependency>
+    &lt;dependency>
+        &lt;groupId>org.mybatis.spring.boot&lt;/groupId>
+        &lt;artifactId>mybatis-spring-boot-starter&lt;/artifactId>
+        &lt;version>2.1.1&lt;/version>
+    &lt;/dependency>
+    &lt;!-- eureka客户端 -->
+    &lt;dependency>
+        &lt;groupId>org.springframework.cloud&lt;/groupId>
+        &lt;!-- 客户端可省略@EnableEurekaClient注解 -->
+        &lt;artifactId>spring-cloud-starter-netflix-eureka-client&lt;/artifactId>
+    &lt;/dependency>
+&lt;/dependencies>
+ 
+&lt;build>
+    &lt;plugins>
+        &lt;!-- boot的maven插件 -->
+        &lt;plugin>
+            &lt;groupId>org.springframework.boot&lt;/groupId>
+            &lt;artifactId>spring-boot-maven-plugin&lt;/artifactId>
+        &lt;/plugin>
+        &lt;!-- mybatis代码生成插件 -->
+        &lt;plugin>
+            &lt;groupId>org.mybatis.generator&lt;/groupId>
+            &lt;artifactId>mybatis-generator-maven-plugin&lt;/artifactId>
+            &lt;version>1.3.7&lt;/version>
+            &lt;configuration>
+                &lt;verbose>true&lt;/verbose>
+                &lt;overwrite>true&lt;/overwrite>
+            &lt;/configuration>
+        &lt;/plugin>
+    &lt;/plugins>
+&lt;/build>
+</code>
+
+<h2>course-price</h2>
+<code xml>
+&lt;!-- 父模块 -->
+&lt;parent>
+    &lt;groupId>com.ida&lt;/groupId>
+    &lt;artifactId>course-service&lt;/artifactId>
+    &lt;version>1.0-SNAPSHOT&lt;/version>
+&lt;/parent>
+&lt;artifactId>course-price&lt;/artifactId>
+ 
+&lt;dependencies>
+    &lt;!-- boot依赖 -->
+    &lt;dependency>
+        &lt;groupId>org.springframework.boot&lt;/groupId>
+        &lt;artifactId>spring-boot-starter-web&lt;/artifactId>
+    &lt;/dependency>
+    &lt;!-- mysql相关 -->
+    &lt;dependency>
+        &lt;groupId>mysql&lt;/groupId>
+        &lt;artifactId>mysql-connector-java&lt;/artifactId>
+    &lt;/dependency>
+    &lt;dependency>
+        &lt;groupId>org.mybatis.spring.boot&lt;/groupId>
+        &lt;artifactId>mybatis-spring-boot-starter&lt;/artifactId>
+        &lt;version>2.1.1&lt;/version>
+    &lt;/dependency>
+    &lt;!-- eureka客户端 -->
+    &lt;dependency>
+        &lt;groupId>org.springframework.cloud&lt;/groupId>
+        &lt;!-- 客户端可省略@EnableEurekaClient注解 -->
+        &lt;artifactId>spring-cloud-starter-netflix-eureka-client&lt;/artifactId>
+    &lt;/dependency>
+    &lt;!-- openfeign Http调用 -->
+    &lt;dependency>
+        &lt;groupId>org.springframework.cloud&lt;/groupId>
+        &lt;artifactId>spring-cloud-starter-openfeign&lt;/artifactId>
+    &lt;/dependency>
+    &lt;!-- hystrix 熔断 -->
+    &lt;dependency>
+        &lt;groupId>org.springframework.cloud&lt;/groupId>
+        &lt;artifactId>spring-cloud-starter-netflix-hystrix&lt;/artifactId>
+    &lt;/dependency>
+    &lt;!-- 引用包下的实体类 -->
+    &lt;dependency>
+        &lt;groupId>com.ida&lt;/groupId>
+        &lt;artifactId>course-list&lt;/artifactId>
+        &lt;version>1.0-SNAPSHOT&lt;/version>
+        &lt;scope>compile&lt;/scope>
+    &lt;/dependency>
+&lt;/dependencies>
+ 
+&lt;build>
+    &lt;plugins>
+        &lt;!-- boot的maven插件 -->
+        &lt;plugin>
+            &lt;groupId>org.springframework.boot&lt;/groupId>
+            &lt;artifactId>spring-boot-maven-plugin&lt;/artifactId>
+        &lt;/plugin>
+        &lt;!-- mybatis代码生成插件 -->
+        &lt;plugin>
+            &lt;groupId>org.mybatis.generator&lt;/groupId>
+            &lt;artifactId>mybatis-generator-maven-plugin&lt;/artifactId>
+            &lt;version>1.3.7&lt;/version>
+            &lt;configuration>
+                &lt;verbose>true&lt;/verbose>
+                &lt;overwrite>true&lt;/overwrite>
+            &lt;/configuration>
+        &lt;/plugin>
+    &lt;/plugins>
+&lt;/build>
+</code>
+
+<h2>eureka-server</h2>
+<code xml>
+&lt;!-- 父模块 -->
+&lt;parent>
+    &lt;groupId>com.ida&lt;/groupId>
+    &lt;artifactId>demo18&lt;/artifactId>
+    &lt;version>1.0-SNAPSHOT&lt;/version>
+&lt;/parent>
+ 
+&lt;artifactId>eureka-server&lt;/artifactId>
+&lt;version>1.0-SNAPSHOT&lt;/version>
+ 
+&lt;dependencies>
+    &lt;!-- eureka服务端 -->
+    &lt;dependency>
+        &lt;groupId>org.springframework.cloud&lt;/groupId>
+        &lt;artifactId>spring-cloud-starter-netflix-eureka-server&lt;/artifactId>
+    &lt;/dependency>
+&lt;/dependencies>
+ 
+&lt;build>
+    &lt;plugins>
+        &lt;plugin>
+            &lt;groupId>org.springframework.boot&lt;/groupId>
+            &lt;artifactId>spring-boot-maven-plugin&lt;/artifactId>
+        &lt;/plugin>
+    &lt;/plugins>
+&lt;/build>
+</code>
+
+<h2>course-zuul</h2>
+<code xml>
+&lt;!-- 父模块 -->
+&lt;parent>
+    &lt;groupId>com.ida&lt;/groupId>
+    &lt;artifactId>demo18&lt;/artifactId>
+    &lt;version>1.0-SNAPSHOT&lt;/version>
+&lt;/parent>
+ 
+&lt;artifactId>course-zuul&lt;/artifactId>
+&lt;version>1.0-SNAPSHOT&lt;/version>
+ 
+&lt;dependencies>
+    &lt;!-- eureka客户端 -->
+    &lt;dependency>
+        &lt;groupId>org.springframework.cloud&lt;/groupId>
+        &lt;!-- 客户端可省略@EnableEurekaClient注解 -->
+        &lt;artifactId>spring-cloud-starter-netflix-eureka-client&lt;/artifactId>
+    &lt;/dependency>
+    &lt;!-- zuul网关 -->
+    &lt;dependency>
+        &lt;groupId>org.springframework.cloud&lt;/groupId>
+        &lt;artifactId>spring-cloud-starter-netflix-zuul&lt;/artifactId>
+    &lt;/dependency>
+&lt;/dependencies>
+ 
+&lt;build>
+    &lt;plugins>
+        &lt;plugin>
+            &lt;groupId>org.springframework.boot&lt;/groupId>
+            &lt;artifactId>spring-boot-maven-plugin&lt;/artifactId>
+        &lt;/plugin>
+    &lt;/plugins>
+&lt;/build>
+</code>
+
+<h1>eurake配置使用</h1>
+<h2>服务端</h2> 
+引入依赖
+启动类加 @EnableEurekaServer 注解
+配置文件
+<code properties>
+server.port=9018
+spring.application.name=eureka-server
+ 
+eureka.instance.hostname=localhost
+#作为server端,不需要同步其它节点数据时,不必获取注册表, (集群)
+eureka.client.fetch-registry=false
+#是否将自己也注册进去, 默认true (集群)
+eureka.client.register-with-eureka=false
+eureka.client.service-url.defaultZone=http://${eureka.instance.hostname}:${server.port}/eureka/
+</code>
+注册信息: http://localhost:9018/
+
+<h2>客户端</h2>
+引入依赖
+配置文件
+<code properties>
+server.port=9218
+spring.application.name=course-price
+ 
+eureka.client.service-url.defaultZone=http://localhost:9018/eureka/
+</code>
+
+<h1>feign配置使用</h1>
+Jackson在序列化和反序列化JSON时，通常处理的是对象类型（例如Boolean），而不是基本数据类型
+    在处理JSON时，如果字段为空或不存在，基本数据类型可能会引发异常，因为基本数据类型不能为null
+    如果你的FeignClient接口返回基本数据类型（如int或long），而JSON中包含null值或非数字格式，则可能导致Jackson无法正确解析，并抛出转换异常。
+    返回对象中涉及Date类型时需要配置Jackson的ObjectMapper全局时区和日期格式
+不要省略@RequestParam和@RequestBody
+    如果请求参数需要以JSON格式发送并在服务器端解析为Java对象，需要使用@RequestBody注解
+    405 Method Not Allowed 当参数是简单类型（如Integer、String等）时，如果你不使用@RequestParam，Feign会将这些参数视为请求体的一部分（如@RequestBody），这与GET请求不兼容
+    @RequestParam明确地告诉Feign客户端，它应该将该参数作为查询参数（query parameter）添加到URL中，而不是放入请求体。对于GET请求，这种方法是必需的。
+    即使方法参数的名称与请求参数的名称一致，也不要省略@RequestParam的value属性, 因为某些版本会报错找不到, 为避免差异, 应写尽写
+
+引入依赖
+启动类加 @EnableFeignClients 注解
+创建客户端接口和降级类
+<h2>客户端接口类</h2>
+该接口中方法对应于远程服务controller类下的方法, 请求路径、参数和返回类型与远程服务控制器方法一致，方法名的不同不会影响请求的正确性
+@FeignClient注解参数
+    name = "course-list" 将要调用的远程服务名称[spring.application.name]
+    fallback = CourseListClientFallback.class
+        当 Feign 客户端调用失败时(例如远程服务停止时)指定一个降级处理类返回备用结果
+            它确保了即使远程服务不可用，客户端也能返回某种默认值或处理逻辑
+        对于需要更复杂的降级逻辑或需要访问异常信息的场景，使用fallbackFactory = CourseListClientFallbackFactory.class
+    path = "/api/s1", 所有通过该 Feign 客户端发出的请求都会自动附加这个前缀, 例如远程服务的控制器配置了统一前缀时可以利用此属性
+    url = "http://localhost:8080" ,url 属性会覆盖 name 属性中的服务发现配置, 直接使用指定的 URL来查找服务
+<code>
+@FeignClient(name = "course-list", fallback = CourseListClientFallback.class)
+public interface CourseListClient {
+    @GetMapping("/list")
+    List&lt;Course> list();
+ 
+    @GetMapping("/course/{courseId}")
+    Course getCourseByCourseId(@PathVariable("courseId") Integer courseId);
+}
+</code>
+<h3>降级处理类</h3>
+实现客户端接口类, 标记为组件
+<code>
+@Component
+public class CourseListClientFallback implements CourseListClient {
+    @Override
+    public List&lt;Course> list() {
+        Course course = new Course();
+        course.setName("默认课程");
+        List&lt;Course> courseList = new ArrayList&lt;>();
+        courseList.add(course);
+        return courseList;
+    }
+ 
+    @Override
+    public Course getCourseByCourseId(Integer courseId) {
+        Course course = new Course();
+        course.setName("默认课程");
+        return course;
+    }
+}
+</code>
+<h3>复杂逻辑的降级处理类</h3>
+实现FallbackFactory接口, 标记为组件
+<code>
+@Component
+public class CourseListClientFallbackFactory implements FallbackFactory&lt;CourseListClient> {
+ 
+    @Override
+    public CourseListClient create(Throwable cause) {
+        return new CourseListClient() {
+            @Override
+            public List&lt;Course> list() {
+                // 根据异常信息提供复杂的降级逻辑
+                if (cause instanceof CourseException) {
+                    // 处理特定异常
+                    return handleSpecificException((CourseException) cause);
+                }
+                // 通用的降级处理
+                return handleGenericException(cause);
+            }
+ 
+            @Override
+            public Course getCourseByCourseId(Integer courseId) {
+                return null;
+            }
+ 
+            private List&lt;Course> handleSpecificException(CourseException ex) {
+                // 例如返回特定的备用值或记录日志
+                return null;
+            }
+ 
+            private List&lt;Course> handleGenericException(Throwable ex) {
+                // 例如记录日志或返回默认的备用值
+                return null;
+            }
+        };
+    }
+}
+</code>
+
+<h2>使用</h2>
+<code>
+@RestController
+public class CoursePriceController {
+    @Resource
+    private CourseListClient courseListClient;
+ 
+    @GetMapping("/remote/list")
+    public List&lt;Course> getCourseList() {
+        return courseListClient.list();
+    }
+ 
+    @GetMapping("/remote/course/{courseId}")
+    public Course getCourseByCourseId(@PathVariable("courseId") Integer courseId) {
+        return courseListClient.getCourseByCourseId((courseId));
+    }
+}
+</code>
+
+<h2>feign集成ribbon,hystrix</h2>
+当 Feign 与 Ribbon 集成时, Feign 客户端会使用 Ribbon 作为负载均衡器来选择服务实例 (服务之间互调)
+
+Hystrix熔断器会监控请求的成功率和响应时间。如果请求失败率或响应时间超过了设定的阈值，Hystrix 会自动触发熔断器
+    熔断状态下，Hystrix 不会再向故障的服务发送请求,而是直接调用fallback 方法, 以避免在服务故障时持续发送请求加剧服务的压力和崩溃
+    启动类加 @EnableCircuitBreaker 注解是早期版本中用来启用 Hystrix 的熔断器功能的做法, Spring Cloud Hoxton 版本开始，该注解变得不再必要
+<code properties>
+#当前服务调用远程 course-list 服务时采用的负载均衡策略。即远程 course-list 服务有多个实例可用时，如何选择其中一个实例, 此处使用随机策略
+course-list.ribbon.NFLoadBalancerRuleClassName=com.netflix.loadbalancer.RoundRobinRule
+#允许 Feign 客户端集成 Hystrix 提供的熔断、超时、隔离等功能
+feign.hystrix.enabled=true
+</code>
+
+<h1>zuul的配置使用</h1>
+引入依赖 
+启动类加 @EnableZuulProxy 注解
+配置文件 
+<code properties>
+server.port=9918
+spring.application.name=course-zuul
+ 
+# 将自己作为一个client在eureka上注册以获得其它模块的服务信息
+eureka.client.service-url.defaultZone=http://localhost:9018/eureka/
+ 
+# zuul未进行显式配置时, 通过网关访问的默认形式为 http://域名:网关端口/服务名/请求uri, localhost:9918/course-price/course/67
+# 设置 API 路由的公共前缀, 客户端请求需要加/api前缀, 将所有对 /api/list/** 路径的请求转发到 course-list 服务
+zuul.prefix=/api
+zuul.routes.course-list.path=/list/**
+zuul.course-list.service-id=course-list
+zuul.routes.course-price.path=/price/**
+zuul.course-price.service-id=course-price
+</code>
+
+<h2>网关实现过滤器</h2>
+继承ZuulFilter实现其中的的接口, 标记为组件
+<h3>统计请求耗时</h3>
+<h4>前置过滤器</h4>
+<code>
+@Component
+public class ZuulPreFilter extends ZuulFilter {
+    @Override
+    public String filterType() {
+        //return "pre";
+        return FilterConstants.PRE_TYPE;
+    }
+ 
+    @Override
+    public int filterOrder() {
+        return 0;
+    }
+ 
+    @Override
+    public boolean shouldFilter() {
+        HttpServletRequest request = RequestContext.getCurrentContext().getRequest();
+        // 只有请求路径以 /api/list/ 开头时才应用过滤逻辑
+        //getRequestURI不包括查询参数
+        return request.getRequestURI().startsWith("/api/list/");
+    }
+ 
+    @Override
+    public Object run() {
+        RequestContext currentContext = RequestContext.getCurrentContext();
+        currentContext.set("startTime",System.currentTimeMillis());
+        System.out.println("开始记录");
+        return null;
+    }
+}
+</code>
+<h4>后置过滤器</h4>
+<code>
+@Component
+public class ZuulPostFilter extends ZuulFilter {
+    @Override
+    public String filterType() {
+        return FilterConstants.POST_TYPE;
+    }
+ 
+    @Override
+    public int filterOrder() {
+        return FilterConstants.SEND_RESPONSE_FILTER_ORDER - 1;
+    }
+ 
+    @Override
+    public boolean shouldFilter() {
+        HttpServletRequest request = RequestContext.getCurrentContext().getRequest();
+        return request.getRequestURI().startsWith("/api/list/");
+    }
+ 
+    @Override
+    public Object run() {
+        RequestContext currentContext = RequestContext.getCurrentContext();
+        long duration = System.currentTimeMillis() - (Long) currentContext.get("startTime");
+        String uri = RequestContext.getCurrentContext().getRequest().getRequestURI();
+        System.out.println(uri + "请求耗时:" + duration);
+        return null;
+    }
+}
+</code>
+<h3>错误过滤器</h3>
+Zuul 错误过滤器用来处理在路由、转发、过滤等过程中遇到的错误, 
+<code>
+@Component
+public class ZuulErrorFilter extends ZuulFilter {
+    @Override
+    public String filterType() {
+        return FilterConstants.ERROR_TYPE;
+    }
+ 
+    @Override
+    public int filterOrder() {
+        return 0;
+    }
+ 
+    @Override
+    public boolean shouldFilter() {
+        return true;
+    }
+ 
+    @Override
+    public Object run() {
+        RequestContext ctx = RequestContext.getCurrentContext();
+        Throwable throwable = ctx.getThrowable();
+        System.out.println("err: " + throwable.getCause().getMessage());
+        return null;
+    }
+}
+</code>
+
+<h1>Logback格式配置</h1>
+%clr(内容){颜色}: Logback中用于设置输出颜色的格式化符号
+%d{${LOG_DATEFORMAT_PATTERN:HH:mm:ss.SSS}}: ${LOG_DATEFORMAT_PATTERN:HH:mm:ss.SSS}是一个变量
+%5p: 日志级别信息的最小宽度为5个字符
+%PID: 当前进程的 ID
+%t: 线程名称
+%logger{39}: logger 的名称，最多显示 39 个字符
+%m: 日志消息
+%n: 换行。
+${LOG_EXCEPTION_CONVERSION_WORD:%wEx}: 这部分用于在发生异常时输出异常信息
+<code properties>
+#控制台输出日期、日志级别、进程 ID、线程名称、Logger 名称和消息，并在发生异常时输出异常信息。同时添加颜色效果
+logging.pattern.console=%clr(%d{${LOG_DATEFORMAT_PATTERN:HH:mm:ss.SSS}}){faint} %clr(${LOG_LEVEL_PATTERN:-%5p}) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n${LOG_EXCEPTION_CONVERSION_WORD:%wEx}
+</code>
+
+<h1>mybatis及代码生成插件使用</h1>
+插件overwrite属性在开发环境中启用覆盖，生产环境中禁用覆盖
+    true，插件每次生成代码时都会覆盖目标目录中的已有文件
+    false，插件不会覆盖目标目录中的文件。如果文件已经存在，生成的代码将不会更新
+启动类加 @MapperScan(basePackages = "com.ida.demo18.course_list.dao") 扫描接口文件
+<code properties>
+#mapper映射文件地址
+mybatis.mapper-locations=classpath:mappers/*.xml
+#字段名驼峰转换
+mybatis.configuration.map-underscore-to-camel-case=true
+</code>
+
+</pre>
+</body>
+</html>

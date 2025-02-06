@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>HTML&CSS</title>
+ </head>
+ <body>
+  <span id="anchor">20240328220321-_前端</span>
+  <pre>
+
+<h1>html</h1>
+seo一个页面h1只有一个且靠近body
+name="", 锚点跳转, name可重复
+<h2>table</h2>
+ul无序列表,ol有序
+caption表格名,th列名
+合并行列,colspan, rowspan
+如第四行与第五行的第一列内容相同, 则在第四行的第一个td里写上rowspan='2',删除第五行的第一个td
+如将某一行的4个td合为一块,则在第一个td里写上colspan='4',删除后面3个td
+范围标签,caption表名,thead用来包&lt;tr&gt;&lt;th&gt;,tbody用来包th以下的,tfoot用来包最后一行
+bgcolor,写在table里的cellpadding,cellspace格间距,frame外边框,rules格边框
+<h2>表单</h2>
+单选radio和复选框checkbox中name相同才能表示为同一组
+表单中的value值都是传递给后台用的
+
+<h1>css</h1>
+颜色表16进制前两位R,次两位G,#ff0000对应255,0,0 红
+对齐方式justify两端对齐
+<h2>选择器</h2>
+::first-line,::first-letter
+*星号选择器选择所有内容,#div1+p,选择选择div1所有兄弟元素中的p元素
+css选择器的优先级
+!important&gt;style&gt;id&gt;class&gt;标签&gt;*&gt;浏览器默认属性
+box-sizing设置为border-box时,padding的宽度从内容宽度里扣除
+<h2>定位</h2>
+使用margin:0px auto的时候对象一定设置宽度,否则没有居中效果,上下,左右,上,右,下,左
+清除浮动:
+    为了父元素不会出现"高度崩塌"
+    如果强制规定外层容器的尺寸,则显得就那么灵活了,高度就不能自动适应了
+    从某个元素开始,不再需要浮动效果了
+<code css>
+#clearDiv::after{
+    content:"";
+    visibility:hidden;
+    height:0px;
+    display:block;
+    clear:both;
+}
+#clearDiv{
+    zoom:1; /*针对IE*/
+}
+</code>
+line-height与height设置一样时可达到垂直居中效果
+通常情况下相对定位作为绝对定位的父一级元素来使用,不用设置top位置等,仅是给绝对定位提供一个参照点
+这样当相对定位整体移动时不会破坏子一级的绝对定位
+相对定位参照点是自身,偏移之位原位置不会被占用依然被保留
+绝对定位参照点是父一级元素
+绝对会忽略原位置,浮动会绕过原位置,绝对和浮动组合时可兼具偏移微调和绕过原位置的特点
+
+伪类控制元素隐藏和显示
+<code html>
+&lt;div class="header"&gt;
+    &lt;div class="menu"&gt;
+        &lt;ul&gt;
+            &lt;li&gt;&lt;/li&gt;
+            &lt;li&gt;&lt;/li&gt;
+        &lt;/ul&gt;
+    &lt;/div&gt;
+&lt;/div&gt;
+</code>
+<code css>
+.header .menu ul{
+    display:none;
+}
+.header .menu:hover ul{
+    display:block;
+}
+</code>
+
+
+ </pre>
+ </body>
+</html>

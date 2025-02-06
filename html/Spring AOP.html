@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>Spring AOP</title>
+</head>
+<body><span id="anchor">20240729003931-_java web</span>
+<pre>
+Object-Oriented Programming OOP
+Aspect-Oriented Programming AOP 面向切面编程
+    将通用,与业务无关的功能抽象封装为切面类,切面可配置在目标方法的执行前,或执行后运行, 即插即用, 在不修改源码的情况下对程序行为进行扩展
+    20240502185824.webp
+
+<h1>AOP原理</h1>
+Spring基于代理模式实现功能动态扩展,包含两种形式
+    目标类拥有接口,通过JDK动态代理实现功能扩展
+        类名为$Proxy加序号
+    目标类没有接口,通过CGLib(Code Generation Library) 组件实现功能扩展
+        20240503103729.webp
+        通过在运行时生成目标继承类字节码的方式进行行为扩展
+            生成一个继承自委托类的代理类,重写委托类的方法,在原方法的基础上进行前置或后置处理
+            类名为原类名加上$$EnhaceByCGLIB
+<h1>代理模式</h1>
+
+20240826161746.webp
+
+<h2>静态代理</h2>
+静态代理中，代理类是在编译时定义的，也就是说，代理类的代码在编译时就已经存在，并且直接实现了代理目标类所实现的接口
+<code>
+public interface UserService {
+    void createUser();
+}
+ 
+public class UserServiceImpl implements UserService{
+    @Override
+    public void createUser() {
+        System.out.println("委托类原有功能");
+    }
+}
+ 
+public class UserServiceProxyA implements UserService{
+    //代理类和委托类实现同一个接口
+    //代理类持有该接口,(持有接口相比于持有委具体托类的优点在于可以嵌套使用)
+    //代理类在执行委托类方法时进行功能扩充
+    private UserService userService ;
+    public UserServiceProxyA(UserService userService){
+        this.userService=userService;
+    }
+ 
+    @Override
+    public void createUser() {
+        System.out.println("代理类扩充前置功能");
+        userService.createUser();
+    }
+}
+ 
+public class UserServiceProxyB implements UserService{
+    private UserService userService ;
+    public UserServiceProxyB(UserService userService){
+        this.userService=userService;
+    }
+
+    @Override
+    public void createUser() {
+        userService.createUser();
+        System.out.println("代理类扩充后置功能");
+    }
+}
+ 
+public class Application {
+    public static void main(String[] args) {
+        System.out.println("--------未使用代理模式--------");
+        UserService userService = new UserServiceImpl();
+        userService.createUser();
+ 
+        System.out.println("\n--------使用代理模式--------");
+        userService = new UserServiceProxyA(new UserServiceImpl());
+        userService.createUser();
+ 
+        System.out.println("\n--------嵌套代理--------");
+        userService = new UserServiceProxyB(new UserServiceProxyA(new UserServiceImpl()));
+        userService.createUser();
+    }
+}
+/*
+--------未使用代理模式--------
+委托类原有功能
+ 
+--------使用代理模式--------
+代理类扩充前置功能
+委托类原有功能
+ 
+--------嵌套代理--------
+代理类扩充前置功能
+委托类原有功能
+代理类扩充后置功能
+*/
+</code>
+<h2>JDK动态代理</h2>
+动态代理是在运行时生成代理类的代码。
+    Java提供了 java.lang.reflect.Proxy 类和 java.lang.reflect.InvocationHandler 接口来实现动态代理。
+        Java的动态代理强制要求委托类必须实现了至少一个接口, 否则反射报错
+    动态代理主要用于为接口创建代理，而无需预先编写代理类的代码
+    它允许你在运行时动态地创建代理类，并拦截和处理方法调用。
+
+通过向 Proxy.newProxyInstance 传入委托类的类加载器、委托类所实现的接口数组和代理处理器，自动生成一个动态代理实例。
+该代理实例同样实现了委托类的接口方法，但其方法实现仅是获取相应的接口方法对象，并将其作为参数委托给代理处理器的 invoke 方法进行实际的调用和增强。
+<code>
+public interface UserService {
+    void createUser();
+}
+public class UserServiceImpl implements UserService{
+    @Override
+    public void createUser() {
+        System.out.println("创建用户");
+    }
+}
+ 
+public interface BookService {
+    void purchase();
+}
+public class BookServiceImpl implements BookService{
+    @Override
+    public void purchase() {
+        System.out.println("采购图书");
+    }
+}
+</code>
+<code>
+//InvocationHandler是JDK提供的反射类,用于在JDK动态代理中对目标方法进行增强, 其实现类与切面类的环绕通知类似
+public class FunctionA implements InvocationHandler {
+ 
+    private Object target;
+ 
+     public FunctionA(Object target){
+        this.target=target;
+    }
+ 
+    @Override
+    public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+        System.out.println("FunctionA的业务逻辑"); //在方法调用前增加逻辑
+        return method.invoke(target,args); //可以对返回值进行进一步的处理，或者直接返回给调用者
+    }
+}
+</code>
+<code>
+public class Application {
+    public static void main(String[] args) {
+        UserService userService = new UserServiceImpl(); //初始化目标对象
+        UserService userServiceProxy = (UserService) Proxy.newProxyInstance(
+                userService.getClass().getClassLoader(), //使用目标对象的类加载器
+                userService.getClass().getInterfaces(), //获取目标对象实现的接口数组, 或 new Class[] { A.class,B.class }
+                new FunctionA(userService) //创建一个 ProxyInvocationHandler 实例，并传入目标对象
+        );
+        userServiceProxy.createUser(); //代理对象将方法调用委托给 ProxyInvocationHandler 的 invoke 方法
+ 
+        BookService bookService = new BookServiceImpl();
+        BookService bookServiceProxy = (BookService) Proxy.newProxyInstance(
+                bookService.getClass().getClassLoader(),
+                bookService.getClass().getInterfaces(),
+                new FunctionA(bookService)
+        );
+        bookServiceProxy.purchase();
+    }
+}
+/*
+FunctionA的业务逻辑
+创建用户
+FunctionA的业务逻辑
+采购图书
+*/
+</code>
+
+Proxy.newProxyInstance 生成的代理类的伪代码结构
+<code>
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
+ 
+public final class $Proxy0 extends Proxy implements UserService {
+    private InvocationHandler h;
+
+    public $Proxy0(InvocationHandler h) {
+        super(h); //由于 Proxy 类的构造函数是受保护(protected修饰)的，其子类必须显式调用 super(h) 来完成父类的初始化
+        this.h = h;
+    }
+ 
+    @Override
+    public void createUser() {
+        try {
+            Method method = UserService.class.getMethod("createUser");
+            h.invoke(this, method, null);
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+    }
+}
+</code>
+
+<h1>Spring AOP 和 AspectJ</h1>
+Spring AOP 和 AspectJ 是两种用于实现面向切面编程（AOP）的技术
+    Spring AOP 主要使用动态代理技术来实现 AOP, 只支持方法级别的切入点（Join Point）
+        即只能在方法调用前后插入切面代码, 不支持构造函数、字段和类级别的切面
+    Eclipse AspectJ 支持编译时织入、类加载时织入和运行时织入，允许在更细粒度的级别（如字段、构造函数等）进行切面编织
+Spring AOP借AspectJWeaver来实现类与方法匹配(切点表达式), 至于功能的扩展是Spring AOP自己来实现的
+
+<h1>切点表达式</h1>
+不要把启动类也纳入到了表达式范围!!
+
+20240503085445.webp
+execution(public * com.imooc..*.*(..))
+    public可省略, 不限返回类型,位于com.imooc包下,所有类,所有方法
+execution(* com.imooc..*Service.*(..))
+    不限返回类型,位于com.imooc包下,名称以Service结尾的类,所有方法
+execution(String com.imooc..*Service.*(..))
+    返回类型为String,位于com.imooc包下,名称以Service结尾的类,所有方法
+execution(* com.imooc..*Service.create*(..))
+    不限返回类型,位于com.imooc包下,名称以Service结尾的类,方法名以create开头
+execution(* com.immoc..*Service.*(String,*))
+    不限返回类型,位于com.imooc包下,名称以Service结尾的类,方法有两个参数且第一个为String
+
+<h1>通知</h1>
+20240503092505.webp
+After Adivce后置通知类似于finally,不管是否抛出异常一定会执行
+还有一种特殊的"通知"引介增强
+    IntroductionInterceptor是对类的增强,而非方法
+    引介增强允许在运行时为目标类增加新属性或方法
+    允许在运行时改变类的行为,让类随运行环境动态变更
+
+<h1>基于xml配置AOP</h1>
+<h2>依赖</h2>
+<code xml>
+&lt;dependency&gt;
+    &lt;groupId&gt;org.springframework&lt;/groupId&gt;
+    &lt;artifactId&gt;spring-context&lt;/artifactId&gt;
+    &lt;version&gt;5.3.19&lt;/version&gt;
+&lt;/dependency&gt;
+&lt;dependency&gt;
+    &lt;groupId&gt;org.aspectj&lt;/groupId&gt;
+    &lt;artifactId&gt;aspectjweaver&lt;/artifactId&gt;
+    &lt;version&gt;1.9.5&lt;/version&gt;
+&lt;/dependency&gt;
+</code>
+<h2>业务类</h2>
+<code>
+public class UserDao {
+    public void insert() { System.out.println("新增用户数据");}
+}
+
+public class UserService {
+    private UserDao userDao; //getter,setter
+ 
+    public void createUser(){
+        if (true) {
+            //throw new RuntimeException("用户已存在");
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        System.out.println("执行创建用户业务逻辑");
+        userDao.insert();
+    }
+ 
+    public String generateRandomPassword(String type, Integer length) {
+        System.out.println("按"+type+"方式生成"+length+"位随机密码");
+        return "fsFDS23";
+    }
+}
+ 
+public class Application {
+    public static void main(String[] args) {
+        ApplicationContext context = new ClassPathXmlApplicationContext("classpath:applicationContext-spring_aop_baseXml.xml");
+        UserService userService = context.getBean("userService", UserService.class);
+        userService.createUser();
+        userService.generateRandomPassword("MD5",8);
+    }
+}
+</code>
+<h2>切面类</h2>
+<h3>前置,后置,返回时,异常时</h3>
+<code>
+public class MethodAspect {
+    public void doBefore(JoinPoint joinPoint) {//通过连接点获取目标类/方法的信息
+ 
+        Object target = joinPoint.getTarget();//获取目标类
+        Signature signature = joinPoint.getSignature();//获取目标方法签名
+        MethodSignature methodSignature = (MethodSignature) signature;
+        Class&lt;?>[] parameterTypes = methodSignature.getParameterTypes();
+        Object[] args = joinPoint.getArgs();//获取目标方法的实际参数值
+ 
+        System.out.printf("----- 1> 前置通知: %s \n----- 2> %s.%s%s\n",
+                new SimpleDateFormat("yyyy-MM-dd HH:mm:ss SSS").format(new Date()),
+                target.getClass().getName(),
+                signature.getName(),
+                args.length > 0 ? "\n----- 3> 实际参数：" + Arrays.toString(args) + " 参数类型：" + Arrays.toString(parameterTypes) : ""
+        );
+    }
+ 
+    public void doAfter(JoinPoint joinPoint) {
+        System.out.println("&lt;----- 后置通知");
+    }
+ 
+    //两参, 一个连接点参数, 一个返回值注入的接收参数
+    public void doAfterReturning(JoinPoint joinPoint, Object ret) {
+        System.out.println("&lt;----- 返回后通知:" + ret);
+    }
+ 
+    //两参, 一个连接点参数, 一个用于捕获异常的Throwable
+    public void doAfterThrowing(JoinPoint joinPoint, Throwable th) {
+        System.out.println("&lt;----- 异常通知:" + th.getMessage());
+    }
+}
+</code>
+<h3>环绕-慢方法统计</h3>
+<code>
+public class SlowMethodChecker {
+    private Long slowMethodDuration;
+ 
+    public void setSlowMethodDuration(Long slowMethodDuration) {
+        this.slowMethodDuration = slowMethodDuration;
+    }
+ 
+    //需要声明返回Object,环绕通知可以集中完成前置,后置,返回,异常四种通知的工作
+    public Object check(ProceedingJoinPoint pjp) throws Throwable {
+        try {
+            long startTime = new Date().getTime(); //前置
+            Object ret = pjp.proceed(); //返回后
+            long endTime = new Date().getTime(); //后置
+ 
+            long duration = endTime - startTime;
+            if (duration >= slowMethodDuration) {
+                Object target = pjp.getTarget();
+                Signature signature = pjp.getSignature();
+                MethodSignature methodSignature = (MethodSignature) signature;
+                Class&lt;?>[] parameterTypes = methodSignature.getParameterTypes();
+                Object[] args = pjp.getArgs();
+ 
+                System.out.printf("▬▬▬▬▬ 1> 慢方法(%sms): %s \n▬▬▬▬▬ 2> %s.%s%s\n",
+                        duration,
+                        new SimpleDateFormat("yyyy-MM-dd HH:mm:ss SSS").format(new Date()),
+                        target.getClass().getName(),
+                        signature.getName(),
+                        args.length > 0 ? "\n▬▬▬▬▬ 3> 实际参数：" + Arrays.toString(args) + " 参数类型：" + Arrays.toString(parameterTypes) : ""
+                );
+            }
+            return ret;
+        } catch (Throwable e) {
+            System.out.println("Exception Message:" + e.getMessage()); //异常
+            //上抛而不是在此处消化
+            throw e;
+        }
+    }
+}
+</code>
+
+<h2>切面配置</h2>
+引入aop,context命名空间
+<code xml>
+&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;
+&lt;beans xmlns=&quot;http://www.springframework.org/schema/beans&quot;
+       xmlns:xsi=&quot;http://www.w3.org/2001/XMLSchema-instance&quot;
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:aop=&quot;http://www.springframework.org/schema/aop&quot;
+       xsi:schemaLocation=&quot;
+           http://www.springframework.org/schema/beans https://www.springframework.org/schema/beans/spring-beans.xsd
+           http://www.springframework.org/schema/context https://www.springframework.org/schema/context/spring-context.xsd
+           http://www.springframework.org/schema/aop https://www.springframework.org/schema/aop/spring-aop.xsd
+&quot;&gt;
+    &lt;!-- 加载配置文件 --&gt;
+    &lt;context:property-placeholder location=&quot;classpath:aop-config.properties&quot;/&gt;
+ 
+    &lt;bean id=&quot;userDao&quot; class=&quot;com.ida.demo10.aop.baseXml.dao.UserDao&quot;/&gt;
+    &lt;bean id=&quot;userService&quot; class=&quot;com.ida.demo10.aop.baseXml.service.UserService&quot;&gt;
+        &lt;property name=&quot;userDao&quot; ref=&quot;userDao&quot;/&gt;
+    &lt;/bean&gt;
+ 
+    &lt;!-- 交容器管理切面类, Spring AOP是基于IoC容器之上的 --&gt;
+    &lt;bean id=&quot;methodAspect&quot; class=&quot;com.ida.demo10.aop.baseXml.aspect.MethodAspect&quot;/&gt;
+    &lt;bean id=&quot;slowMethodChecker&quot; class=&quot;com.ida.demo10.aop.baseXml.aspect.SlowMethodChecker&quot;&gt;
+        &lt;!-- 定义property-placeholder后注入其中的属性 --&gt;
+        &lt;property name=&quot;slowMethodDuration&quot; value=&quot;${slow.method.duration}&quot;/&gt;
+    &lt;/bean&gt;
+    &lt;aop:config&gt;
+        &lt;!-- 定义切点 --&gt;
+        &lt;aop:pointcut id=&quot;pointcut&quot; expression=&quot;execution(public * com.ida.demo10.aop.baseXml..*.*(..))&quot;/&gt;
+ 
+        &lt;!-- 指定要使用哪个切面类 --&gt;
+        &lt;aop:aspect ref=&quot;methodAspect&quot;&gt;
+            &lt;!-- 指定执行时机, 要使用该切面类中的哪个方法, [接收返回值/异常的参数], 作用的切点 --&gt;
+            &lt;aop:before method=&quot;doBefore&quot; pointcut-ref=&quot;pointcut&quot;/&gt;
+            &lt;!-- 后置通知无法获取方法返回值或抛出的异常 --&gt;
+            &lt;aop:after method=&quot;doAfter&quot; pointcut-ref=&quot;pointcut&quot;/&gt;
+            &lt;!-- 除了通过pointcut-ref引用定义好的切点,也可以直接pointcut指定切点 --&gt;
+            &lt;aop:after-returning method=&quot;doAfterReturning&quot; returning=&quot;ret&quot; pointcut=&quot;execution(public * com.ida.demo10.aop.baseXml..*.*(..))&quot;/&gt;
+            &lt;!-- 后置通知,返回后通知,异常通知三者的执行顺序由标签书写顺序决定 --&gt;
+            &lt;aop:after-throwing method=&quot;doAfterThrowing&quot; throwing=&quot;th&quot; pointcut-ref=&quot;pointcut&quot;/&gt;
+        &lt;/aop:aspect&gt;
+ 
+        &lt;aop:aspect ref=&quot;slowMethodChecker&quot;&gt;
+            &lt;aop:around method=&quot;check&quot; pointcut-ref=&quot;pointcut&quot;/&gt;
+        &lt;/aop:aspect&gt;
+    &lt;/aop:config&gt;
+&lt;/beans&gt;
+</code>
+aop-config.properties
+<code properties>
+slow.method.duration=1000
+</code>
+
+<h1>基于注解配置AOP</h1>
+<code xml>
+&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;
+&lt;beans xmlns=&quot;http://www.springframework.org/schema/beans&quot;
+       xmlns:xsi=&quot;http://www.w3.org/2001/XMLSchema-instance&quot;
+       xmlns:context=&quot;http://www.springframework.org/schema/context&quot;
+       xmlns:aop=&quot;http://www.springframework.org/schema/aop&quot;
+       xsi:schemaLocation=&quot;
+           http://www.springframework.org/schema/beans https://www.springframework.org/schema/beans/spring-beans.xsd
+           http://www.springframework.org/schema/context https://www.springframework.org/schema/context/spring-context.xsd
+           http://www.springframework.org/schema/aop https://www.springframework.org/schema/aop/spring-aop.xsd
+&quot;&gt;
+    &lt;context:property-placeholder location=&quot;classpath:aop-config.properties&quot;/&gt;
+    &lt;!-- 开启组件扫描 --&gt;
+    &lt;context:component-scan base-package=&quot;com.ida.demo10.aop.baseAnno&quot;/&gt;
+    &lt;!-- 扫描并自动代理容器中定义的切面 --&gt;
+    &lt;aop:aspectj-autoproxy/&gt;
+&lt;/beans&gt;
+</code>
+业务类标记为Spring组件, 成员自动装配
+切面类标记为Spring组件, 同时标记为切面类(aspectj 的注解)
+<code>
+//类注解
+@Aspect
+ 
+//方法注解, 通知类型(切点表达式或者切点方法)
+@Before("execution(* com.ida.demo10.aop.baseAnno..*(..))")
+@After("execution(* com.ida.demo10.aop.baseAnno..*(..))")
+@AfterReturning(value = "execution(* com.ida.demo10.aop.baseAnno..*(..))",returning = "ret")
+@AfterThrowing(value = "execution(* com.ida.demo10.aop.baseAnno..*(..))",throwing = "th")
+@Around("execution(* com.ida.demo10.aop.baseAnno..*(..))")
+ 
+//切点方法, 这个方法的唯一作用是定义一个切入点表达式, 方法内的逻辑不会被执行
+@Pointcut("execution(* com.ida.demo10.aop.baseAnno..*(..))")
+public void webLog(){} /
+ 
+//这是实际的前置通知方法, 在所有匹配 webLog 切入点的方法执行之前，运行 beforeAdvice() 方法
+@Before("webLog()")
+public void beforeAdvice(){..}
+</code>
+</pre>
+</body>
+</html>

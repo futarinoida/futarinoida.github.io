@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>常量池</title>
+</head>
+<body><span id="anchor">20240616183123-_java</span>
+<pre>
+<h1>包装类常量池</h1>
+除了Boolean,Character继承自Object,其它6个数值类都继承自Number类
+除了Float和Double外,其它包装类都有常量池的概念
+除了Integer以外，其他包装类的缓存范围都不能改变。
+    和其他系统属性一样，在JVM启动时，cache数组的大小是可以通过设置-Djava.lang.Integer.IntegerCache.high=xxx传递进来的
+
+Byte	-128 ~ 127
+Short	-128 ~ 127
+Integer	-128 ~ 127
+Long	-128 ~ 127
+Character	0 ~ 127
+Boolean	true,false
+Float	无
+Double	无
+<code>
+Integer one = 100;//也即执行了Integer one=Integer.valueOf(100);
+Integer two = 100;//也即执行了Integer two=Integer.valueOf(100);
+System.out.println(one == two);//true
+//当参数值位于[-128,127]时,会将值放入缓存区,下次操作如果值存在于缓存区,则直接用,不存在时则实例化Integer
+
+Integer three = 128;
+Integer four = 128;
+System.out.println(three == four);//false
+
+Integer a = -127;
+Integer b = -127;
+System.out.println(a == b);//true
+</code>  
+
+<h1>字符串常量池</h1>
+String str1 = "hello"; //在常量池中创建"hello",将栈引用str1指向它
+String str2 = "hello"; //发现常量池中已经存在"hello",直接将栈引用str2指向它
+String str3 = new String("hello"); //在堆中开辟地址唯一的堆空间存放"hello"对象,将栈引用str3指向它
+String str4 = new String("hello"); //在堆中开辟地址唯一的堆空间存放"hello"对象,将栈引用str4指向它
+栈(存放引用)
+    str1
+    str2
+    str3
+    str4
+常量池
+    "hello"
+堆(存放对象)
+    new String("hello")
+    new String("hello")
+
+String的不可变性
+    String s1 = "Tom"; //在常量池中创建"Tom",将栈引用s1指向它
+    s1 = "Hello, " + s1; //在常量池中创建"Hello, Tom",将栈引用s1指向它,而"Tom"废弃不再被引用
+
+<code>
+String s1 = "abc";
+String s2 = "abc";
+String s3 = "abc"+"def";
+String s4 = "abcdef";
+String s5 = s2+"def"; //s2是一个引用对象, 编译期间无法确定其值所以无法对其进行常量优化,所以会对s5分配一个新的内存空间
+String s6 = new String("abc");
+System.out.println(s1==s2);//t
+System.out.println(s3==s4);//t
+System.out.println(s4==s5);//f
+System.out.println(s4.equals(s5));//t
+System.out.println(s1==s6);//f
+</code>
+</pre>
+</body>
+</html>

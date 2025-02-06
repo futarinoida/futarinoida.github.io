@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>jQuery</title>
+ </head>
+ <body>
+  <span id="anchor">20240328220321-_前端</span>
+  <pre>
+<h1>jQuery</h1>
+1. 选择器
+    基本选择器：$("p") 选择所有 p 元素。
+    ID选择器：$("#myId") 选择ID为 myId 的元素。
+    类选择器：$(".myClass") 选择类为 myClass 的元素。
+    属性选择器：$("input[name='username']") 选择name属性为 username 的所有 input 元素。
+2. DOM 操作
+    获取或设置文本内容：$("#element").text() 或 $("#element").text("New Text")。
+    获取或设置HTML内容：$("#element").html() 或 $("#element").html("html源码")。
+    获取或设置属性：$("#element").attr("href") 或 $("#element").attr("href", "newlink.html")。
+    添加或删除类：$("#element").addClass("newClass")，$("#element").removeClass("oldClass")。
+3. 事件处理
+    单击事件：$("#button").click(function() { alert("Button clicked!"); });
+    鼠标悬停事件：$("#element").hover(function() { /* mouse over */ }, function() { /* mouse out */ });
+    其他事件：$("input").focus(function() { /* focus event */ });
+4. 动画效果
+    显示和隐藏：$("#element").show()，$("#element").hide()。
+    淡入和淡出：$("#element").fadeIn()，$("#element").fadeOut()。
+    滑动：$("#element").slideDown()，$("#element").slideUp()。
+5. Ajax
+    简单的GET请求：$.get("url", function(data) { /* handle data */ });
+    简单的POST请求：$.post("url", { key: "value" }, function(data) { /* handle data */ });
+    通用的Ajax请求：$.ajax({ url: "url", type: "GET", success: function(data) { /* handle data */ } });
+6. 遍历和过滤
+    遍历：$("ul li").each(function(index) { $(this).addClass("item-" + index); });
+    过滤：$("li").filter(".active")，$("li").not(".inactive")。
+7. 链式操作
+    $("#element").addClass("newClass").show().html("New Content");
+
+<code js>
+window.onload=function(){
+    jquery_selector();
+    // sizzle_selector();
+}
+ 
+/*
+jQuery()和$()相等
+常用选择器表达式
+    $("#id")
+    $("tag")
+    $(".className")
+    $("S1,S2,SN") 组合选择器,以逗号分隔
+层叠选择器
+    $("ancestor descendant") 后代
+    $("ancestor&gt;descendant") 直子
+    $("a~b") 选择a之后符合条件的兄弟节点
+属性选择器,明确匹配,如果标签内没有书写该属性,将不会作用
+    $("a[href='b']") 选择链接值为b的a标签
+    $("a[href^='b']") 以b开头
+    $("a[href$='b']") 以b结尾
+    $("a[href*='b']") 包含b
+位置选择器,以0开始
+    $("a:first")
+    $("a:last")
+    $("a:odd") 奇
+    $("a:even") 偶
+    $("a:eq(n)") 获取指定位置的元素
+表单选择器 非明确匹配,如果标签内没有书写该属性,使用默认属性
+    $(":input")
+    $(":text") 可直接:开头,后跟type值
+    $(":password")
+    $("selector:submit")
+    $("selector:reset")
+    ..
+操作属性
+    $("a[href*='b']").attr("href","abc") 一个参数时获取属性值(多个元素时返回第一个),两个参数设置属性值
+    $("a[href*='b']").removeAttr("href")
+操作样式
+    $("a").css("color","red"); 一个参数时获取属性值(多个元素时返回第一个),两个参数设置属性值
+    $("a").css({"color":"red","font-style":"italic"}); 通过传入json对象,同时设置多个属性值
+    $("li").addClass("class1 class2"); 不用加点
+    $("li").removeClass("class");
+设置元素内容
+    $("input[name='unsme']").val("administrator"); val(),无参时为获取值,有参时为设置值
+    $("span.myclass").text("ok"); 获取或设置(标签会被转义)纯文本
+    $("span.myclass").html("ok"); 获取(包括标签)或设置纯html内容,
+*/
+function jquery_selector(){
+    $("#btnSelect").click(function() {
+        var a = $("#txtSelector").val();
+        $("*").removeClass("highlight");
+        $(a).addClass("highlight");
+    });
+}
+ 
+/*
+鼠标:click,dblclick,mouseenter,mouseleave,mouseover
+键盘:keypress,keydown,keyup
+表单:submit,change,focus,blur
+文档窗口:load,resize,scroll,unload(窗口关闭)
+*/
+function jquery_event(){
+    $("p.myclass").on("click",function(){
+        $(this).css("background-color","yellow")
+    });
+    //简写
+    $("span.myclass").click(function () {
+        $(this).css("background-color","green")
+    });
+    //当用户名包含非法空格时,提示红色
+    $("input[name='uname']").keypress(function(event) {
+        console.log(event);//查看字符对应的keycode
+        if(event.keycode==32) //空格
+            $(this).css("color","red")
+    })
+}
+ 
+/*
+使用 Sizzle 选择器功能
+如果只需要使用 jQuery 的选择器功能，可以考虑仅引入 Sizzle，而不必引入完整的 jQuery
+https://github.com/jquery/sizzle/wiki
+*/
+function sizzle_selector(){
+    document.getElementById("btnSelect").addEventListener("click", function() {
+        var a = document.getElementById("txtSelector").value;
+        Sizzle("*").forEach(function(element) {
+            element.classList.remove("highlight");
+        });
+        Sizzle(a).forEach(function(element) {
+            element.classList.add("highlight");
+        });
+    });
+}
+ 
+/*
+定义json对象
+*/
+function define_json_obj(){
+    var json = {};
+    json.name="小明";
+    json.interest=["唱歌","跳舞"];
+    json.cats=[{"花花":"中华田园猫"},{"凡凡":"英国短毛猫"}];
+    console.log(json);
+    console.log(json.cats[1]);
+}
+</code>
+
+<h1>判断页面加载完成</h1>
+<code js>
+//等价于 $(document).ready(function(){})
+//等待DOM(包括样式表)加载完成后
+//不等待整个页面（包括图片等资源）完全加载完成
+$(function(){}); 
+$(function(){});//允许多次
+ 
+//等待整个HTML文档被完全加载和解析后触发
+//不等待样式表、图片等资源的加载完成
+document.addEventListener("DOMContentLoaded", function() {});
+ 
+//等待整个页面加载完成后，包括所有的图片和其他资源
+window.onload=function(){}
+ 
+//与 window.onload 类似，但是可以添加多个事件处理函数，通过 addEventListener 添加的事件处理函数不会覆盖之前添加的处理函数
+window.addlistener("load",function(){});
+</code>
+
+<h1>表单校验</h1>
+<code html>
+&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+&lt;head&gt;
+    &lt;meta charset="UTF-8"&gt;
+    &lt;title&gt;Document&lt;/title&gt;
+    &lt;script src="index.js"&gt;&lt;/script&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;form action="#" id="fo"&gt;
+    &lt;div id="error"&gt;&lt;/div&gt;
+    姓名:&lt;input id="name"/&gt;&lt;br&gt;
+    身份证号:&lt;input id="no"/&gt;&lt;br&gt;
+    &lt;input type="submit"/&gt;
+&lt;/form&gt;
+&lt;script&gt;
+document.getElementById('fo').onsubmit=function(){
+    var error = document.getElementById('error');
+    var reg1 = /^[\u4e00-\u9fa5]{2,8}$/;
+    var reg2 = /^[1234568]\d{16}[0-9xX]$/;
+    var name = document.getElementById('name').value;
+    var no = document.getElementById('no').value;
+    if(!reg1.test(name)){
+        error.innerHTML="姓名格式有误"
+        return false; //终止提交
+    }else if(!reg2.test(no)){
+        error.innerHTML="身份证号有误";
+        return false;
+    }else{
+        alert("格式正确,准备提交");
+        error.innerHTML="";
+        return true;
+    }
+};
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code>
+ </pre>
+ </body>
+</html>

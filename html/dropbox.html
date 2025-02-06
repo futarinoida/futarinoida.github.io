@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>dropbox</title>
+ </head>
+ <body>
+  <span id="anchor">20240307183503-_工具使用</span>
+  <pre>
+<h1>同步忽略</h1>
+<code shell>
+# PowerShell
+# 忽略
+Set-Content -Path 'D:\Dropbox\workspace\idea\practice\out' -Stream com.dropbox.ignored -Value 1
+Set-Content -Path 'D:\Dropbox\workspace\idea\practice\target' -Stream com.dropbox.ignored -Value 1
+ 
+# 取消忽略
+Clear-Content -Path 'D:\Dropbox\workspace\idea\practice\out' -Stream com.dropbox.ignored
+Clear-Content -Path 'D:\Dropbox\workspace\idea\practice\target' -Stream com.dropbox.ignored
+</code>
+
+<h1>收集邮件的图片附件</h1>
+忽略邮件正文,仅收集附件,存到网盘中名为Email Attachments的文件夹
+单封邮件附件数量上限100,总体积20MB以内
+</pre>
+ </body>
+</html>

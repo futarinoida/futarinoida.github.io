@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>注解</title>
+ </head>
+ <body>
+  <span id="anchor">20240307183503-_java</span>
+  <pre>
+<h1>注解原理</h1>
+注解本质上是接口
+    每个注解在编译时都会生成一个对应的接口类型
+        这也就解释了为什么在注解中其成员要么是抽象方法要么是常量
+
+当RUNTIME注解被JVM加载进来，那么Java就可以用反射获取到注解内容
+    java会为注解产生一个代理类，这个代理类包括一个AnnotationInvocationHandler成员变量
+        AnnotationInvocationHandler有一个Map的成员变量，用来存储所有的注解的属性赋值；
+    传统接口中的变量都是public final static无法修改，而我们要的是注解里的成员变量能够赋值，所以选用了方法表示变量
+        在程序中，调用注解接口的方法，也就是调用注解里的成员变量，将会被代理类拦截接管，然后根据方法名字，到Map里面拿相应的Value并返回。
+
+<h1>注解的分类</h1>
+按保留策略（Retention Policy）分类
+<p>
+SOURCE: 只在源码中保留，编译时被丢弃
+CLASS: 编译时保留在class文件中，但不会被jvm加载（默认）
+RUNTIME: 编译后保留在class文件中,而且会被jvm运行时访问到，可以结合反射读取
+</p>
+按用途分类
+<p>
+标记注解: 不包含成员变量，仅用于标记。：示例@Deprecated
+单值注解: 只有一个成员变量。：示例@SuppressWarnings
+完整注解: 包含多个成员变量。：示例@Retention
+元注解: 用于注解其他注解的注解。：示例@Retention, @Target
+</p>
+按目标（Target）分类
+<p>
+ElementType.ANNOTATION_TYPE: 可以应用于注解类型的注解（元注解）。
+ElementType.CONSTRUCTOR: 可以应用于构造函数。
+ElementType.FIELD: 可以应用于字段或属性。
+ElementType.LOCAL_VARIABLE: 可以应用于局部变量。
+ElementType.METHOD: 可以应用于方法。
+ElementType.PACKAGE: 可以应用于包。
+ElementType.PARAMETER: 可以应用于方法参数。
+ElementType.TYPE: 可以应用于类、接口（包括注解类型）或枚举声明。
+ElementType.TYPE_PARAMETER: 可以应用于类型参数。
+ElementType.TYPE_USE: 可以应用于任意使用类型的地方。
+</p>
+
+<h1>预设元注解</h1>
+@Target
+    指定多个目标 @Target(value={CONSTRUCTOR, FIELD, LOCAL_VARIABLE, METHOD, PACKAGE, PARAMETER, TYPE})
+    如果在定义一个注解时没有显式指定 @Target 注解，则编译器会为该注解自动添加一个默认的 @Target 注解。可以应用于任何地方
+@Retention
+@Inherited
+    如果注解A受元注解@Iherited的注解,那么当父类使用了注解A时,子类不写注解A也会自动具有注解A
+<code>
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+@Inherited //可继承的
+@interface A {
+    String name() default "A";
+}
+ 
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+@interface B {
+    String name() default "B";
+}
+ 
+@A
+class Animal {}
+@B
+class Dog extends Animal {}
+ 
+public class Demo {
+    public static void main(String[] args) {
+        //getAnnotations获取所有可继承的注解，包括从父类继承的注解
+        System.out.println(Arrays.toString(Dog.class.getAnnotations()));
+        //[@A(name=A), @B(name=B)]
+    }
+}
+</code>
+@Documented 
+    表明这个注解应该被javadoc工具记录
+@Repeatable 
+    允许在同一个元素上多次声明相同的注解
+    必须指定容器注解
+<code>
+@Target(ElementType.METHOD)
+@Retention(RetentionPolicy.RUNTIME)
+@Repeatable(A.class) //可以在一个元素上多次声明 B 注解，或者使用容器注解 A 一次性声明多个 B 注解
+@interface B {
+    String value() default "b";
+}
+ 
+@Target(ElementType.METHOD)
+@Retention(RetentionPolicy.RUNTIME)
+@interface A { //容器注解
+    B[] value();
+}
+ 
+class One {
+    //方式1: 使用可重复注解
+    //@B("b1")
+    //@B("b2")
+    //方式2: 使用容器注解
+    @A({@B("b1"),@B("b2")})
+    private void m() {}
+}
+ 
+public class Main {
+    public static void main(String[] args) {
+        Method[] methods = One.class.getDeclaredMethods();
+        for (Method method : methods){
+            if (method.getName().equals("m")) {
+                //getDeclaredAnnotations获取当前元素上声明的所有注解，不包括继承的注解
+                Annotation[] annotations = method.getDeclaredAnnotations();
+                System.out.println(annotations.length);//1
+                System.out.println(Arrays.toString(annotations));
+                //[@A(value=[@B(value=b1), @B(value=b2)])]
+            }
+        }
+    }
+}
+</code>
+<code>
+@Retention(RetentionPolicy.RUNTIME)
+@Repeatable(Annos.class)
+@interface Anno {
+    int a() default 1;
+    int b() default 0;
+    int c() default 0;
+}
+@Retention(RetentionPolicy.RUNTIME)
+@interface Annos {
+    Anno[] value();
+}
+class Op {
+    @Anno(b = 2, c = 3)
+    @Anno(a = 0, b = 2, c = 4)
+    private static void add(int a, int b, int c) {
+        if (c != a + b) throw new ArithmeticException("error");
+    }
+}
+public class Demo {
+    public static void main(String[] args) {
+        for (Method m : Op.class.getDeclaredMethods()) {
+            if (m.isAnnotationPresent(Annos.class)) {
+                System.out.println(m.getName());
+                Anno[] annos = m.getAnnotationsByType(Anno.class);
+                for (Anno anno : annos) {
+                    System.out.println(anno.a() + " " + anno.b() + " " + anno.c());
+                    try {
+                        boolean accessible = m.isAccessible();
+                        m.setAccessible(true);
+                        m.invoke(null, anno.a(), anno.b(), anno.c());
+                        m.setAccessible(accessible);
+                    } catch (InvocationTargetException e) {
+                        //捕获被反射调用的方法内部抛出的异常
+                        //要特别处理 InvocationTargetException，因为该异常会包装被调用方法抛出的任何异常。
+                        //可以使用 InvocationTargetException.getCause() 来获取被调用方法内部抛出的异常,getCause() 方法返回的类型是 Throwable
+                        //如果明确知道被调用方法可能抛出的异常类型，并且想要进行特定的处理，可以先用 Throwable 接收，然后进行类型检查
+                        Throwable cause = e.getCause();
+                        if (cause instanceof ArithmeticException) {
+                            System.out.printf("Test [%s] failed: %s %n", m, cause.getMessage());
+                        } else {
+                            System.out.printf("Test [%s] failed: %s %n", m, e);
+                        }
+                    } catch (Exception e) {
+                        System.out.printf("Test [%s] failed: %s %n", m, e);
+                    }
+                }
+            }
+        }
+    }
+}
+/*
+add
+1 2 3
+0 2 4
+Test [private static void com.ida.temp.Op.add(int,int,int)] failed: error 
+*/
+</code>
+@Native 
+    用于标记那些在本地代码中使用的常量，表明这些常量在本地方法实现中是可用的。它没有任何语义上的影响，主要是作为一种文档化工具
+    例如可以在本地代码（如 C 或 C++ 实现的 JNI 方法）中使用
+
+<h1>预设标准注解</h1>
+@Override
+@Deprecated
+    可以带有描述信息
+    @Deprecated(since = "1.5", forRemoval = true) 自1.5版本开始被标记为过时,计划在未来版本中移除
+@SuppressWarnings
+    用于标记那些你明确知道并决定忽略的警告，以保持代码的整洁和易读性
+    @SuppressWarnings({"unchecked", "deprecation"}) 忽略使用了未检查的转换,过时的方法的警告
+@SafeVarargs
+    仅用于抑制与泛型类型的可变参数方法相关的编译器警告，它并不能防止实际的类型不安全操作
+    不能在可具体化的类型上使用, 只能应用于静态方法、final 实例方法或私有实例方法
+<code>
+@SafeVarargs
+//@SuppressWarnings("unchecked")
+public static &lt;T> void safeVarargsMethod(T... args) {
+    for (T arg : args) {
+        System.out.println(arg);
+    }
+}
+</code>
+@FunctionalInterface
+
+<h1>与注解相关的方法</h1>
+<code>
+Class.getAnnotations() //返回该类上所有直接显式声明的注解，包括继承的隐式具有的注解
+Class.getDeclaredAnnotations() //返回该类上所有直接显式声明的注解，但不包括继承的
+ 
+Class.getAnnotation(Class&lt;T> annotationClass) //返回指定类型的注解，包括继承的
+Class.getDeclaredAnnotation(Class&lt;T> annotationClass) //返回该类上直接声明的指定类型的注解，不包括继承的注解
+ 
+Method.getAnnotationsByType(Class&lt;T> annotationClass) //返回方法上指定类型的所有注解，包括继承的, 但是它只能访问到公共方法上的注解
+Method.getDeclaredAnnotationsByType(Class&lt;T> annotationClass) //返回方法上指定类型的所有注解，不包括继承的, 不受访问权限的限制
+ 
+boolean isAnnotationPresent(Class&lt;?> extends Annotation> annotationClass) //检查当前元素是否有指定类型的注解。
+Annotation[][] getParameterAnnotations() //获取方法参数上的注解数组(按照参数顺序),[[anno1,anno2],[anno3],[anno4,anno5]]
+Annotation.annotationType() //返回注解的Class对象
+ 
+Annotation[] annotations = Demo.class.getDeclaredMethod("m").getAnnotations();
+for (Annotation annotation : annotations) {
+    Class&lt;? extends Annotation> annotationType = annotation.annotationType();
+    System.out.println("Annotation type: " + annotationType.getName());//运行时动态获取注解的类型信息
+}
+</code>
+
+<h1>自定义注解</h1>
+如果自定义注解内只有一个抽象方法需要赋值，且方法名为value，可以省略value=
+    所以如果注解只有一个抽象方法成员，建议使用方法名value
+自定义注解内的抽象方法以无参数有返回值的形式来声明，又称为配置参数
+    返回值类型只能是八种基本数据类型、String类型、Class类型、enum类型、Annotation类型、以上所有类型的数组
+<code>
+enum Day {
+    SATURDAY,
+    SUNDAY
+}
+ 
+@Retention(RetentionPolicy.RUNTIME)
+@interface A {
+    B[] bs();
+    String s() default "";
+    int num();
+    Day day();
+}
+ 
+@Retention(RetentionPolicy.RUNTIME)
+@interface B {
+    int n() default 0;
+    String name() default "";
+}
+ 
+@A(s = "注解",
+        num = 22,
+        day = Day.SATURDAY,
+        bs = {
+                @B(n = 1, name = "SpongeBob"),
+                @B(n = 2, name = "Patrick")
+        }
+)
+public class Demo {
+    public static void main(String[] args) {
+        A a = Demo.class.getAnnotation(A.class);
+        System.out.println(a.day());
+        System.out.println(a.bs()[0].name());
+        System.out.println(a.bs()[1].n());
+    }
+}
+</code>
+
+<h1>自定义注解的读取</h1>
+<h2>读取方法参数上的注解</h2>
+<code>
+@Target(ElementType.PARAMETER)
+@Retention(RetentionPolicy.RUNTIME)
+@interface Anno {
+    String value() default "1";
+}
+ 
+@Target(ElementType.PARAMETER)
+@Retention(RetentionPolicy.RUNTIME)
+@interface Anno2 {
+    String value() default "2";
+}
+ 
+public class Demo {
+    public void test(@Anno("5") String s,
+                     @Anno2 @Anno("6") String s1,
+                     String s3,
+                     @Anno("9") String s4) {}
+ 
+    public static void main(String[] args) {
+        Method[] methods = Demo.class.getMethods();
+        for (Method method : methods) {
+            if ("test".equals(method.getName())) {
+                System.out.println(method);
+                Annotation[][] annotations = method.getParameterAnnotations();
+                int n = 0;
+                for (Annotation[] annos : annotations) {
+                    n++;
+                    if (annos.length > 0) {
+                        System.out.println("第" + n + "个参数的注解数量:" + annos.length + ",含有以下注解:");
+                        for (Annotation anno : annos) {
+                            if (anno instanceof Anno) {
+                                Anno a = (Anno) anno;
+                                System.out.println(anno.annotationType().getSimpleName() + ": " + a.value());
+                            } else if (anno instanceof Anno2) {
+                                Anno2 a = (Anno2) anno;
+                                System.out.println(anno.annotationType().getSimpleName() + ": " + a.value());
+                            } else {
+                                System.out.println(anno.annotationType().getSimpleName());
+                            }
+                        }
+                    } else {
+                        System.out.println("第" + n + "个参数的注解数量为0");
+                    }
+                    System.out.println("-----------------");
+                }
+            }
+        }
+    }
+}
+/*
+public void com.ida.temp.Demo.test(java.lang.String,java.lang.String,java.lang.String,java.lang.String)
+第1个参数的注解数量:1,含有以下注解:
+Anno: 5
+-----------------
+第2个参数的注解数量:2,含有以下注解:
+Anno2: 2
+Anno: 6
+-----------------
+第3个参数的注解数量为0
+-----------------
+第4个参数的注解数量:1,含有以下注解:
+Anno: 9
+-----------------
+*/
+</code>
+
+<h2>读取类上的注解</h2>
+<code>
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+@interface Anno {
+    int id() default -1;
+    String msg() default "Hi";
+}
+ 
+@Anno(id = 222,msg = "awdawd")
+public class Demo {
+    public static void main(String[] args) {
+        Method[] methods = Anno.class.getDeclaredMethods();
+        //获取注解的变量名
+        for (Method method : methods) {
+            System.out.println("注解的变量名为：" + method.getName());
+        }
+        boolean hasAnnotation = Demo.class.isAnnotationPresent(Anno.class);
+        if (hasAnnotation) {
+            Anno anno = Demo.class.getAnnotation(Anno.class);
+            //获取变量值
+            System.out.println("id:" + anno.id());
+            System.out.println("msg:" + anno.msg());
+        }
+    }
+}
+/*
+注解的变量名为：id
+注解的变量名为：msg
+id:222
+msg:awdawd
+*/
+</code>
+
+<h2>读取方法上的注解</h2>
+<code>
+@Target({ElementType.FIELD, ElementType.METHOD, ElementType.TYPE})
+@Retention(RetentionPolicy.RUNTIME)
+@interface Anno {
+    String value() default "";
+}
+ 
+@Target({ElementType.FIELD, ElementType.METHOD, ElementType.TYPE})
+@Retention(RetentionPolicy.RUNTIME)
+@interface Anno2 {
+    String value2() default "";
+}
+ 
+class User {
+    private String name;
+    private String age;
+ 
+    public String getName() {
+        return name;
+    }
+ 
+    @Anno("Sandy")
+    @Anno2(value2 = "Park")
+    public User setName(String name) {
+        this.name = name;
+        return this;
+    }
+ 
+    public String getAge() {
+        return age;
+    }
+ 
+    @Anno("20")
+    public User setAge(String age) {
+        this.age = age;
+        return this;
+    }
+}
+ 
+public class Demo {
+    public static void main(String[] args) {
+        Method[] methods = User.class.getDeclaredMethods();//包括private，不包括父类的
+        for (Method method : methods) {
+            System.out.println("方法名为：" + method.getName());
+ 
+            Annotation[] annotations = method.getDeclaredAnnotations();//不包括继承的
+            for (Annotation annotation : annotations) {
+                System.out.println("方法包含注解：" + annotation.annotationType().getSimpleName());
+                Method[] annotationMethods = annotation.annotationType().getDeclaredMethods();//包括private，不包括父类的
+                for (Method annotationMethod : annotationMethods) {
+                    try {
+                        //对注解实例调用其属性方法，从而获取属性的值
+                        System.out.println("注解的属性为：" 
+                                                + annotationMethod.getName() 
+                                                + "=" 
+                                                + annotationMethod.invoke(annotation));
+                    } catch (IllegalAccessException | InvocationTargetException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }
+            System.out.println("------------------------");
+        }
+    }
+}
+/*
+方法名为：getName
+------------------------
+方法名为：setName
+方法包含注解：Anno
+注解的属性为：value=Sandy
+方法包含注解：Anno2
+注解的属性为：value2=Park
+------------------------
+方法名为：getAge
+------------------------
+方法名为：setAge
+方法包含注解：Anno
+注解的属性为：value=20
+------------------------
+*/
+</code>
+
+<h2>读取字段上的注解</h2>
+<code>
+@Target({ElementType.FIELD, ElementType.METHOD, ElementType.TYPE})
+@Retention(RetentionPolicy.RUNTIME)
+@interface A {
+    String value() default "";
+}
+ 
+@Target({ElementType.FIELD, ElementType.METHOD, ElementType.TYPE})
+@Retention(RetentionPolicy.RUNTIME)
+@interface B {
+    String value() default "";
+    String value2() default "";
+}
+ 
+class User {
+    @A("张三")
+    private String name;
+    @A("33")
+    @B(value = "22", value2 = "11")
+    private String age;
+ 
+    public String getName() {
+        return name;
+    }
+    public void setName(String name) {
+        this.name = name;
+    }
+    public String getAge() {
+        return age;
+    }
+    public void setAge(String age) {
+        this.age = age;
+    }
+}
+ 
+public class Demo {
+    public static void main(String[] args) {
+        User user = new User();
+        user.setName("李四");
+        user.setAge("44");
+ 
+        Field[] fields = User.class.getDeclaredFields();
+        for (Field field : fields) {
+            boolean accessible = field.isAccessible();
+            field.setAccessible(true);
+            Object o;//获取对象的字段实际值
+            try {
+                o = field.get(user);
+                field.setAccessible(accessible);
+            } catch (IllegalAccessException e) {
+                throw new RuntimeException(e);
+            }
+            System.out.println("user对象的字段信息: " + field.getName() + "=" + o);
+ 
+            Annotation[] annotations = field.getDeclaredAnnotations();
+            System.out.println(Arrays.toString(annotations));
+ 
+            for (Annotation annotation : annotations) {
+                //错误的: annotation.getClass()
+                //Method[] methods = annotation.getClass().getDeclaredMethods();
+                Method[] methods = annotation.annotationType().getDeclaredMethods();
+                System.out.println("包含注解: " + annotation.annotationType().getSimpleName());
+                for (Method method : methods) {
+                    try {
+                        System.out.println(method.getName() + "=" + method.invoke(annotation));
+                    } catch (IllegalAccessException | InvocationTargetException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }
+ 
+            System.out.println("----------------");
+        }
+    }
+}
+/*
+user对象的字段信息: name=李四
+[@com.ida.temp.A(value=张三)]
+包含注解: A
+value=张三
+----------------
+user对象的字段信息: age=44
+[@com.ida.temp.A(value=33), @com.ida.temp.B(value2=11, value=22)]
+包含注解: A
+value=33
+包含注解: B
+value=22
+value2=11
+----------------
+*/
+</code>
+
+<h1>注解处理器</h1>
+APT（Annotation Processing Tool）
+注解处理器（Annotation Processor）是一个用于在编译时处理注解的工具。通过注解处理器，可以在编译时生成代码、验证代码或执行其他类型的代码分析
+
+<h2>创建注解处理器项目</h2>
+<h3>pom</h3>
+&lt;build>
+    &lt;plugins>
+        &lt;plugin>
+            &lt;groupId>org.apache.maven.plugins&lt;/groupId>
+            &lt;artifactId>maven-compiler-plugin&lt;/artifactId>
+            &lt;version>3.8.1&lt;/version>
+            &lt;configuration>
+                &lt;source>1.8&lt;/source>
+                &lt;target>1.8&lt;/target>
+                &lt;encoding>UTF-8&lt;/encoding>
+                &lt;!--
+                 禁用了注解处理器的自动发现机制。
+                 其目的是在构建注解处理器本身时，防止其在自己项目内触发注解处理流程。
+                 这是因为在编译注解处理器项目时，注解处理器不应对自身进行处理
+                 -->
+                &lt;compilerArgument>-proc:none&lt;/compilerArgument>
+            &lt;/configuration>
+        &lt;/plugin>
+    &lt;/plugins>
+&lt;/build>
+
+</code>
+<h3>注解类</h3>
+<code>
+@Retention(RetentionPolicy.SOURCE)
+@Target(ElementType.TYPE)
+public @interface MyAnnotation {
+    String value();
+}
+</code>
+<h3>注解处理器类</h3>
+<code>
+@SupportedAnnotationTypes("com.ida.my_anno_processor.annotation.MyAnnotation")
+@SupportedSourceVersion(SourceVersion.RELEASE_8)
+public class MyAnnotationProcessor extends AbstractProcessor {
+ 
+    @Override
+    public boolean process(Set&lt;? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+        for (Element element : roundEnv.getElementsAnnotatedWith(MyAnnotation.class)) {
+            MyAnnotation myAnnotation = element.getAnnotation(MyAnnotation.class);
+            String className = element.getSimpleName() + "_Generated";
+            String packageName = processingEnv.getElementUtils().getPackageOf(element).getQualifiedName().toString();
+            try {
+                JavaFileObject file = processingEnv.getFiler().createSourceFile(packageName + "." + className);
+                try (Writer writer = file.openWriter()) {
+                    writer.write("package " + packageName + ";\n");
+                    writer.write("public class " + className + " {\n");
+                    writer.write("    public String getValue() {\n");
+                    writer.write("        return \"" + myAnnotation.value() + "\";\n");
+                    writer.write("    }\n");
+                    writer.write("}\n");
+                }
+            } catch (IOException e) {
+                processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, e.toString());
+            }
+        }
+        return true;
+    }
+}
+</code>
+<h3>注册注解处理器</h3>
+在resources/META-INF/services目录下创建名为 javax.annotation.processing.Processor的文件，写入注解处理器的全限定名
+    META-INF/services 目录对于注册注解处理器是必要的, 用于告知 Java 编译器哪些类是注解处理器
+        它是 Java 服务提供者接口（Service Provider Interface, SPI）的一部分，允许框架和工具在运行时动态发现和加载实现特定接口的类
+        当编译器或工具（如 IDE）在编译时需要查找注解处理器时，它会扫描该目录并读取 javax.annotation.processing.Processor 文件来找到可用的注解处理器
+    javax.annotation.processing.Processor 是固定的文件名，用于标识注解处理器的服务提供者配置文件
+        在这个文件中(文件中不应该有空行)，每行包含一个注解处理器的完全限定类名，这样编译器就可以发现和加载这些处理器
+<h3>发布为依赖</h3>
+mvn clean install
+
+<h2>在另一个项目中使用注解</h2>
+<h3>添加加注解处理器编译时依赖</h3>
+<code xml>
+&lt;dependencies>
+    &lt;dependency>
+        &lt;groupId>com.ida&lt;/groupId>
+        &lt;artifactId>my-anno-processor&lt;/artifactId>
+        &lt;version>1.0-SNAPSHOT&lt;/version>
+        &lt;scope>provided&lt;/scope>
+    &lt;/dependency>
+&lt;/dependencies>
+</code>
+
+<h3>应用注解</h3>
+<code>
+import com.ida.my_anno_processor.annotation.MyAnnotation;
+ 
+@MyAnnotation("我将无我")
+public class TestMyAnnotationProcessor {
+    public static void main(String[] args) {
+        String info = new TestMyAnnotationProcessor_Generated().getValue();
+        System.out.println(info);
+    }
+}
+</code>
+
+<h1>例</h1>
+<h2>工厂预设</h2>
+<code>
+@Target({ElementType.FIELD, ElementType.METHOD, ElementType.TYPE})
+@Retention(RetentionPolicy.RUNTIME)
+@interface Init {
+    String value() default "";
+}
+ 
+class User {
+    private String name;
+    private String age;
+ 
+    public String getName() {
+        return name;
+    }
+ 
+    @Init("louis")
+    public User setName(String name) {
+        this.name = name;
+        return this;
+    }
+ 
+    public String getAge() {
+        return age;
+    }
+ 
+    @Init("22")
+    public User setAge(String age) {
+        this.age = age;
+        return this;
+    }
+}
+ 
+class UserFactory {
+    public static User create() {
+        User user = new User();
+ 
+        Method[] methods = User.class.getMethods();
+        try {
+            for (Method method : methods) {
+                if (method.isAnnotationPresent(Init.class)) {
+                    Init init = method.getAnnotation(Init.class);
+                    method.invoke(user, init.value());
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+ 
+        return user;
+    }
+}
+ 
+public class Demo {
+    public static void main(String[] args) {
+        User user = UserFactory.create();
+        user.setAge("26");
+        System.out.println(user.getName());
+        System.out.println(user.getAge());
+    }
+}
+</code>
+
+<h2>方法检查</h2>
+<code>
+@Retention(RetentionPolicy.RUNTIME)
+@interface Jiecha { }
+ 
+class NoBug {
+    @Jiecha
+    public void suanShu() {
+        System.out.println("1234567890");
+    }
+    @Jiecha
+    public void jiafa() {
+        System.out.println("1+1=" + 1 + 1);
+    }
+    @Jiecha
+    public void jiefa() {
+        System.out.println("1-1=" + (1 - 1));
+    }
+    @Jiecha
+    public void chengfa() {
+        System.out.println("3 x 5=" + 3 * 5);
+    }
+    @Jiecha
+    public void chufa() {
+        System.out.println("6 / 0=" + 6 / 0);
+    }
+    public void ziwojieshao() {
+        System.out.println("我写的程序没有 bug!");
+    }
+}
+ 
+public class Demo {
+    public static void main(String[] args) {
+        NoBug testobj = new NoBug();
+        StringBuilder log = new StringBuilder();
+        int errornum = 0;
+
+        Method[] method = testobj.getClass().getDeclaredMethods();
+        for (Method m : method) {
+            if (m.isAnnotationPresent(Jiecha.class)) {
+                try {
+                    boolean accessible = m.isAccessible();
+                    m.setAccessible(true);
+                    m.invoke(testobj);
+                    m.setAccessible(accessible);
+                } catch (Exception e) {
+                    errornum++;
+                    log.append(m.getName());
+                    log.append(" ");
+                    log.append("has error:");
+                    log.append("\n\r  caused by ");
+                    log.append(e.getCause().getClass().getSimpleName());
+                    log.append("\n\r");
+                    log.append(e.getCause().getMessage());
+                    log.append("\n\r");
+                }
+            }
+        }
+        log.append(testobj.getClass().getSimpleName());
+        log.append(" has ");
+        log.append(errornum);
+        log.append(" error.");
+        System.out.println(log);
+    }
+}
+/*
+1234567890
+3 x 5=15
+1-1=0
+1+1=11
+chufa has error:
+  caused by ArithmeticException
+/ by zero
+NoBug has  1 error.
+*/
+</code>
+
+<h2>方法检查2</h2>
+<code>
+@Target(ElementType.METHOD)
+@Retention(RetentionPolicy.RUNTIME)
+@interface Check { }
+ 
+class Foo {
+    @Check
+    public static void m1() { }
+    public static void m2() { }
+    @Check
+    public static void m3() {
+        throw new RuntimeException("Boom");
+    }
+    public static void m4() { }
+    @Check
+    public static void m5() { }
+    public static void m6() { }
+    @Check
+    public static void m7() {
+        throw new RuntimeException("Crash");
+    }
+    public static void m8() { }
+}
+ 
+public class Demo {
+    public static void main(String[] args) {
+        int passed = 0;
+        int failed = 0;
+        for (Method m : Foo.class.getDeclaredMethods()) {
+            if (m.isAnnotationPresent(Check.class)) {
+                try {
+                    m.invoke(null);
+                    passed++;
+                }catch (Throwable ex) {
+                    System.out.printf("Test [%s] failed: [%s] %n", m, ex.getClass());
+                    System.out.printf("Test [%s] failed: [%s] %n", m, ex.getCause());
+                    System.out.println();
+                    failed++;
+                }
+            }
+        }
+        System.out.printf("Passed: %d, Failed %d%n", passed, failed);
+    }
+}
+/*
+Test [public static void com.ida.temp.Foo.m3()] failed: [class java.lang.reflect.InvocationTargetException] 
+Test [public static void com.ida.temp.Foo.m3()] failed: [java.lang.RuntimeException: Boom] 
+
+Test [public static void com.ida.temp.Foo.m7()] failed: [class java.lang.reflect.InvocationTargetException] 
+Test [public static void com.ida.temp.Foo.m7()] failed: [java.lang.RuntimeException: Crash] 
+
+Passed: 2, Failed 2
+*/
+</code>
+</pre>
+ </body>
+</html>

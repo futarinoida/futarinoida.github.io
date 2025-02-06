@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>usb共享代理网络</title>
+</head>
+
+<body><span id="anchor">20241121235112-_工具使用</span>
+<pre>
+代理软件的桌面端总不如移动端那样稳定持久，于是寻求usb直接共享代理网络的方法，gpt的回复是使用vpnhotspot，需要root，以下记述root的零碎步骤
+
+<h1>下载安装usb驱动</h1>
+设备管理器--添加驱动程序--选择inf所在目录
+    https://dl.google.com/android/repository/usb_driver_r13-windows.zip
+
+<h1>下载SDK组件</h1>
+解压后目录添加到环境变量
+    https://dl.google.com/android/repository/platform-tools-latest-windows.zip?hl=zh-cn
+
+<h1>解锁BL</h1>
+手机开发者模式, 允许oem解锁, 允许usb调试
+解锁的同时将删除全部个人数据
+<code batch>
+fastboot devices
+fastboot flashing unlock
+</code>
+    
+<h1>修补镜像</h1>
+从原始出厂固件中提取boot.img
+    https://developers.google.com/android/images?hl=zh-cn
+下载magisk安装包
+    https://github.com/topjohnwu/Magisk/releases
+两者拖到手机下载目录
+手机安装magisk, 对boot.img进行修补, 生成的文件拖回桌面
+
+<h1>刷入修补后镜像</h1>
+<code batch>
+adb devices
+adb reboot bootloader
+fastboot flash boot patched_image.img
+fastboot reboot
+</code>
+
+<h1>验证是否已root</h1>
+<code batch>
+adb shell
+</code>
+在 ADB shell 中，输入su, 如果进入超级用户权限（通常命令提示符会从 $ 变为 #），说明设备已 Root；否则未 Root
+</pre>
+</body>
+
+</html>

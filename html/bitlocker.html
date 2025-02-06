@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>bitlocker</title>
+ </head>
+ <body>
+  <span id="anchor">20240307183503-_工具使用</span>
+  <pre>
+全盘加密后,设置TPM+PIN, 此后无法对移动硬盘加密, 先禁用附加身份验证, 加密完成后再启用
+
+<h1>验证方式</h1>
+仅TPM验证：
+    这是一种透明运行模式：此模式使用TPM芯片硬件的功能来提供透明的用户体验 – 如果没有意外，用户可以像正常时一样启动并登录到Windows。用于全盘加密的密钥由TPM芯片存储，且在未检测到有对早期启动组件的修改的情况下才会释放到OS加载代码中。这是默认的验证模式，但这种模式无法防范诸如笔记本整体被盗之类的物理攻击。
+仅口令（PIN）：
+    类似于 Windows 的登陆密码，输入正确的 PIN 后会解密磁盘并启动，可以防范物理攻击，但由于缺乏硬件安全能力，仅靠软件无法实现对 BIOS 和 MBR 的早期检查功能。
+仅USB-Key：
+    使用这个方式则会在设置 Bitlocker 时要求你选择一个 U盘 用于存储验证密钥，此后每次启动都需要插入这个 U盘 ，待系统验证密钥后可正常启动。同样仅靠软件无法实现对 BIOS 和 MBR 的早期检查功能，并且注意如果你的 U盘 和电脑一起被盗则无法发挥保护效果。
+TPM+PIN（推荐）：
+    启动系统时首先由 TPM 对系统底层和启动组件进行检查和验证，若正常则要求用户输入 PIN ，两项验证均通过后释放密钥并开始启动系统。这种验证方式能够提供完整的保护能力也可防御物理攻击。
+TPM+USB-Key：
+    与上一种类似，只不过是把手动输入的 PIN 换成了U盘中的密钥。有完整保护能力，但同样需要注意如果你的 U盘 和电脑一起被盗则无法发挥保护效果。
+TPM+PIN+USB-Key：
+    究极保护方式，有三重验证，不过一般真用不着，而且可能会带来麻烦（尤其是我这种喜欢丢U盘的）。启动时需要 3 个验证均通过才会释放密钥。这种验证方式能够提供完整的保护能力也可防御物理攻击。
+
+<h1>TPM+PIN</h1>
+1：启用BitLocker(如果您尚未启用)，如果没有移动硬盘，选择打印，从pdf上复制密钥文本
+2：在组策略编辑器中打开“计算机配置”&gt;“管理模板”&gt;“Windows组件”&gt;“BitLocker驱动器加密”&gt;“操作系统驱动器”&gt;“启动时需要附加身份验证”&gt;切换为“已启用”，关闭“没有兼容的TPM时允许Bitlocker”功能，选择“允许TPM”，“有TPM时需要启动PIN”，保存更改。
+3：将PIN密码添加到您的驱动器，以管理员身份运行以下命令。下面的命令适用于您的C：驱动器，系统将提示您在此处输入PIN。输入过程不可见。
+<code batch>manage-bde -protectors -add c: -TPMAndPIN</code>
+要再次检查是否添加了TPMAndPIN保护器，可以直接运行以下命令：
+<code batch>manage-bde -status</code>
+要在将来更改PIN，请以管理员身份打开命令提示符窗口，然后运行以下命令：
+<code batch>manage-bde -changepin c:</code>
+在继续之前，您需要键入并确认您的新PIN	
+如果您改变主意并希望以后停止使用PIN，您可以撤消此更改。
+首先，您需要转到“组策略”窗口，并将选项改回“允许使用TPM启动PIN”。您不能将该选项设置为“要求使用TPM启动PIN”，否则Windows将不允许您删除PIN。
+接下来，以管理员身份打开命令提示符窗口，然后运行以下命令：
+<code batch>manage-bde -protectors -add c: -TPM</code>
+这将用“TPM”要求替换“TPMandPIN”要求，删除PIN。启动时，BitLocker驱动器将通过计算机的TPM自动解锁。	
+要检查此操作是否成功完成，请再次运行status命令：
+<code batch>manage-bde -status c:</code>
+
+https://blog.nannan.cool/archives/279/
+</pre>
+ </body>
+</html>

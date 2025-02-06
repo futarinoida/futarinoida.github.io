@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>MVC油画展示</title>
+</head>
+<body><span id="anchor">20240521124656-_项目例</span>
+<pre>
+javaBean是一种可重用组件,用于承载数据, 很多地方地javabean有天然支持如el表达式
+    javabean不是一种技术,而是一种java类的格式要求
+        类公有,属性私有,写了带参构造后必须手写无参构造,提供getter,setter
+
+开发PaintingDao读取XML数据, 实现分页操作
+    XmlDataSoruce类, xml数据源工具类简化Dao提取操作
+        所有Dao类共用一个XmlDataSoruce对象减少内存消耗
+        dom4j开发流程
+        SAXReader.read()读取xml文件,得到Document对象
+        document.selectNodes()利用Xpath得到xml节点集合
+        遍历xml节点, 包装成javabean或者集合对象返回
+    PaintingDao.pagination(), 数据分页查询方法
+    PageModel类, 分布结果的包装类
+开发PaintingService服务类,对PaingtingDao进行调用
+开发PaintingController控制器, 调用PaintingService
+重写index.html, 利用jsp读取分页数据
+
+20240704170046.webp
+
+<h1>pom</h1>
+<code xml>
+&lt;dependencies>
+    &lt;!-- dom4j,jaxen(Xpath) -->
+    &lt;dependency>
+        &lt;groupId>org.dom4j&lt;/groupId>
+        &lt;artifactId>dom4j&lt;/artifactId>
+        &lt;version>2.1.4&lt;/version>
+    &lt;/dependency>
+    &lt;dependency>
+        &lt;groupId>jaxen&lt;/groupId>
+        &lt;artifactId>jaxen&lt;/artifactId>
+        &lt;version>1.2.0&lt;/version>
+    &lt;/dependency>
+    &lt;!-- jstl -->
+    &lt;dependency>
+        &lt;groupId>javax.servlet&lt;/groupId>
+        &lt;artifactId>jstl&lt;/artifactId>
+        &lt;version>1.2&lt;/version>
+    &lt;/dependency>
+    &lt;!-- 文件上传 -->
+    &lt;dependency>
+        &lt;groupId>commons-fileupload&lt;/groupId>
+        &lt;artifactId>commons-fileupload&lt;/artifactId>
+        &lt;version>1.4&lt;/version>
+    &lt;/dependency>
+    &lt;!-- 编译时servlet,单元测试 -->
+    &lt;dependency>
+        &lt;groupId>javax.servlet&lt;/groupId>
+        &lt;artifactId>javax.servlet-api&lt;/artifactId>
+        &lt;version>3.1.0&lt;/version>
+        &lt;scope>provided&lt;/scope>
+    &lt;/dependency>
+    &lt;dependency>
+        &lt;groupId>junit&lt;/groupId>
+        &lt;artifactId>junit&lt;/artifactId>
+        &lt;version>4.13.2&lt;/version>
+        &lt;scope>test&lt;/scope>
+    &lt;/dependency>
+&lt;/dependencies>
+ 
+&lt;packaging>war&lt;/packaging>
+&lt;build>
+    &lt;plugins>
+        &lt;!-- Maven 编译插件 -->
+        &lt;plugin>
+            &lt;groupId>org.apache.maven.plugins&lt;/groupId>
+            &lt;artifactId>maven-compiler-plugin&lt;/artifactId>
+            &lt;version>3.8.1&lt;/version>
+            &lt;configuration>
+                &lt;source>1.8&lt;/source>
+                &lt;target>1.8&lt;/target>
+            &lt;/configuration>
+        &lt;/plugin>
+        &lt;!-- Maven WAR 插件 -->
+        &lt;plugin>
+            &lt;groupId>org.apache.maven.plugins&lt;/groupId>
+            &lt;artifactId>maven-war-plugin&lt;/artifactId>
+            &lt;version>3.4.0&lt;/version>
+        &lt;/plugin>
+    &lt;/plugins>
+&lt;/build>
+</code>
+
+<h1>目录结构脚本</h1>
+<code bash>
+#!/bin/bash
+# #!: 称为 Shebang，它告诉系统这个文件是一个脚本，而不是普通的文本文件, /bin/bash: 告诉系统使用 bash 作为解释器, 必须放在第一行
+ 
+# 定义颜色
+GREEN='\033[32m'
+BLUE='\033[34m'
+RESET='\033[0m'  # 重置颜色
+ 
+echo -e "${BLUE}[ start.. ]----------------------------------------------------${RESET}"
+ 
+# 定义要创建的目录结构
+prefix="src/main/java/com/ida/painting/"
+directories=(
+  "controller"
+  "dao"
+  "entity"
+  "filter"
+  "service"
+  "utils"
+  "vo"
+)
+cut='
+src/main/resources/mkdir.sh
+'
+# -p 静默地跳过已经存在的文件夹, 保持幂等性，即不管运行多少次，最终的结果都是一致的
+for dir in "${directories[@]}"; do
+  full_path="$prefix$dir"
+  if [ ! -d "$full_path" ]; then
+    mkdir -p "$full_path"
+    echo -e "${GREEN}>> created : $full_path${RESET}"
+  else
+    echo -e "${BLUE}>> ignored : $full_path${RESET}"
+  fi
+done
+ 
+echo -e "${BLUE}------------------------------------------------------[ over. ]${RESET}"
+</code>
+20240901103345.webp
+
+<h1>工具类</h1>
+<h2>XmlDataSource</h2>
+<code>
+/* 
+&lt;root&gt;
+    &lt;painting id=&quot;1&quot;&gt;
+        &lt;pname&gt;古典油画鉴赏1&lt;/pname&gt;
+        &lt;category&gt;1&lt;/category&gt;
+        &lt;price&gt;3800&lt;/price&gt;
+        &lt;preview&gt;/upload/1.jpg&lt;/preview&gt;
+        &lt;description&gt;古典油画鉴赏1的描述文本&lt;/description&gt;
+    &lt;/painting&gt;
+    &lt;!-- .. --&gt;
+&lt;/root&gt;
+*/
+public class XmlDataSource {
+    private static final List&lt;Painting> data = new ArrayList&lt;>();
+    private static final String dataFile;
+ 
+    static {
+        // 如果资源未找到，getResource 将返回 null，然后调用 getPath() 会引发 NullPointerException
+        // dataFile = XmlDataSource.class.getResource("/painting.xml").getPath();
+        // 通过 Objects.requireNonNull，可以确保 URL 不为 null，避免了后续 NullPointerException 的可能。这使得错误处理更加明确。
+        dataFile = Objects.requireNonNull(XmlDataSource.class.getResource("/painting.xml")).getPath();
+        reload();
+    }
+ 
+    public static List&lt;Painting> getRawData() {
+        return data;
+    }
+ 
+    private static Document getDoc() {
+        try {
+            return new SAXReader().read(URLDecoder.decode(dataFile, "UTF-8"));
+        } catch (DocumentException | UnsupportedEncodingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+ 
+    //写文件
+    private static void overWrite(Document doc) {
+        Writer osw = null;
+        try {
+            osw = new OutputStreamWriter(new FileOutputStream(dataFile), "UTF-8");
+            doc.write(osw);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        } finally {
+            if (osw != null) {
+                try {
+                    osw.close();
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            reload(); //保证内存中的文件和更新后的文件一致
+        }
+    }
+ 
+    //内存刷新
+    private static void reload() {
+        data.clear(); //清空前次列表
+        for (Node node : getDoc().selectNodes("/root/painting")) {
+            Element e = (Element) node;
+            Painting p = new Painting();
+ 
+            p.setId(Integer.parseInt(e.attributeValue("id")));
+            p.setPname(e.elementText("pname"));
+            p.setCategory(Integer.parseInt(e.elementText("category")));
+            p.setPrice(Integer.parseInt(e.elementText("price")));
+            p.setPreview(e.elementText("preview"));
+            p.setDescription(e.elementText("description"));
+ 
+            data.add(p);
+        }
+    }
+ 
+    //新增
+    public static void append(Painting painting) {
+        Document doc = getDoc();
+ 
+        XPath xPath = doc.createXPath("count(/root/painting)");
+        int count = xPath.numberValueOf(doc).intValue();
+ 
+        Element p = doc.getRootElement().addElement("painting");
+        p.addAttribute("id", String.valueOf( count + 1));
+        p.addElement("pname").setText(painting.getPname());
+        p.addElement("category").setText(painting.getCategory().toString());
+        p.addElement("price").setText(painting.getPrice().toString());
+        p.addElement("preview").setText(painting.getPreview());
+        p.addElement("description").setText(painting.getDescription());
+ 
+        overWrite(doc);
+    }
+ 
+    //修改
+    public static void update(Painting painting) {
+        Document doc = getDoc();
+        List&lt;Node> nodes = doc.selectNodes("/root/painting[@id=" + painting.getId() + "]");
+        Element e = (Element) nodes.get(0);
+        e.selectSingleNode("pname").setText(painting.getPname());
+        e.selectSingleNode("category").setText(painting.getCategory().toString());
+        e.selectSingleNode("price").setText(painting.getPrice().toString());
+        e.selectSingleNode("preview").setText(painting.getPreview());
+        e.selectSingleNode("description").setText(painting.getDescription());
+ 
+        overWrite(doc);
+    }
+ 
+    //删除
+    public static void delete(Integer id) {
+        Document doc = getDoc();
+        List&lt;Node> nodes = doc.selectNodes("/root/painting[@id=" + id + "]");
+        Element element = (Element) nodes.get(0);
+        element.getParent().remove(element); //删除自身
+ 
+        overWrite(doc);
+    }
+}
+</code>
+<h1>ParamUtils</h1>
+<code>
+public class ParamUtils {
+    public static int parseIntOrDefault(String value, int defaultValue) {
+        try {
+            return Integer.parseInt(value);
+        } catch (NumberFormatException e) {
+            return defaultValue;
+        }
+    }
+}
+</code>
+
+<h1>字符编码过滤器</h1>
+<code>
+@WebFilter(
+        filterName = "characterEncodingFilter",
+        urlPatterns = "/*",
+        initParams = {
+                @WebInitParam(name = "encoding", value = "UTF-8")
+        }
+)
+public class CharacterEncodingFilter implements Filter {
+    private String encoding = "UTF-8";
+ 
+    @Override
+    public void init(FilterConfig filterConfig) {
+        if (filterConfig.getInitParameter("encoding") != null) {
+            this.encoding = filterConfig.getInitParameter("encoding");
+        }
+    }
+ 
+    @Override
+    public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
+        HttpServletRequest request = (HttpServletRequest) servletRequest;
+        request.setCharacterEncoding(encoding);
+        filterChain.doFilter(servletRequest, servletResponse);
+    }
+ 
+    @Override
+    public void destroy() {
+ 
+    }
+}
+</code>
+
+<h1>VO</h1>
+VO（Value Object）不变的业务实体的对象, 用于封装一组相关的值，作为业务逻辑的一部分
+    不变性: VO 对象通常是不可变的，一旦创建后，内部状态不应该被修改。
+    业务逻辑: VO 可以包含一些业务逻辑或计算方法，用于操作和处理其封装的值。
+    设计目标: 表示业务模型中的概念，提供丰富的语义和行为。
+<h2>分页模型</h2>
+20240705102114.webp
+<code>
+public final class PageModel&lt;T> {
+    private int page;  //查询的页号
+    private int totalPages;  //总页数
+    private int rows;  //每页记录数
+    private int totalRows;  //总记录数
+    private int pageStartRow;  //当前页从第几条开始
+    private int pageEndRow;  //当前页到第几条结束
+    private boolean hasPreviousPage;
+    private boolean hasNextPage;
+    private List&lt;T> pageData;  //当前页的数据
+ 
+    private final int displayPages = 5;  //导航条页码按钮数量
+    private int startPage;  //起始页码
+    private int endPage;  //结束页码
+ 
+    public PageModel() {}
+ 
+    public PageModel(List&lt;T> data, int page, int rows) {  //数据源, 查询的页号, 每页记录数
+        totalRows = data.size();
+        this.rows = rows &lt;=0 | rows > 100 ? 6 : rows;
+ 
+        // 总页数 = 总行数/每页记录数, 不能整除时向上取整 20/6=3.333 向上取整=4
+        totalPages = (int) Math.ceil(totalRows * 1.0 / this.rows);  //两个整数乘除运算时会对结果中的小数会进行截尾
+        this.page = page &lt;= 0 ? 1 : Math.min(page, totalPages);  //防止大于总页数
+ 
+        pageStartRow = (this.page - 1) * this.rows;  //第一页时,起始行号为0
+        pageEndRow = Math.min(this.page * this.rows, totalRows);  //防止subList()下标越界
+        hasPreviousPage = this.page > 1;
+        hasNextPage = this.page &lt; totalPages;
+        pageData = data.subList(pageStartRow, pageEndRow);
+ 
+        // 计算startPage和endPage
+        int halfPagesToShow = displayPages / 2;
+        if (totalPages &lt;= displayPages) {
+            startPage = 1;
+            endPage = totalPages;
+        } else {
+            if (this.page - halfPagesToShow &lt;= 0) {
+                startPage = 1;
+                endPage = displayPages;
+            } else if (this.page + halfPagesToShow >= totalPages) {
+                startPage = totalPages - displayPages + 1;
+                endPage = totalPages;
+            } else {
+                startPage = this.page - halfPagesToShow;
+                endPage = this.page + halfPagesToShow;
+            }
+        }
+    }
+    //getter,setter
+}
+</code>
+<code>
+public class PageModelTest {
+    @Test
+    public void case1() {
+        List&lt;Integer> list = new ArrayList&lt;>();
+        for (int i = 0; i &lt; 100; i++) {
+            list.add(i + 1);
+        }
+        Scanner scanner = new Scanner(System.in);
+        while (true) {
+            System.out.println("每页的记录数:");
+            int rows = scanner.nextInt();
+            System.out.println("要查询的页号:");
+            int pageNum = scanner.nextInt();
+            PageModel pageModel = new PageModel(list, pageNum, rows);
+            System.out.println(
+                    Arrays.toString(
+                            new Object[]{
+                                    pageModel.getPage(),
+                                    pageModel.getTotalPages(),
+                                    pageModel.getRows(),
+                                    pageModel.getTotalRows(),
+                                    pageModel.getPageStartRow(),
+                                    pageModel.getPageEndRow(),
+                                    pageModel.isHasPreviousPage(),
+                                    pageModel.isHasNextPage(),
+                                    pageModel.getPageData(),
+                                    pageModel.getStartPage(),
+                                    pageModel.getEndPage()
+                            }
+                    ));
+            System.out.println("是否继续[y/*]:");
+            String go = scanner.next();
+            if (!go.equals("y"))
+                break;
+        }
+    }
+}
+</code>
+<h1>DAO</h1>
+<h2>PaintingDao</h2>
+<code>
+public class PaintingDao {
+    private final List&lt;Painting> rawData = XmlDataSource.getRawData();
+ 
+    public PageModel&lt;Painting> pagination(int page, int rows,  String... args) {
+        List&lt;Painting> data;
+        if (args.length == 0) {
+            data = rawData;
+        } else {
+            try {
+                int category = Integer.parseInt(args[0]);
+                data = rawData.stream().filter(o -> o.getCategory() == category).collect(Collectors.toList());
+            } catch (NumberFormatException e) {
+                data = rawData;
+            }
+        }
+        return new PageModel&lt;>(data, page, rows);
+    }
+ 
+    public void create(Painting painting){
+        XmlDataSource.append(painting);
+    }
+ 
+    public Painting findById(Integer id) {
+        //如果过滤后的列表是空的, get(0)会抛出IndexOutOfBoundsException异常
+        //return rawData.stream().filter(o -> o.getId() == id).collect(Collectors.toList()).get(0);
+        //findFirst() 会返回一个 Optional&lt;Painting>，然后通过 orElse(null) 方法在没有找到匹配的对象时返回 null
+        return rawData.stream().filter(o -> Objects.equals(o.getId(), id)).findFirst().orElse(null);
+    }
+ 
+    public void update(Painting painting) {
+        XmlDataSource.update(painting);
+    }
+ 
+    public void delete(Integer id) {
+        XmlDataSource.delete(id);
+    }
+}
+</code>
+<h1>Service</h1>
+<h2>PaintingService</h2>
+<code>
+public class PaintingService {
+    private final PaintingDao paintingDao = new PaintingDao();
+ 
+    public PageModel&lt;Painting> pagination(int page, int rows, String... args) {
+        return paintingDao.pagination(page, rows, args);
+    }
+ 
+    public void create(Painting painting){
+        paintingDao.create(painting);
+    }
+ 
+    public Painting findById(Integer id) {
+        Painting painting = paintingDao.findById(id);
+        if (painting == null) {
+            throw new RuntimeException("[id为"+id+"的油画不存在]");
+        }
+        return painting;
+    }
+ 
+    public void update(Painting newPainting, Integer isPreviewModified) {
+        Painting rawPainting = this.findById(newPainting.getId());
+        rawPainting.setPname(newPainting.getPname());
+        rawPainting.setCategory(newPainting.getCategory());
+        rawPainting.setPrice(newPainting.getPrice());
+        rawPainting.setDescription(newPainting.getDescription());
+        if(isPreviewModified == 1) {
+            rawPainting.setPreview(newPainting.getPreview());
+        }
+        paintingDao.update(rawPainting);
+    }
+ 
+    public void delete(Integer id) {
+        this.findById(id);
+        paintingDao.delete(id);
+    }
+}
+</code>
+
+<h1>Controller</h1>
+<h2>PaintingController</h2>
+<code>
+@WebServlet("/page")
+public class PaintingController extends HttpServlet {
+    private final PaintingService paintingService = new PaintingService();
+ 
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        int page = ParamUtils.parseIntOrDefault(req.getParameter("p"), 1);
+        int rows = ParamUtils.parseIntOrDefault(req.getParameter("r"), 6);
+        String category = req.getParameter("c");
+ 
+        PageModel pageModel = paintingService.pagination(page, rows, category);
+        req.setAttribute("pageModel", pageModel);
+        req.getRequestDispatcher("/WEB-INF/jsp/index.jsp").forward(req, resp);
+    }
+}
+</code>
+
+<h1>首页</h1>
+<h2>index.html</h2>
+web/index.html 
+<code html>
+&lt;script>window.location.href="/page"&lt;/script>
+</code>
+
+<h2>index.jsp</h2>
+web/WEB-INF/jsp/index.jsp
+<code html>
+&lt;!-- 不要使用&lt;% %>代码块, 使用 EL + JSTL提取数据 -->
+&lt;%@ page contentType="text/html;charset=UTF-8" language="java" %>
+&lt;%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+&lt;%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
+&lt;!DOCTYPE html>
+..
+&lt;!-- 根据参数是否存在设置变量值 -->
+&lt;c:if test="${param.c !=null}">
+    &lt;c:set var="categoryParam" value="&c=${param.c}"/>
+&lt;/c:if>
+&lt;c:if test="${param.c ==null}">
+    &lt;c:set var="categoryParam" value=""/>
+&lt;/c:if>
+..
+&lt;!-- 分类 -->
+&lt;ul id="title">
+    &lt;li>&lt;a href="/page?c=1">现实主义&lt;/a>&lt;/li>
+    &lt;li>&lt;a href="/page?c=2">抽象主义&lt;/a>&lt;/li>
+&lt;/ul>
+..
+&lt;!-- 分页导航条 -->
+&lt;div class="page-nav">
+    &lt;ul>
+        &lt;li>&lt;a href="/page?p=1${categoryParam}">首页&lt;/a>&lt;/li>
+        &lt;li>&lt;a href="/page?p=${pageModel.hasPreviousPage ? pageModel.page-1 : 1}${categoryParam}">上一页&lt;/a>&lt;/li>
+ 
+        &lt;c:if test="${pageModel.startPage > 1}">
+            &lt;li>&lt;a href="/page?p=1${categoryParam}">1&lt;/a>&lt;/li>
+            &lt;li>...&lt;/li>
+        &lt;/c:if>
+ 
+        &lt;c:forEach begin="${pageModel.startPage}" end="${pageModel.endPage}" var="pno">
+            &lt;li>
+            &lt;span ${pageModel.page == pno ? "class='current-page'" : ""}>
+                &lt;a href="/page?p=${pno}${categoryParam}">${pno}&lt;/a>
+            &lt;/span>
+            &lt;/li>
+        &lt;/c:forEach>
+ 
+        &lt;c:if test="${pageModel.endPage &lt; pageModel.totalPages}">
+            &lt;li>...&lt;/li>
+            &lt;li>&lt;a href="/page?p=${pageModel.totalPages}${categoryParam}">${pageModel.totalPages}&lt;/a>&lt;/li>
+        &lt;/c:if>
+ 
+        &lt;li>&lt;a href="/page?p=${pageModel.hasNextPage ? pageModel.page+1 : pageModel.totalPages}${categoryParam}">下一页&lt;/a>&lt;/li>
+        &lt;li>&lt;a href="/page?p=${pageModel.totalPages}${categoryParam}">尾页&lt;/a>&lt;/li>
+    &lt;/ul>
+&lt;/div>
+ 
+&lt;!-- 当前页数据 -->
+&lt;div class="img-content">
+    &lt;ul>
+        &lt;c:forEach items="${pageModel.pageData}" var="painting">
+            &lt;li>
+                &lt;img src="${painting.preview}" class="img-li">
+                &lt;div class="info">
+                    &lt;h3>${painting.pname}&lt;/h3>
+                    &lt;p>${painting.description}&lt;/p>
+                    &lt;div class="price">&lt;fmt:formatNumber pattern="$0.00" value="${painting.price}"/>&lt;/div>
+                &lt;/div>
+            &lt;/li>
+        &lt;/c:forEach>
+    &lt;/ul>
+&lt;/div>
+..
+</code>
+<h2>关于jsp中的文件引用</h2>
+浏览器解析相对路径css/common.css是基于当前请求URL，即host:port/page
+因此，浏览器会请求：host:port/css/common.css, common.css被正确访问到
+但是如果转发到/page/sub时, 浏览器将解析为：host:port/page/css/common.css, 导致无法正确加载 common.css
+
+使用基于上下文路径的绝对路径确保相对路径在不同情况下都能正确解析
+href="${pageContext.request.contextPath}/css/common.css"
+contextPath是request对象的一个方法，getContextPath() 方法在 EL 中表示为 contextPath
+EL 通过约定俗成的方式将 getter 方法转化为属性名称，使得表达式更加简洁和直观
+
+<h1>后台功能</h1>
+<h2>说明</h2>
+油画列表,分页
+油画预览
+    利用sweetalert2对话框组件
+新增, 上传油画
+    使用Servlet 3.0的内置文件上传功能和使用Apache Commons FileUpload组件是两种处理文件上传的常见方式
+    Servlet 3.0 内置文件上传功能
+        适合较简单的文件上传需求。
+        与 Servlet 容器（如 Tomcat 7+）紧密集成，无需额外的库。
+    Apache Commons FileUpload组件
+        独立的库，需要单独引入和配置
+        支持旧版本的 Servlet 容器和环境，比如 Servlet 2.5。
+        在不支持 Servlet 3.0 的环境中，仍然可以使用 Apache Commons FileUpload 实现文件上传功能。
+    封装可重用的js脚本解决表单检验问题
+    Dom4j追加
+修改油画
+删除油画
+
+<h2>功能分发</h2>
+<code>
+@WebServlet("/management")
+/*
+@MultipartConfig(
+        location = "C:/TEMP",
+        fileSizeThreshold = 1024 * 1024,
+        maxFileSize = 1024 * 1024 * 10,
+        maxRequestSize = 1024 * 1024 * 50
+)
+*/
+public class ManagementController extends HttpServlet {
+    private final PaintingService paintingService = new PaintingService();
+
+    @Override
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        doGet(req, resp);
+    }
+
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        String method = req.getParameter("method");
+        switch (method) {
+            case "list":
+                list(req, resp);
+                break;
+            case "show_create":
+                showCreate(req, resp);
+                break;
+            case "create":
+                create(req, resp);
+                break;
+            case "show_update":
+                showUpdate(req, resp);
+                break;
+            case "update":
+                update(req, resp);
+                break;
+            case "delete":
+                delete(req, resp);
+                break;
+        }
+    }
+    //..
+}
+</code>
+
+<h2>列表预览</h2>
+<code>
+private void list(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+    int page = ParamUtils.parseIntOrDefault(req.getParameter("p"), 1);
+    int rows = ParamUtils.parseIntOrDefault(req.getParameter("r"), 10);
+ 
+    PageModel&lt;Painting> pageModel = paintingService.pagination(page,rows);
+    req.setAttribute("pageModel", pageModel);
+    req.getRequestDispatcher("/WEB-INF/jsp/list.jsp").forward(req, resp);
+}
+</code>
+
+jsp/list.jsp
+<code html>
+&lt;!-- sweetalert2 -->
+function showPreview(obj) {
+    var pname = $(obj).attr(&quot;data-pname&quot;);
+    var preview = $(obj).attr(&quot;data-preview&quot;);
+    Swal.fire({
+        title: pname,
+        html: &quot;&lt;img src=&#39;&quot; + preview + &quot;&#39;&gt;&quot;,
+        showCloseButton: true,
+        showConfirmButton: false
+    })
+}
+ 
+&lt;a href="/management?method=show_create" class="btn-button">新增&lt;/a>
+&lt;!-- 油画列表 -->
+&lt;c:forEach items="${pageModel.pageData}" var="painting">
+    &lt;tr>
+        &lt;td>
+            &lt;%-- ${painting.category==1?"现实主义":"抽象主义"} --%>
+            &lt;c:choose>
+                &lt;c:when test="${painting.category==1}">现实主义&lt;/c:when>
+                &lt;c:when test="${painting.category==2}">抽象主义&lt;/c:when>
+                &lt;c:otherwise>未分类&lt;/c:otherwise>
+            &lt;/c:choose>
+        &lt;/td>
+        &lt;td>${painting.pname}&lt;/td>
+        &lt;td>&lt;fmt:formatNumber pattern="¥0.00" value="${painting.price}"/>&lt;/td>
+        &lt;td>${painting.description}&lt;/td>
+        &lt;td>
+            &lt;a class="oplink" data-preview="${painting.preview}" data-pname="${painting.pname}" href="javascript:void(0)" onclick="showPreview(this)">预览&lt;/a>
+            &lt;a class="oplink" href="/management?method=show_update&id=${painting.id}">修改&lt;/a>
+            &lt;a class="oplink" href="javascript:void(0)" data-id="${painting.id}" data-pname="${painting.pname}" data-preview="${painting.preview}" onclick="del(this)">删除&lt;/a>
+        &lt;/td>
+    &lt;/tr>
+&lt;/c:forEach>
+&lt;!-- 列表分页 -->
+</code>
+
+<h2>新增和上传</h2>
+<h3>表单验证</h3>
+<code js>
+function switchValid(onOff, input, errSelector, message) {
+    if (onOff == false) {
+        $(errSelector).text(message);
+        $(errSelector).addClass("error_message");
+        $(input).addClass("error_input");
+    } else {
+        $(errSelector).text("");
+        $(errSelector).removeClass("error_message");
+        $(input).removeClass("error_input");
+    }
+}
+ 
+function errPrefix(str) {
+    return "#err" + str.charAt(0).toUpperCase() + str.slice(1);
+}
+ 
+function checkEmpty(input) {
+    var val = $.trim($(input).val());
+    var valid = (val !== "");
+ 
+    switchValid(valid, input, errPrefix(input.id), "请输入内容");
+    return valid;
+}
+ 
+function checkCategory(input) {
+    var val = $.trim($(input).val());
+    var valid = (val !== "-1");
+ 
+    switchValid(valid, input, errPrefix(input.id), "请选择油画类型");
+    return valid;
+}
+ 
+function checkPrice(input) {
+    var val = $(input).val();
+    var regex = /^[1-9][0-9]*$/; //第一位不能有0
+    var valid = regex.test(val);
+ 
+    switchValid(valid, input, errPrefix(input.id), "无效的价格");
+    return valid;
+}
+ 
+function checkFile(input) {
+    if (!checkEmpty(input)) {
+        return false;
+    }
+ 
+    var val = $.trim($(input).val().toLowerCase());
+    var valid = false;
+ 
+    if (val.length >= 4) {
+        var suffix = val.substring(val.length - 3);
+        valid = (suffix === "jpg" || suffix === "png" || suffix === "gif");
+    }
+ 
+    switchValid(valid, input, errPrefix(input.id), "请选择有效图片");
+    return valid;
+}
+ 
+function checkSubmit() {
+    //var validPname = checkEmpty($("#pname")); //此处错误应传原生DOM元素对象,
+    var validPname = checkEmpty(document.getElementById("pname"));
+    var validCategory = checkCategory(document.getElementById("category"));
+    var validPrice = checkPrice(document.getElementById("price"));
+    var validPainting = checkFile(document.getElementById("painting"));
+    var validDescription = checkEmpty(document.getElementById("description"));
+    return validPname && validCategory && validPrice && validPainting && validDescription;
+}
+</code>
+<code html>
+&lt;form action="/management?method=create" method="post" autocomplete="off" enctype="multipart/form-data" onsubmit="return checkSubmit()">
+    &lt;ul class="ulform">
+        &lt;li>
+            &lt;span>油画名称&lt;/span>
+            &lt;span id="errPname">&lt;/span>
+            &lt;input id="pname" name="pname" onblur="checkEmpty(this)" />
+        &lt;/li>
+        &lt;li>
+            &lt;span>油画类型&lt;/span>
+            &lt;span id="errCategory">&lt;/span>
+            &lt;select id="category" name="category" onchange="checkCategory(this)">
+                &lt;option value="-1">请选择油画类型&lt;/option>
+                &lt;option value="1">现实主义&lt;/option>
+                &lt;option value="2">抽象主义&lt;/option>
+            &lt;/select>
+        &lt;/li>
+        &lt;li>
+            &lt;span>油画价格&lt;/span>
+            &lt;span id="errPrice">&lt;/span>
+            &lt;input id="price" name="price" onblur="checkPrice(this)" />
+        &lt;/li>
+        &lt;li>
+            &lt;span>作品预览&lt;/span>
+            &lt;span id="errPainting">&lt;/span>
+            &lt;input id="painting" name="painting" type="file" style="padding-left: 0px;" accept="image/*" onchange="checkFile(this)"/>
+        &lt;/li>
+        &lt;li>
+            &lt;span>详细描述&lt;/span>
+            &lt;span id="errDescription">&lt;/span>
+            &lt;textarea id="description" name="description" onblur="checkEmpty(this)" >&lt;/textarea>
+        &lt;/li>
+        &lt;li style="text-align: center;">
+            &lt;button type="submit" class="btn-button">提交表单&lt;/button>
+        &lt;/li>
+    &lt;/ul>
+&lt;/form>
+</code>
+
+<h3>Servlet 3.0 内置文件上传功能</h3>
+<code>
+// location: 用于指定文件存储的位置。如果不指定，文件会存储在临时目录中，通常是系统临时目录。
+// fileSizeThreshold: 上传文件的大小阈值，如果文件大小超过这个值，文件会被写入磁盘；否则，文件会保存在内存中。
+// maxFileSize: 单个文件的最大允许大小。如果上传的文件超过这个大小，将会抛出 IllegalStateException。
+// maxRequestSize: 请求的最大允许大小，包括所有上传的文件和表单数据。如果请求大小超过这个值，将会抛出 IllegalStateException。
+@MultipartConfig(
+        location = "C:/TEMP",
+        fileSizeThreshold = 1024 * 1024,
+        maxFileSize = 1024 * 1024 * 10,
+        maxRequestSize = 1024 * 1024 * 50
+)
+public class ManagementController extends HttpServlet {
+    //..
+    private void showCreate(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        req.getRequestDispatcher("/WEB-INF/jsp/create.jsp").forward(req, resp);
+    }
+ 
+    private void create(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        //在 Servlet 环境中getRealPath返回的是 web 应用的根目录
+        //在 Spring Boot 中,因为打包为一个可执行的 JAR 或 WAR 文件, 是编译后的资源路径, 因此不可用getRealPath 
+        Path uploadPath = Paths.get(getServletContext().getRealPath(""), "upload");
+        //尝试创建指定的目录及其所有父目录。如果目标目录已经存在，方法会成功返回
+        Files.createDirectories(uploadPath);
+        Part filePart = req.getPart("painting");
+        String uniqueFileName = generateUniqueFileName(Paths.get(filePart.getSubmittedFileName()).getFileName().toString());
+        //当前路径与给定路径片段合并, resolve 方法会处理路径的规范化，例如去除冗余的分隔符或当前路径符号（"."）
+        Path destFile = uploadPath.resolve(uniqueFileName);
+        try (InputStream input = filePart.getInputStream()) {
+            Files.copy(input, destFile, StandardCopyOption.REPLACE_EXISTING); //存在则覆盖
+        }
+        //..
+    }
+    //..
+}
+</code>
+<h3>apache commons fileupload组件</h3>
+<code>
+private void create(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+    //使用apache commons fileupload组件, 与@MultipartConfig互斥
+    try {
+        List&lt;FileItem> formData = new ServletFileUpload(new DiskFileItemFactory()).parseRequest(req);
+        Painting painting = new Painting();
+        for (FileItem fileItem : formData) {
+            if (fileItem.isFormField()) {//判断是普通字段还是文件上传项,所有非文件上传项都被视为普通表单字段
+                String fieldValue = fileItem.getString("UTF-8");
+                switch (fileItem.getFieldName()) { //字段名称,即表单中的name属性值
+                    case "pname":
+                        painting.setPname(fieldValue);
+                        break;
+                    case "category":
+                        painting.setCategory(Integer.parseInt(fieldValue));
+                        break;
+                    case "price":
+                        painting.setPrice(Integer.parseInt(fieldValue));
+                        break;
+                    case "description":
+                        painting.setDescription(fieldValue);
+                        break;
+                }
+            } else {
+                String uploadPath = Paths.get(getServletContext().getRealPath(""), "upload").toString();
+                String rawFileName = fileItem.getName();
+                String fileName = UUID.randomUUID() + rawFileName.substring(rawFileName.lastIndexOf("."));
+                String destFile = uploadPath + File.separator + fileName;
+                fileItem.write(new File(destFile));
+ 
+                painting.setPreview(File.separator + "upload" + File.separator + fileName);
+            }
+        }
+        paintingService.create(painting);
+        resp.sendRedirect("/management?method=list");
+    } catch (Exception e) {
+        throw new RuntimeException(e);
+    }
+}
+</code>
+
+<h2>修改</h2>
+修改与新增的最大不同是在修改前要加载原有数据
+在修改页面放置hidden隐藏域保存id编号, 随表单提交
+对xml更新时, 先按id获取原始记录, 在此基础上覆盖更新
+
+<h3>表单回填</h3>
+<code html>
+&lt;script>
+    $(function () {
+        $("#category").val(${painting.category})
+    });
+ 
+    function selectPreview(){
+        checkFile(document.getElementById("painting"));
+        $("#preview").hide();
+        $("#isPreviewModified").val(1);
+    }
+ 
+    function checkSubmit2() {
+        var validPname = checkEmpty(document.getElementById("pname"));
+        var validCategory = checkCategory(document.getElementById("category"));
+        var validPrice = checkPrice(document.getElementById("price"));
+        var validPainting = false;
+        if($("#isPreviewModified").val() === "1"){
+            validPainting = checkFile(document.getElementById("painting"));
+        }else{
+            validPainting = true;
+        }
+        var validDescription = checkEmpty(document.getElementById("description"));
+        return validPname && validCategory && validPrice && validPainting && validDescription;
+    }
+&lt;/script>
+ 
+&lt;form action="/management?method=update" method="post" autocomplete="off" enctype="multipart/form-data" onsubmit="return checkSubmit2()">
+    &lt;ul class="ulform">
+        &lt;li>
+            &lt;span>油画名称&lt;/span>
+            &lt;span id="errPname">&lt;/span>
+            &lt;input id="pname" name="pname" onblur="checkEmpty(this)" value="${painting.pname}" />
+        &lt;/li>
+        &lt;li>
+            &lt;span>油画类型&lt;/span>
+            &lt;span id="errCategory">&lt;/span>
+            &lt;select id="category" name="category" onchange="checkCategory(this)">
+                &lt;option value="-1">请选择油画类型&lt;/option>
+                &lt;option value="1">现实主义&lt;/option>
+                &lt;option value="2">抽象主义&lt;/option>
+            &lt;/select>
+        &lt;/li>
+        &lt;li>
+            &lt;span>油画价格&lt;/span>
+            &lt;span id="errPrice">&lt;/span>
+            &lt;input id="price" name="price" onblur="checkPrice(this)" value="${painting.price}" />
+        &lt;/li>
+        &lt;li>
+            &lt;span>作品预览&lt;/span>
+            &lt;span id="errPainting">&lt;/span>&lt;br/>
+            &lt;img id="preview" src="${painting.preview}" style="width:361px;height:240px"/>&lt;br/>
+            &lt;input type="hidden" id="isPreviewModified" name="isPreviewModified" value="0">
+            &lt;input id="painting" name="painting" type="file" style="padding-left: 0px;" accept="image/*" onchange="selectPreview()"/>
+        &lt;/li>
+        &lt;li>
+            &lt;span>详细描述&lt;/span>
+            &lt;span id="errDescription">&lt;/span>
+            &lt;textarea id="description" name="description" onblur="checkEmpty(this)">${painting.description}&lt;/textarea>
+        &lt;/li>
+        &lt;li style="text-align: center;">
+            &lt;input type="hidden" id="id" name="id" value="${painting.id}" />
+            &lt;button type="submit" class="btn-button">提交表单&lt;/button>
+        &lt;/li>
+    &lt;/ul>
+&lt;/form>
+</code>
+<h3>update</h3>
+<code>
+private void showUpdate(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+    String id = req.getParameter("id");
+    Painting painting = paintingService.findById(Integer.parseInt(id));
+    req.setAttribute("painting",painting);
+    req.getRequestDispatcher("/WEB-INF/jsp/update.jsp").forward(req,resp);
+}
+ 
+private void update(HttpServletRequest req, HttpServletResponse resp) {
+    int isPreviewModified = 0;
+    try {
+        List&lt;FileItem> formData = new ServletFileUpload(new DiskFileItemFactory()).parseRequest(req);
+        Painting painting = new Painting();
+        for (FileItem fileItem : formData) {
+            if (fileItem.isFormField()) {
+                String fieldValue = fileItem.getString("UTF-8");
+                switch (fileItem.getFieldName()) {
+                    case "id":
+                        painting.setId(Integer.parseInt(fieldValue));
+                        break;
+                    case "pname":
+                        painting.setPname(fieldValue);
+                        break;
+                    case "category":
+                        painting.setCategory(Integer.parseInt(fieldValue));
+                        break;
+                    case "price":
+                        painting.setPrice(Integer.parseInt(fieldValue));
+                        break;
+                    case "description":
+                        painting.setDescription(fieldValue);
+                        break;
+                    case "isPreviewModified":
+                        isPreviewModified = Integer.parseInt(fieldValue);
+                }
+            } else {
+                if (isPreviewModified == 1){
+                    String uploadPath = Paths.get(getServletContext().getRealPath(""), "upload").toString();
+                    String rawFileName = fileItem.getName();
+                    String fileName = UUID.randomUUID() + rawFileName.substring(rawFileName.lastIndexOf("."));
+                    String destFile = uploadPath + File.separator + fileName;
+                    fileItem.write(new File(destFile));
+ 
+                    painting.setPreview(File.separator + "upload" + File.separator + fileName);
+                }
+            }
+        }
+        paintingService.update(painting, isPreviewModified);
+        resp.sendRedirect("/management?method=list");
+    } catch (Exception e) {
+        throw new RuntimeException(e);
+    }
+}
+</code>
+
+<h2>删除</h2>
+<code>
+public void delete(HttpServletRequest request, HttpServletResponse response) throws IOException {
+    try {
+        paintingService.delete(Integer.parseInt(request.getParameter("id")));
+        response.getWriter().println("{\"result\":\"ok\"}");
+    }catch(Exception e) {
+        response.getWriter().println("{\"result\":\"" + e.getMessage() + "\"}");
+        e.printStackTrace();
+    }
+}
+</code>
+</pre>
+</body>
+</html>

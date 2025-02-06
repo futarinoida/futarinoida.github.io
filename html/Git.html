@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>Git</title>
+</head>
+<body><span id="anchor">20240828181658-_工具使用</span>
+<pre>
+Git 是一个分布式版本控制系统，用于跟踪代码变化并协作开发
+
+20240828210542.webp
+
+<h1>术语概念</h1>
+仓库（Repository, Repo）, 一个 Git 仓库是一个项目的代码库，包含了项目的所有文件及其历史记录
+
+分支（Branch）是代码开发的并行路径, 主分支通常被称为 main 或 master, 开发分支常用于实验性功能开发
+    列出分支：git branch
+        当前所在的分支会用 * 标记, git status第一行也会显示当前分支名称
+    切换分支：git checkout branch_name
+    创建分支: git branch branch_name
+    创建并切换到新分支：git checkout -b branch_name
+
+提交（Commit）是对代码库的一次快照，记录了当前所有文件的状态。每次提交都有唯一的哈希值（SHA）
+    创建提交：git commit -m "message"
+    查看提交历史：git log
+
+
+暂存区（Staging Area, Index）是一个中间区域，在提交前暂存修改。你可以选择性地将修改加入暂存区，决定哪些内容会包含在下一次提交中
+    添加文件到暂存区：git add file
+    添加所有更改：git add .
+        将当前目录及其子目录下的更改（新文件和修改文件）添加到暂存区
+    git add -A
+        将所有更改（包括新文件、修改文件和删除文件）添加到暂存区。它会跟踪所有文件的状态变化，包括那些被删除的文件
+    git commit -am "xxxx"
+        是一个快捷方式，用于同时添加文件和提交更改
+            -a: 自动将所有已跟踪的文件中的更改添加到暂存区，但不会包括新创建的文件
+            如果你只修改了已跟踪的文件，-am 可以快速提交这些更改。但是，如果有新文件，记得先用 git add 添加它们，因为 -a 不会处理新文件
+
+
+工作区（Working Directory）是你当前正在开发的目录。包含了你所有的文件以及你正在进行的修改。未提交的更改都在这里
+    查看状态：git status
+    将指定的文件恢复到最近一次提交的状态：git checkout -- file
+        任何自上次提交以来对该文件的未保存更改都会被永久丢弃
+        -- 的作用：在 Git 中，-- 用于分隔命令的参数和文件名，明确告诉 Git 你要操作的是文件，而不是分支或其他对象。它帮助避免歧义。
+        如果你对某个文件进行了修改，但不小心修改错了，可以用这个命令恢复到上次提交的状态，重新开始
+        恢复工作区的所有更改 git checkout . 
+
+远程仓库（Remote Repository）是托管在服务器上的 Git 仓库，便于多个开发者协作。常用的平台有 GitHub、GitLab 等
+    查看远程仓库：git remote -v
+        -v 显示每个远程仓库的详细信息
+    拉取远程更新：git pull
+    推送本地更改：git push
+
+克隆（Clone）将远程仓库复制到本地，包括所有文件和提交历史。
+    克隆仓库：git clone repository-url
+
+合并（Merge）将另一个分支的更改应用到当前分支，常用于将开发分支的修改合并到主分支
+    合并分支：git merge branch_name
+
+变基（Rebase）将一组提交移动到另一条分支之上，重新整理提交历史。用于保持提交历史的线性。
+    变基到分支：git rebase branch_name
+        使用变基可以避免分叉历史和不必要的合并提交，使代码历史更易于理解和维护
+            20240828224030.webp
+            当你在一个分支（如 feature-branch）上进行开发时，其他人可能在 main 分支上也进行了提交
+            将两个分支的历史结合在一起，通常会生成一个合并提交（merge commit）
+            将两个分支的历史保留在一起。这样会产生一个分叉的提交历史
+            变基将 feature-branch 分支上的提交（如 D 和 E）重新应用到 main 分支的最新提交（如 C）之上。这样，会“移动” feature-branch 的历史，使其看起来像是基于 main 分支的最新状态进行的开发
+
+标签（Tag）是对特定提交的标记，常用于标识版本发布（如 v1.0.0）
+    为当前分支的最新提交创建一个标签：git tag tagname
+    为指定的提交创建标签：git tag tagname commit-hash
+    查看标签：git tag
+
+HEAD 是指向当前分支的最新提交的指针。通常指向当前分支的最后一次提交
+    查看 HEAD：git log --oneline -1
+        HEAD 是一个非常重要的概念，它指向你当前正在工作的“位置”或“状态”
+        当你在一个分支上工作时，HEAD 会指向这个分支，并且随着你在该分支上进行新的提交，HEAD 会移动到最新的提交
+            当使用 git checkout commit-hash 检出某个历史提交，此时 HEAD 就指向该提交而不是某个分支, 这个状态称为“分离头指针状态”（detached HEAD state）
+            进入分离头指针状态后，你所做的任何新的提交都不会关联到任何现有分支，除非你创建一个新的分支来接收这些提交
+            20240828230025.webp
+
+冲突（Conflict）发生在 Git 无法自动合并更改时，通常是因为多个分支修改了同一行代码。需要手动解决冲突。
+    查看冲突：git status
+    解决冲突后标记为已解决：git add file
+        当 Git 合并或拉取操作产生冲突时，Git 会在有冲突的文件中插入冲突标记（如 &lt;&lt;&lt;&lt;&lt;&lt;&lt;, =======, >>>>>>>）
+        20240828230714.webp
+        你需要决定最终的内容是 内容 A、内容 B 还是它们的结合，并删除冲突标记, 然后将冲突已解决的文件添加到暂存区
+        一旦所有冲突文件都被标记为已解决，你可以继续合并操作或完成变基操作
+        对于合并操作，使用 git commit 完成合并并创建一个合并提交
+        对于变基操作，使用 git rebase --continue 完成变基 
+            在变基过程中，如果遇到冲突，Git 会暂停变基操作，并提示你解决冲突。 --continue 命令继续变基过程。此命令告诉 Git 你已解决所有冲突，并准备好继续变基操作。Git 会继续应用剩下的提交，直到完成变基过程。如果在后续步骤中再次遇到冲突，你将重复解决冲突和使用 --continue 过程
+
+回滚（Revert）通过创建新的提交来实现撤销，而不会影响现有的提交历史(不会删除提交历史), 它保持了提交历史的完整性, 所以在公共分支上使用 revert 是安全的
+    撤销单个提交：git revert commit-hash
+        你可以依次对多个提交使用 revert，也可以使用范围(..)来批量撤销 
+            git revert a1b2c3d4..e5f6g7h8 这将生成一系列新提交，依次撤销从 a1b2c3d4 到 e5f6g7h8 的所有更改
+    20240828233534.webp
+    其中，A 是最早的提交，E 是最新的提交, 我们希望撤销提交 C 的更改, git revert commit-hash-of-C
+    提交 F 是由 git revert 创建的，用于撤销提交 C 的更改。这个新提交 F 会包括与 C 相反的更改，从而将 C 引入的修改回滚
+
+重置（Reset）将当前分支回退到某个指定的提交，可以选择是否保留更改
+    git reset --hard commit-hash
+        --soft：保留工作目录和暂存区中的更改，将 HEAD 移动到指定提交。
+            当你想回退到某个提交，并重新提交所有自那个提交以来的更改（例如，修改提交历史）时使用。
+        --mixed：重置暂存区到指定提交的状态，保留工作目录中的更改。
+            当你想丢弃暂存区中的更改，但保留工作目录中的更改时使用（例如，取消暂存已暂存的更改）
+        --hard：完全重置工作目录和暂存区到指定提交的状态，丢弃所有更改。
+            当你想完全回退到某个提交，丢弃所有自那个提交以来的更改时使用（例如，重置整个工作目录）。
+
+在 Git 中，空目录（没有任何文件的目录）是不能被直接跟踪或记录的。Git 只跟踪文件和目录中包含的文件，不跟踪空目录。
+    因此，当你修改一个空目录的名称时，Git 实际上并不会记录这个更改
+    如果希望 Git 跟踪一个目录，即使该目录当前为空，可以在该目录中添加一个占位符文件（例如 .gitkeep 或 .gitignore）
+        git add path/to/directory/.gitkeep
+        git commit -m "Add placeholder file to keep the directory"
+
+<h1>.gitignore</h1>
+.git同级目录中创建.gitignore文件,配置忽略条件
+    在 Git 中，隐藏文件和目录的忽略规则和普通文件和目录的规则处理方式略有不同
+    在 .gitignore 文件中，书写顺序是很重要的，因为 Git 会按顺序应用忽略规则。规则的先后顺序决定了哪些内容会被忽略，哪些会被取消忽略
+        先忽略，再取消忽略, 更具体的规则应放在更通用规则之后
+    在 .gitignore 文件中，使用 # 开头的行即为注释
+
+    /directory/
+        根目录下的 directory 目录及其所有内容（包括文件和子目录）, 但不包括 directory 内的隐藏文件（以 . 开头的文件）
+    /directory/**
+        更加全面地忽略 directory 及其所有层级的内容, 包括隐藏文件, 这是最保险的选择
+        等同 directory/**
+    directory/
+        所有层级下的 directory 目录及其所有内容（包括文件和子目录）
+    directory/*
+        所有层级下的 directory 目录中的所有文件, 但不忽略 directory 目录本身和其子目录（子目录中的文件会被忽略）
+    /directory/*
+        根目录下的 directory 目录中的所有文件，但不忽略 directory 目录本身和其子目录（子目录中的文件会被忽略）
+    logs/
+    !/logs/keep.log
+        忽略所有 logs 目录及其子目录下的内容，但 logs/keep.log 除外
+    !.mvn/wrapper/maven-wrapper.jar
+        确保 maven-wrapper.jar 文件被跟踪，即使其所在的目录被忽略
+            不忽略 maven-wrapper.jar 文件，即使它在一个被忽略的目录中
+            ! 符号表示取消忽略的规则，这使得 Git 会跟踪这个特定的文件，即使其他规则忽略了它所在的目录
+    !**/src/main/**/target/
+        确保所有 src/main 目录下的 target 目录被跟踪，即使通常情况下 target 目录会被忽略
+            不忽略所有 src/main 目录下的 target/ 目录
+            ** 表示匹配所有层级的子目录
+    *~
+        忽略所有的临时文件
+    a.txt
+        任意位置的名为a.txt的文件
+    *.log
+        忽略某种类型的文件
+
+例如, 要忽略根目录下除 demo0 之外的所有内容，同时忽略 demo0 中任意位置的 target 文件夹，你可以在 .gitignore 文件中使用以下规则
+    忽略所有内容, 包括隐藏文件和文件夹
+        /**
+    取消忽略 demo0 文件夹本身
+        !demo0/
+    取消忽略 demo0 文件夹中的所有文件和子目录, 分两步是因为 Git 的忽略机制是逐级处理的, 如果你首先忽略了一个文件夹，那么这个文件夹及其所有内容都会被忽略。要重新包括某个文件夹中的内容，必须先取  消对该文件夹的忽略，然后再取消对该文件夹中内容的忽略。
+        !demo0/**
+    但忽略demo0中任意位置的target
+        demo0/**/target/
+
+当你在一个已经被 Git 跟踪的项目中修改忽略规则时, 如果你添加了新的忽略规则, 导致某些以前没有被忽略的文件或目录现在被忽略
+    如果这些文件已经被 Git 跟踪（即已经被 git add 并提交），Git 会继续跟踪它们，即使它们现在符合 .gitignore 的新规则。
+    这意味着这些文件仍会出现在未来的提交中，除非你明确地将它们从 Git 的版本控制中移除
+        将已经被 Git 跟踪的文件从版本控制中移除，并且使这些文件遵循 .gitignore 规则
+        git rm --cached logs/ 命令移除文件或目录的跟踪状态
+            这将从 Git 的索引中移除文件，但文件本身仍然保留在你的工作目录中。之后，Git 将忽略这些文件
+        git commit -m "Remove logs and log files from version control"
+            提交这个更改，以便 Git 记录下这些文件不再被跟踪的状态
+        提交完成后，可以运行 git status 来确认这些文件或目录现在被 Git 忽略
+
+<h1>git add -p</h1>
+允许你在添加修改到暂存区（staging area）时进行更细粒度的控制。使用这个命令，你可以选择性地将某些修改部分添加到暂存区，而忽略其他部分。
+Git 会逐块（hunk）显示你所做的修改，并让你对每一块修改做出决定。你可以选择将这一块修改添加到暂存区，还是暂时忽略它
+
+在 git add -p 的交互过程中，Git 会向你显示一个修改块，并提供以下选项：
+    y：将当前块的修改添加到暂存区。
+    n：不添加当前块的修改到暂存区（忽略）。
+    s：分割当前块的修改，让你可以进一步细分和选择。
+    e：手动编辑当前块的修改，选择具体要添加的行。
+    q：退出 git add -p，不再处理剩下的修改。
+    a：将当前块以及后续的所有修改都添加到暂存区。
+    d：跳过当前块以及后续的所有修改，不添加到暂存区。
+
+<h1>Cherry-picking</h1>
+git cherry-pick commit-hash
+允许你从一个分支中选择特定的提交并应用到当前分支，而无需合并整个分支。这对你只想引入某个特定变更，而不想合并整个分支的情况非常有用
+    在某个分支（例如 feature-branch）上进行了几个提交，但你只想将其中一个或几个提交应用到另一个分支（例如 main）
+    在修复某个错误后，想把该修复提交到其他分支
+如果你在 cherry-pick 操作中遇到了冲突，并且尚未完成 cherry-pick（即你还没有提交变更），你可以通过以下步骤取消 cherry-pick 恢复到 cherry-pick 开始之前的状态
+    git cherry-pick --abort
+在已完成 cherry-pick 时：使用 git reset --hard 来撤销最近的提交，或者使用 git revert 创建一个新提交来撤销指定提交的变更
+
+<h1>git checkout</h1>
+恢复工作区的所有内容为最近一次提交的状态，即丢弃(不可逆)工作区中的所有未提交的修改
+    git checkout .  
+        恢复单个文件
+            git checkout -- a.txt
+
+切换到历史版本并查看、调试或基于该版本进行开发
+    git checkout 907d3ba  取出最后提交为 commit id 为 907d3ba 这个版本,HEAD 转到 907d3ba，和 master 分离。
+        在“分离 HEAD”状态下的更改，如果没有提交到一个分支上，将会丢失。因此，如果你在分离状态下做了修改并且想要保留它们，应该创建一个新分支
+            git checkout -b my-feature-branch
+    如果要开发新功能，直接在某个提交上打分支即可，为什么要分离 HEAD？原因是这样比较轻量。
+        比如你现在想开发一个功能，但不知道是否可行，所以先试验一下，确认好了再打分支。如果直接打分支，觉得不合适还得删除。因为分支没有合并，还删不掉，删除还得加强制删除参数。
+    删除本地的指定分支
+        git branch -d branch-name
+            如果分支的更改没有被合并，Git 会拒绝删除操作并给出提示，避免你意外丢失更改
+        git branch -D branch-name
+            强制删除本地分支，无论它是否已经被合并, 删除后这些更改将无法恢复
+    删除远程分支
+        git push origin --delete branch-name
+
+强制拉分支, 如果并行的只有一个任务，可以每次都用 dev 分支开发
+    git checkout -B dev
+        如果 dev 分支不存在，这个命令会创建 dev 分支并切换到它
+        如果 dev 分支已经存在，这个命令会将 dev 分支重置为当前工作目录的状态，丢弃该分支上的任何历史提交。
+            这会使 dev 分支指向当前 HEAD，并覆盖该分支上之前的内容。
+            如果没有 -B 参数，会报错
+
+在历史提交的基础上创建新分支
+    如果没有指定一个起始点（提交哈希值或分支名），Git 会默认从当前 HEAD 所指向的提交创建新分支
+    git checkout -b dev F123456
+        基于提交 F123456 创建一个名为 dev 的新分支
+           
+孤立分支
+    新项目或版本的开发: 当你想在现有的仓库中创建一个全新的项目或版本，不继承之前的提交历史，可以使用孤立分支。
+    文档分支: 创建一个没有代码历史的分支，专门用于存放文档、设计文件或其他非代码内容。
+        git checkout --orphan doc
+        创建一个没有父提交的新分支并切换到这个新分支。新分支和其它分支是平行的永远不会相交
+            当前工作目录中的所有文件将保持不变，但 Git 会将它们标记为未跟踪
+            可以通过 git rm -rf . 删除当前目录下的所有文件
+
+选择合并
+    git checkout master
+    git merge dev
+    将 dev 分支的工作合并到 master 分支，从而将 dev 上的更改引入到 master
+        Git 会尝试自动合并 dev 分支的内容到 master 分支。如果两个分支有不冲突的更改，Git 会直接合并生成一个新的合并提交
+        如果有冲突（即相同的文件在两个分支中都被修改过），手动解决冲突后, git merge --continue 继续合并
+    git merge --abort
+        取消合并，恢复到合并前的状态
+
+<h1>暂存区</h1>
+查看暂存区
+    git status
+        查看整体状态，包括暂存区的文件。
+    git diff --cached
+        查看暂存区中文件的具体差异。
+    git ls-files -s
+        查看暂存区中文件的详细信息。
+    git diff --name-only --cached
+        查看暂存区中文件的名称列表
+清空 Git 暂存区
+    git reset
+        所有已暂存的文件将被移回工作区
+    git reset file
+        清空特定文件的暂存状态
+    git restore --staged .
+    git restore --staged file
+        Git 2.23+新命令，提供与 git reset 类似的功能，适合移除特定文件或全部文件
+
+<h1>删除旧的提交历史</h1>
+git checkout --orphan latest_branch
+git add -A
+git commit -m "init"
+git branch -D master
+git branch -m master
+git push -f origin master
+
+<h1>Idea中使用Git</h1>
+version control 指定git.exe地址,测试一下
+新建项目基体, 菜单栏VCS启用版本控制,选择git
+
+绿色：新文件：文件已被添加到版本控制，但尚未提交（staged for commit）。
+蓝色：已修改：文件内容已被修改，但修改还未被提交（modified but not committed）。
+红色：未版本控制的文件：文件存在于项目中，但尚未被添加到版本控制系统中（unversioned files）。
+
+Alt + 9 打开 Git 工具窗口
+在 IntelliJ IDEA 中，你可以通过集成的 Git 命令行窗口执行 Git 命令
+
+Changelists 允许你将不同的更改分组，并有选择地提交它们。这样可以帮助你将不同的变更逻辑上分开，使提交历史更清晰易读
+    将与特定功能相关的更改分配到一个 Changelist，以便可以单独提交和管理这些更改
+    创建一个专门的 Changelist 用于错误修复，确保错误修复提交与功能开发分开
+    在提交之前整理未提交的更改，将它们分组到合适的 Changelist 中，确保每个提交都有明确的目的和内容
+
+<h1>多人协作</h1>
+管理员
+    完成项目基体搭建
+    为当前项目创建本地版本库
+        add到暂存区
+        commit到版本库
+    创建远程版本库
+        添加开发者
+        将本地仓库push到远程仓库
+        设置远程仓库中主分支为保护分支
+    在本地创建dev分支
+    将本地dev分支push到远程仓库，新建远程仓库的dev分支
+开发者
+    从管理员提供的远程仓库pull项目到本地
+    开发步骤
+        进行修改操作
+        测试本地修改
+        add到暂存区
+        commit到本地版本库
+        push到远程仓库（dev）
+            在pull之后，push之前被其他开发者push过, 需要再次pull到本地, 选择产生冲突的文件, 手动合并（和其他开发者沟通合并方案）,然后添加提交后push
+            20240829101108.webp
+<code bash>
+## 管理员
+echo "# test" >> README.md
+git init
+git add README.md
+git commit -m "init"
+git branch -M main      ## 这会将当前分支（如 master）重命名为 main, -M 选项用于强制重命名分支, 即使已经存在名为 main 的分支，也会覆盖原有的分支名, 原来的 main 分支会被删除
+git remote add origin https://github.com/ida/test.git
+git push -u origin main ## -u 将当前分支与远程分支关联。这样以后在执行 git push 或 git pull 时，无需指定远程和分支名
+git checkout -b dev
+echo dev >readme.md
+git add readme.md
+git commit -m 'dev created readme.md'
+git push origin dev
+ 
+ 
+## 开发者1 
+## 建个新目录
+git init
+git remote add origin https://gihub.com/ida/test.git
+git remote set-url origin https://github.com/ida/test.git    ## 修改url
+git fetch origin                                                    ## 获取远程仓库所有分支信息
+git checkout -b dev origin/dev                                      ## (上一步必需) 创建并切换到新的本地 dev 分支，该分支基于远程 origin/dev 分支
+ 
+## git init之后默认分支是 master
+## git pull origin dev 
+## 拉取远程 dev 分支的内容并将其合并到当前的 master 分支
+## 计划在 dev 分支上工作，因此在合并后要切换到 dev 分支
+## git checkout -b dev
+## 本地存在了master, dev两个分支
+ 
+cd demo1
+echo 你好世界 >>readme.md
+git add readme.md
+git commit -m '向readme.md文件追加了新内容'
+git push origin dev
+ 
+ 
+## 开发者2
+git init
+git remote add origin https://github.com/ida/test.git
+git fetch origin
+git checkout -b dev origin/dev 
+ 
+ 
+## 开发者1 
+echo cover >readme.md
+git add .
+git commit -m 'cover readme.md'
+git push origin dev
+ 
+ 
+## 开发者2
+cd demo1/
+echo conflict_test >readme.md
+git add .
+git commit -m 'conflict_test'
+git push origin dev
+    ! [rejected]        dev -> dev (fetch first)
+    error: failed to push some refs to 'https://github.com/ida/test.git'
+    hint: Updates were rejected because the remote contains work that you do not
+    hint: have locally. This is usually caused by another repository pushing to
+    hint: the same ref. If you want to integrate the remote changes, use
+    hint: 'git pull' before pushing again.
+    hint: See the 'Note about fast-forwards' in 'git push --help' for details.
+git pull origin dev 
+cat readme.md
+    &lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD
+    conflict_test
+    =======
+    cover
+    >>>>>>> a674ea3d75bd504b46b9ce89328a4ffe4990965c
+## 手动修改readme.md文件, 删除冲突标记
+git add .       ## Git 需要知道你已经解决了冲突，所以你需要将修改后的文件重新添加到暂存区
+git commit -m 'conflict_resovled'
+git push origin dev
+</code>
+
+<h1>命令测试</h1>
+<code bash>
+git --version                   ## git版本
+## 设置用户信息
+git config --global user.name 'ida'
+git config --global user.email 'ida@gmail.com'
+## 查看 Git 全局配置的用户信息
+git config --global user.name
+git config --global user.email
+git config --list               ## 查看 Git 配置文件的完整内容
+git status                      ## 版本库状态
+## /d/mess/test 右键git bash
+git init                        ## 在当前目录初始化一个新的 Git 仓库
+## 新建note.txt文件
+git add note.txt                ## 只将工作空间中的某个文件add到暂存区
+## git add .                    将工作空间中所有文件都add暂存区
+git status
+git commit --help               ## 查看commit命令手册
+git commit -m '新建note.txt'     ## 将暂存区内容提交到版本库（仓库） -m 消息
+## 查看版本库中的历史版本
+git log --oneline               ## 每个版本信息只显示一行
+git log                         ## 显示每个版本的详细信息
+## 如果xxx是一个标签,将工作目录切换到该标签对应的提交版本; 如果xxx是一个分支,切换到该分支，使其成为当前活动分支
+## git checkout xxx
+git tag                         ## 查看所有的标签
+git branch -a                   ## 查看所有分支 -a 本地和远程
+ 
+## 添加远程仓库为当前本地 Git 仓库的远程仓库，并命名为 origin。之后可以通过引用 origin 来与这个远程仓库进行交互
+git remote add origin htps://xxx.git    
+git remote -v                           ## 列出每个远程仓库的名称，以及用于 fetch（拉取）和 push（推送）操作的 URL
+## 将本地 master 分支的更改推送到远程仓库 origin 的 master 分支, 如果远程的 master 分支上有本地没有的提交，推送可能会失败，提示你先拉取（git pull）并解决冲突
+git push origin master  
+## -u 选项用于设置上游（upstream）分支。它会将本地分支与远程分支关联起来，之后可以使用简化的命令（如 git push 和 git pull），而不需要每次都指定远程仓库和分支名称   
+git push -u origin master
+ 
+git init                                ## 创建本地版本库
+## 从指定的远程仓库的 master 分支拉取最新的更改，并将这些更改合并到当前本地分支
+## 通常情况下，远程仓库是通过 git remote add 来添加的，并且你会使用类似 git pull origin master 的命令来拉取更改 , 直接使用远程仓库的 URL 是少见的情况，可能适用于临时拉取某个远程仓库的更改，而不将其添加为远程仓库
+git pull htps://xxx.git master      
+##  基于指定的历史版本创建一个新的分支并切换到这个新分支 
+git checkout commit-hash -b branch-name
+</code>
+</pre>
+</body>
+</html>

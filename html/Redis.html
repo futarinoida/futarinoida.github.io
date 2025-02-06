@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>Redis</title>
+</head>
+<body><span id="anchor">20240430090453-_中间件</span>
+<pre>
+Redis（键值对型）NoSQL数据库
+    NoSQL（Not Only SQL）是一类数据库系统的统称，它们不使用传统的关系型数据库模型（SQL），而是采用其他的数据存储模型。NoSQL数据库系统设计的目标是解决传统关系型数据库在处理大数据量、高并发、分布式等方面的局限性。NoSQL数据库通常具有以下特点：
+        灵活的数据模型： NoSQL数据库通常支持多种数据模型，如键值对、文档型、列族型、图形等，使得能够更好地适应不同的数据结构和数据处理需求。
+        分布式架构： NoSQL数据库天生支持分布式架构，能够轻松处理大规模数据和高并发访问。
+        高可用性和容错性： NoSQL数据库通常具有自动分片、数据冗余备份等机制，提供高可用性和容错性。
+        弱一致性和最终一致性： NoSQL数据库通常不要求严格的一致性，可以在一定程度上牺牲一致性来换取性能和可用性。
+        适用于特定场景： NoSQL数据库适用于不同的场景，如大数据处理、实时数据处理、图形数据分析等。
+        常见的NoSQL数据库包括MongoDB（文档型）、Redis（键值对型）、Cassandra（列族型）、Neo4j（图形型）等。
+
+Redis将数据存储在内存中同时也能持久化到磁盘, 常用于缓存(不经常变更的稳定的数据),利用内存的高效率提高程序的处理速度
+    广泛的语言支持
+        Redis支持多种编程语言，如Java、Python、JavaScript等，可以轻松与各种应用程序集成。
+    持久化
+        Redis支持两种持久化方式，分别是RDB（Redis DataBase）和AOF（Append Only File）。RDB是通过定期将内存中的数据快照保存到磁盘上，而AOF则是将每次写操作记录到一个日志文件中。
+    多种数据结构
+        Redis支持多种数据结构，包括字符串、哈希表、列表、集合、有序集合等，使得它可以适用于各种不同的应用场景。
+    主从复制
+        Redis支持主从复制，可以将一个Redis服务器的数据复制到其他多个Redis服务器上，以实现数据的备份和负载均衡。
+    分布式与高可用
+        Redis支持分布式架构和高可用性配置，可以通过集群和哨兵机制实现数据的分布式存储和高可用性。
+        当发现一服务器故障时会屏蔽它并使用其它服务器替代
+
+<h1>安装</h1>
+redis.config ,默认daemonize no改yes,后台运行程序不占用终端窗口
+<code bash>
+#查看是否安装了c语言编译器
+yum list installed gcc
+ 
+#安装redis
+mkdir /usr/local/redis
+cd /usr/local/redis
+wget https://download.redis.io/releases/redis-7.0.15.tar.gz
+tar zxf redis-7.0.15.tar.gz
+cd redis-7.0.15
+make
+./src/redis-server ./redis.conf
+</code>
+
+<h1>配置</h1>
+20240430103413.webp
+
+<code bash>
+#修改daemonize yes
+vim redis.conf
+ 
+#启动redis客户端
+./src/redis-cli 
+ 
+#客户端下测试连通性,正常返回PONG
+ping
+ 
+#用它自己的客户端替代kill -9 [pid]方式关闭redis
+./src/redis-cli shutdown 
+ 
+#修改port 6380
+#修改logfile空字符串为"redis.log",将在安装目录下生成redis.log日志文件
+ 
+#修改默认port后每次启动redis客户端时需要应用端口号
+./src/redis-cli -p 6380
+ 
+#查看日志
+cat redis.log
+ 
+#redis的数据库按数字来区别,没有名字
+#客户端下Redis 默认有 16 个数据库（编号从 0 到 15），可以使用 SELECT 命令切换数据库。默认情况下，连接到 Redis 时会使用第 0 个数据库
+select 5
+ 
+#清空当前数据库中的所有键值对
+flushdb
+ 
+#修改databases 255, （编号从 0 到 254）关闭重启使之生效
+./src/redis-cli -p 6380 shutdown
+./src/redis-server ./redis.conf
+./src/redis-cli -p 6380
+ 
+#设置客户端密码, 取消注释#requirepass修改其后的明文密码,关闭重启使之生效
+./src/redis-cli -p 6380 shutdown
+./src/redis-server ./redis.conf
+./src/redis-cli -p 6380
+auth 12345
+#或./src/redis-cli -p 6380 -a 12345
+ 
+#修改数据库目录,默认dir ./, 全量备份文件dump.rdb文件的存放目录
+#获取配置信息
+127.0.0.1:6380> config get *
+127.0.0.1:6380> config get port
+#更改配置,设置是临时的，即在当前运行的 Redis 服务器实例中生效，重启 Redis 后会失效
+127.0.0.1:6380> config set loglevel "notice"
+</code>
+
+<h1>String类型</h1>
+String最大512mb, 建议单个kv不超过100kb
+处理包含空格、双引号和单引号的值时，需要使用正确的转义字符
+    This is a "complex" value with 'single quotes' and "double quotes"
+    SET title 'This is a "complex" value with '\''single quotes'\'' and "double quotes"'
+
+<code bash>
+#选择数据库
+select 0
+ 
+#单写,批写 
+set a apple 
+mset b ball c cow
+ 
+#Redis 默认使用 UTF-8 编码,对于中文命令行客户端会以字节流的十六进制表示, 一个汉字3字节
+127.0.0.1:6380[2]> set name 汉字
+OK
+127.0.0.1:6380[2]> get name
+"\xe6\xb1\x89\xe5\xad\x97"
+#如果要显示转义后的中文字符, 登录时附加参数raw, redis-cli --raw
+ 
+#单读,批读
+get a 
+mget a b c 
+ 
+#单删,批删
+del a 
+del b c 
+ 
+#设置存活期,秒
+expire a 30
+#查询剩余寿命
+tll a 
+ 
+#检查是否存在某key, 1存在0不存在
+exists a 
+ 
+#查询当前库key总数
+dbsize
+ 
+#筛选key
+keys *
+keys a*
+ 
+#对key自增自减,步长1,值为整型
+incr a 
+decr a 
+ 
+#对key自增自减,指定步长,值为整型
+incrby a 3
+decrby a 3
+</code>
+<h1>Hash键值类型</h1>
+用于存储结构化数据
+键名并不强制要求包含冒号，但使用冒号可以使键名更具层次结构和可读性
+    HSET myhash field1 "value1"
+    HSET myhash field1 value1
+    加引号和不加引号存储的值是一样的, 引号只是用于命令行中表示字符串值的一种方式，而在实际存储中，Redis 会将值存储为字符串，无论是否使用引号
+<code bash>
+#写单个属性,写多个属性
+hset emp:1 name Bob
+hmset emp:1 name Bob age 20 sex male 
+ 
+#读单个属性,读多个属性,读所有属性
+hget emp:1 name 
+hmget emp:1 name age
+hgetall emp:1
+ 
+#删除单个属性,删除多个属性
+hdel emp:1 sex
+hdel emp:1 name age
+ 
+#检查是否存在指定属性,1存在0不存在
+hexists emp:1 name
+ 
+#查询属性个数
+hlen emp:1
+</code>
+
+<h1>List列表类型</h1>
+通常只用来保存同一类信息
+<code bash>
+#只有lpush,lpop有对应的rpush和rpop,其它的没有r起头的命令
+#向列表右侧(末尾)依次插入
+rpush list 1 2 3
+ 
+#获取指定范围内的元素,-1最后一个元素
+lrange list 0 -1 
+1) "1"
+2) "2"
+3) "3"
+ 
+#向列表左侧(开头)依次插入
+lpush list -1 -2
+lrange list 0 -1 
+1) "-2"
+2) "-1"
+3) "1"
+4) "2"
+5) "3"
+ 
+#从左边(开头)取出(消耗,原列表元素减少)1个元素, 
+lpop list 
+lrange list 0 -1
+1) "-1"
+2) "1"
+3) "2"
+4) "3"
+ 
+#从右边取出2个元素(3,2)
+rpop list 2
+lrange list 0 -1
+1) "-1"
+2) "1"
+ 
+#获取列表指定位置的元素,下标0起
+#获取列表第一个元素
+lindex list 0
+ 
+#更新列表指定位置的元素
+#将列表第二个元素更新为0
+lset list 1 0 
+ 
+rpush list 1 2 3
+lrange list 0 -1
+1) "-1"
+2) "0"
+3) "1"
+4) "2"
+5) "3"
+#裁剪列表,删除范围之外的所有元素,-1最后一个元素
+ltrim list 1 1
+lrange list 0 -1
+1) "-1"
+2) "1"
+3) "2"
+4) "3"
+ltrim list 2 -1
+lrange list 0 -1
+1) "2"
+2) "3"
+ 
+#删除内容为指定值的元素
+#假设list内容为
+1) "a"
+2) "b"
+3) "a"
+4) "c"
+5) "a"
+#删除列表中所有值为 "a" 的元素,  0表示全部
+lrem list 0 a
+1) "b"
+2) "c"
+ 
+rpush list b d b
+#从队首开始,删除列表中的前两个值为 "b" 的元素
+lrem list 2 "b"
+1) "c"
+2) "d"
+3) "b"
+</code>
+
+<h1>Set和Zset集合类型</h1>
+Set无序唯一
+Zset有序唯一
+实际应用较少
+<code bash>
+#插入元素, 返回值为成功插入的元素个数, 重复不计
+sadd set1 a b c d
+sadd set2 c d e f 
+ 
+#显示集合元素
+smembers set1
+1) "c"
+2) "a"
+3) "d"
+4) "b"
+ 
+#计算set1和set2交集
+sinter set1 set2
+1) "c"
+2) "d"
+ 
+#计算set1和set2并集
+sunion set1 set2
+1) "d"
+2) "c"
+3) "a"
+4) "f"
+5) "e"
+6) "b"
+ 
+#计算差集,前者有,而后者没有的元素
+sdiff set1 set2
+1) "a"
+2) "b"
+sdiff set2 set1
+1) "f"
+2) "e"
+ 
+#Zset是在set的基础上额外增加一个分数参数用来排序, 默认按分数升序排列, 分数可以是小数。Redis使用双精度浮点数来存储分数
+zadd zset1 100 a 101 b 99 c
+ 
+#与lrange命令相似
+zrange zset1 0 -1
+1) "c"
+2) "a"
+3) "b"
+#显示分数
+zrange zset1 0 -1 withscores
+1) "c"
+2) "99"
+3) "a"
+4) "100"
+5) "b"
+6) "101"
+ 
+#按分数范围筛选
+zrangebyscore zset1 99 100
+1) "c"
+2) "a"
+zrangebyscore zset1 99 100 withscores
+1) "c"
+2) "99"
+3) "a"
+4) "100"
+</code>
+
+<h1>Jedis</h1>
+Jedis是Java语言开发的Redis客户端工具包,仅作为对Redis命令的封装
+在绝大多数情况下redis作为一台服务器时不做其它事情
+<h2>配置</h2>
+<code bash>
+#修改配置关闭保护模式,允许允许远程访问
+protected-mode no
+#0.0.0.0表示所有ip都可以访问(测试环境), 实际应用时应指定为具体ip,多个ip空格分开
+bind 0.0.0.0
+#检查bind
+config get bind
+config get *
+
+#端口放行
+firewall-cmd --permanent --zone=public --add-port=6380/tcp
+firewall-cmd --reload
+</code>
+<h2>依赖</h2>
+2.9是国内使用最多的版本
+<code xml>
+&lt;dependencies&gt;
+    &lt;dependency&gt;
+        &lt;groupId&gt;redis.clients&lt;/groupId&gt;
+        &lt;artifactId&gt;jedis&lt;/artifactId&gt;
+        &lt;version&gt;2.9.0&lt;/version&gt;
+    &lt;/dependency&gt;
+
+&lt;/dependencies&gt;
+</code>
+<h2>命令演示</h2>
+<code>
+public class RedisTest {
+    public static void jedisUtil(Consumer&lt;Jedis> consumer) {
+        Jedis jedis = new Jedis("192.168.149.133", 6380);
+        jedis.auth("12345");
+        try {
+            consumer.accept(jedis);
+        } finally {
+            jedis.close();
+        }
+    }
+ 
+    @Test
+    public void _string() {
+        jedisUtil(jedis -> {
+            jedis.select(2);
+            jedis.set("name","Lily");
+            System.out.println(jedis.get("name"));//Lily
+ 
+            jedis.mset("age","20","sex","female");
+            List&lt;String> result = jedis.mget("name","age","sex");
+            System.out.println(result);//[Lily, 20, female]
+ 
+            System.out.println(jedis.dbSize());//3
+            System.out.println(jedis.exists("name"));//true
+            System.out.println(jedis.exists("name2"));//false
+ 
+            Set&lt;String> result2 = jedis.keys("*");//返回类型为Set
+            System.out.println(result2);//[name, age, sex]
+ 
+            jedis.set("num", "2");
+            System.out.println(jedis.incr("num"));//3
+            System.out.println(jedis.incrBy("num",5));//8
+ 
+            System.out.println(jedis.del("age","sex","name"));//3
+ 
+            jedis.expire("num",5);//秒
+            System.out.println(jedis.get("num"));
+            try {
+                Thread.sleep(3000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+            System.out.println(jedis.ttl("num"));//2
+            try {
+                Thread.sleep(3000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+            System.out.println(jedis.get("num"));//null
+        });
+    }
+ 
+    @Test
+    public void _list() {
+        jedisUtil(jedis -> {
+            jedis.select(2);
+            jedis.rpush("list","a","b","c","d");
+            jedis.lpush("list","x","y","z");
+            System.out.println(jedis.lrange("list",0,-1));//[z, y, x, a, b, c, d]
+            System.out.println(jedis.lpop("list"));//z
+            System.out.println(jedis.rpop("list"));//d
+            System.out.println(jedis.lrange("list",0,-1));//[y, x, a, b, c]
+            jedis.del("list");
+        });
+    }
+ 
+    @Test
+    public void _hash() {
+        jedisUtil(jedis -> {
+            jedis.select(2);
+            jedis.hset("stu:1","name","Lily");
+ 
+            Map<String,String> kvs = new HashMap&lt;>();
+            kvs.put("age","20");
+            kvs.put("sex","female");
+            jedis.hmset("stu:1",kvs);
+ 
+            List&lt;String> list = jedis.hmget("stu:1","name","age");//[Lily, 20]
+            Map&lt;String,String> map = jedis.hgetAll("stu:1");//{name=Lily, age=20, sex=female}
+            System.out.println(jedis.del("stu:1"));
+        });
+    }
+}
+</code>
+
+<h2>应用演示</h2>
+<code>
+public class GoodsTest {
+    @Test
+    public void write() {
+        RedisTest.jedisUtil(jedis -> {
+            jedis.select(2);
+ 
+            List&lt;Goods> goodsList = new ArrayList&lt;>();
+            goodsList.add(new Goods(101, "苹果", 5.9));
+            goodsList.add(new Goods(102, "梨子", 3.9));
+            goodsList.add(new Goods(103, "布拿拿", 2.9));
+
+            for (Goods goods : goodsList) {
+                String json = JSON.toJSONString(goods);
+                String key = "goods:" + goods.getId();
+                jedis.set(key, json);
+            }
+        });
+    }
+ 
+    @Test
+    public void read() {
+        RedisTest.jedisUtil(jedis -> {
+            jedis.select(2);
+ 
+            while (true) {
+                Scanner scanner = new Scanner(System.in);
+                System.out.println("请输入商品id: [0 退出]");
+                String id = scanner.next();
+                if (id.equals("0"))
+                    break;
+                if (jedis.exists("goods:" + id)) {
+                    String json = jedis.get("goods:" + id);
+                    Goods goods = JSON.parseObject(json, Goods.class);
+                    System.out.println(goods.getName() + "-" + goods.getPrice());
+                } else {
+                    System.out.println("无效的商品id");
+                }
+            }
+        });
+    }
+}
+</code>
+</pre>
+</body>
+</html>

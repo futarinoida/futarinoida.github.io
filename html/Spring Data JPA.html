@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>Spring Data JPA</title>
+</head>
+<body><span id="anchor">20240831131013-_数据库</span>
+<pre>
+Hibernate API 直接操作
+    需要更细粒度的控制数据库事务和 Session 生命周期的场景。
+    复杂的数据库操作或批量处理（如批量插入、批量更新）时，通过直接使用 Session 可以优化性能。
+    需要结合原生 SQL 查询、存储过程或 Hibernate 特有的功能（如 HQL、Criteria API）时，直接使用 Hibernate API 可能更灵活。
+
+Spring Data JPA
+    提供了高层抽象，减少了开发者直接处理数据库访问的复杂性。
+        内置的 CrudRepository 或 JpaRepository 提供了常见的 CRUD 操作和简单查询，不需要写重复代码。
+        自动管理事务和 EntityManager，减少了手动管理的负担
+            在服务层方法上使用 @Transactional 注解来指定事务行为
+    在需要特殊优化或自定义查询时，可能不如直接使用 Hibernate API 灵活
+
+<h1>JpaRepository</h1>
+<h2>预定义的方法</h2>
+JpaRepository 接口，它包含了基本的 CRUD 操作。只需创建一个接口并继承 JpaRepository，就可以自动获得这些方法。
+    save(S entity)
+        保存给定的实体。如果实体已存在（即具有主键），则会更新该实体；否则，会插入新的实体
+        返回保存后的实体（通常包含数据库生成的主键值）
+    saveAll(Iterable[S] entities)
+        批量保存给定的实体集合
+        返回保存后的实体集合
+    findById(ID id)
+        根据主键查找实体
+        返回 Optional 包装的实体对象，如果找不到则返回 Optional.empty()
+    findAll()
+        查找所有实体
+    findAllById(Iterable[ID] ids)
+        根据给定的 ID 集合查找实体
+        findAllById(Arrays.asList(1L, 2L))
+    count()
+        实体数量的 long 值, userRepository.count();
+    deleteById(ID id)
+        根据主键删除实体
+    delete(T entity)
+        删除给定的实体
+    deleteAll(Iterable[? extends T] entities)
+        批量删除给定的实体集合
+    findAll(Pageable pageable)
+        分页查询所有实体
+            Page[User] page = userRepository.findAll(PageRequest.of(0, 10));
+    findAll(Sort sort)
+        排序后的实体列表
+            List[User] users = userRepository.findAll(Sort.by("name").ascending());
+    existsById(ID id)
+        检查是否存在具有给定主键的实体
+
+<h2>Page对象</h2>
+getContent(): 返回当前页的实体数据
+hasContent(): 检查当前页是否包含数据
+getNumber(): 返回当前页的页码（从 0 开始）。
+getSize(): 返回每页显示的数据条数。
+getNumberOfElements(): 返回当前页实际包含的数据条数。
+getTotalPages(): 返回总页数。
+getTotalElements(): 返回符合查询条件的总记录数。
+hasNext(): 检查是否有下一页。
+hasPrevious(): 检查是否有上一页。
+isFirst(): 检查是否是第一页。
+isLast(): 检查是否是最后一页。
+
+Sort getSort(): 返回当前的排序方式。
+boolean isSorted(): 检查数据是否进行了排序。
+Pageable getPageable(): 返回用于请求当前 Page 的分页信息对象 Pageable，包含页码和页大小等信息。
+Pageable nextPageable(): 返回用于请求下一页的 Pageable 对象。
+Pageable previousPageable(): 返回用于请求上一页的 Pageable 对象。
+Iterator&lt;T> iterator(): 返回当前页数据的迭代器。
+Stream&lt;T> get(): 返回当前页数据的流。
+
+<h2>接口</h2>
+<code>
+public interface UserRepository extends JpaRepository&lt;User, Long> { //对象类型及主键类型
+ 
+    //接口下存放JpaRepository自带方法之外的自定义CRUD
+ 
+    //1. 方法名称约定
+ 
+    //2. 使用 JPQL 查询
+    @Query("SELECT u FROM User u WHERE u.age BETWEEN ?1 AND ?2")
+    List&lt;User> findByAgeBetween(int minAge, int maxAge);
+ 
+    //3. 使用原生 SQL  查询
+    @Query(value = "SELECT * FROM user WHERE age BETWEEN ?1 AND ?2", nativeQuery = true) 
+    List&lt;User> findByAgeBetweenUsingNativeQuery(int minAge, int maxAge);
+
+    //4. 使用自定义 Repository 实现
+}
+</code>
+
+<h3>方法命名约定</h3>
+Spring Data JPA 会解析方法名称自动创建相应的查询逻辑
+    简单属性查询
+        如果你有一个 User 实体类，并希望根据 name 属性查询用户
+            List[User] findByName(String name);
+            这个方法会自动生成一个 SQL 查询，类似于 SELECT * FROM user WHERE name = ?
+    多个属性查询
+        可以通过And连接多个属性来构造更复杂的查询
+            findByNameAndEmail(String name, String email);
+            类似于 SELECT * FROM user WHERE name = ? AND email = ?
+    使用 Containing 和 Like（模糊查询）
+        findByNameContaining(String nameFragment);
+    可以带有排序和分页参数
+        Page[User] findByName(String name, Pageable pageable);
+        Page[User] findByName(String name, Sort sort);
+    按属性范围查询
+        findByAgeBetween(int startAge, int endAge)
+    在方法名称中指定排序条件
+        findByNameOrderByAgeAsc(String name);
+    组合写法
+        findByAgeBetweenOrderByAgeAsc(int startAge, int endAge);
+        findByAgeBetweenOrderByAgeAsc(int startAge, int endAge, Pageable pageable);
+
+<h3>自定义 Repository 实现</h3>
+<code>
+//自定义 Repository 接口
+public interface CustomUserRepository {
+    List&lt;User> findUsersByCustomCriteria(String criteria);
+}
+//自定义 Repository 实现类
+public class CustomUserRepositoryImpl implements CustomUserRepository {
+ 
+    @PersistenceContext
+    private EntityManager entityManager;
+ 
+    @Override
+    public List&lt;User> findUsersByCustomCriteria(String criteria) {
+        String query = "SELECT u FROM User u WHERE u.name LIKE :criteria";
+        TypedQuery&lt;User> typedQuery = entityManager.createQuery(query, User.class);
+        typedQuery.setParameter("criteria", "%" + criteria + "%");
+        return typedQuery.getResultList();
+    }
+}
+ 
+//更新原有 UserRepository 接口以继承自定义 Repository
+public interface UserRepository extends JpaRepository&lt;User, Long>, CustomUserRepository {
+}
+</code>
+<h2>服务类</h2>
+<code>
+@Service
+public class UserService {
+ 
+    @Resource
+    private UserRepository userRepository;
+ 
+    public List&lt;User> getAllUsers() {
+        return userRepository.findAll();
+    }
+ 
+    public User getUserById(Long id) {
+        return userRepository.findById(id).orElse(null);
+    }
+ 
+    public User createUser(User user) {
+        return userRepository.save(user);
+    }
+ 
+    public User updateUser(Long id, User userDetails) {
+        User user = userRepository.findById(id).orElse(null);
+        if (user != null) {
+            user.setName(userDetails.getName());
+            user.setEmail(userDetails.getEmail());
+            return userRepository.save(user);
+        }
+        return null;
+    }
+ 
+    public void deleteUser(Long id) {
+        userRepository.deleteById(id);
+    }
+}
+</code>
+</pre>
+</body>
+</html>

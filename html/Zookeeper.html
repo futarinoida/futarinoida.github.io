@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>Zookeeper</title>
+</head>
+<body><span id="anchor">20240614164337-_中间件</span>
+<pre>
+<h1>ZooKeeper特点</h1>
+ZooKeeper是一个分布式协调服务 (无单点问题的分布式协调框架)
+    它选择了一致性和分区容错性CP(放弃A, 不保证每次服务请求的可用性), 当信息还没同步完成时, 不对外提供服务(丢弃请求)
+    它解决了两个问题, 第一是单机不可靠(使用集群), 第二是集群同步时间长(尽可能压缩同步时间)
+    20240820155051.webp
+    client发送请求到任意一个server,该server将请求转发给leader,leader处理完后将结果同步到所有server(主从同步,Master/Slave)
+
+    一致性
+        确保在任何时刻，客户端读取到的数据都是一致的。它使用了分布式一致性算法（如 ZAB 协议）来确保数据一致性。
+    可靠性
+        通过复制数据到多个节点来提供高可用性，即使部分节点出现故障，系统仍能正常运行。
+    原子性
+        所有操作都是原子的，要么成功执行，要么失败，没有中间状态。
+    顺序性
+        保证客户端发出的所有更新请求将按照请求发送的顺序依次执行，确保了事件的顺序性。
+    高性能
+        设计用于读多写少的场景，能够在这种场景下提供高性能的服务。
+
+应用 
+    主要集中在大数据和分布式存储领域
+    分布式服务注册与订阅
+        尽管 ZooKeeper 可以用于服务发现，但这并不是它的主要设计目标
+
+    统一配置文件
+        20240820160715.webp
+        例如redis的连接信息,client不需要频繁地去主动查询最新的信息,而是订阅（通过 Watcher机制）特定的节点数据或节点结构的变化,当这些节点发生变化时，ZooKeeper 会主动通知订阅方
+            Watcher 是一次性的，当事件触发后，Watcher 自动失效。如果需要继续监听，需要再次注册 Watcher
+            20240614190036.webp
+
+    生成分布式唯一ID
+        单库单表下自增主键是唯一的, 而在分布式情况下用主键做唯一标识则不适用
+            UUID, Snowflake, Redis的incr, Zookeeper的顺序节点
+            在分布式系统中生成 UUID 很简单，不依赖于中心化服务，每个节点都可以独立生成, 但是UUID 较长不易读
+            使用 Zookeeper 的顺序节点特性来生成唯一 ID, 能保证全局顺序和强一致性, 但性能不如其他方法
+
+    Master节点选举
+        每个参与选举的节点都会尝试创建一个临时顺序节点，并且在这些节点中，最小的节点被选为 Master
+        ZooKeeper 可以防止多个 Leader 并存的脑裂问题(如果网络发生分区，不同的分区可能选出不同的 Master)
+
+    分布式锁
+        各个服务内部的锁机制在分布式场景下会失效, 因为会存在各服务同时向同一目标写数据的情况, 单个服务内部的锁机制无法跨服务实例进行协调
+            基于 Redis 的分布式锁: 使用 Redis 的 SETNX 命令实现原子操作，并结合过期时间来防止死锁
+            基于 Zookeeper 的分布式锁: 利用 Zookeeper 的顺序节点和临时节点特性，确保只有一个客户端能够获取锁
+            基于数据库的分布式锁: 通过数据库的唯一性约束或者乐观锁机制实现分布式锁
+
+    Hadoop 使用 Zookeeper 来进行集群管理和任务调度。
+    HBase 使用 Zookeeper 来进行分布式协调，包括表的分片、Master 节点选举等。
+    Kafka 使用 Zookeeper 来管理集群的元数据，包括 Broker 信息、主题信息等。
+    Dubbo 使用 Zookeeper 作为服务注册中心，管理服务的注册和发现。
+
+<h1>znode节点</h1>
+特点
+    树形结构,可以理解为linux的文件目录
+    每一个节点都是znode,可以同时包含数据和子节点
+    每个znode都有版本号,每当数据变化,版本号会累加(乐观锁), 删除或修改节点,版本号不匹配时会报错
+    每个节点存储的数据不宜过大,几K即可
+    节点可以设置权限限制用户的访问
+    读和写都是原子操作,每次读写操作都是对数据的完整读取或完整写入
+类型 (节点创建后类型不可变更)
+    永久节点(需要手动删除) 
+    临时节点(session失效客户端断开后,临时节点消失,此特性用于服务注册发现)
+    顺序节点(生成分布式唯一ID, [10位数字])
+        永久节点和临时节点可以是顺序的或非顺序的
+版本属性 (新增初始值0)
+    dataVersion, 每次对节点进行set操作时加1, 无论修改的值是否与原值一样
+    cversion, 每次新增或删除子节点时加1, 修改了子节点的内容时不会发生变化
+    aclVersion, 每次修改权限时加1
+
+<h1>ACL权限控制</h1>
+access control list, 权限通常不是开发所关心的,因为运维会帮助搞定
+使用权限位来允许/禁止对节点及其作用域的各种操作
+ACL仅与特定的znode有关,与子节点无关
+    setAcl [-s] [-v version] [-R] path acl
+ACL 权限控制字符串由三个部分组成：schema,id,permissions
+    常用的 schema
+        world：
+            这是最简单的 schema，只有一个 id：anyone，表示所有用户。
+            例如：setAcl /node world:anyone:r
+        auth：
+            auth 认证是基于客户端的整体认证，而不是针对具体的节点。它表示只要客户端通过了认证，这个认证就适用于所有具有 auth ACL 的节点
+            setAcl /example auth:guest:guest ALL
+            任何已经通过身份验证的客户端（不论认证方式是什么(如digest)）都可以对 /example 节点执行所有操作（如读取、写入、删除等）
+
+        digest：
+            digest 认证主要针对具体的节点。它要求客户端提供用户名和密码的哈希值，只有提供了正确凭证才能访问节点
+            使用用户名和密码认证
+            “增加”用户实际上就是为节点设置合适的 ACL
+            例如为/t1预设一个用户名为user1,密码为123的用户
+                先使用System.out.println(DigestAuthenticationProvider.generateDigest("user1:123"))生成编码后的字符串
+            然后代代替下面的[xxx]进行权限设置
+            setAcl /t1 digest:user1:[xxx]:rwa
+            对/t1节点操作前先进行认证
+                addauth digest user1:123
+                get /t1
+
+        ip：
+            基于客户端 IP 地址的认证。
+            例如：setAcl /node ip:192.168.1.1:rwa
+
+        super:
+            setAcl /node super:user1 允许user1对指定节点的所有操作
+
+    permissions：指定权限列表，可以是以下一个或多个字符的组合：
+        r：读权限
+        w：写权限
+        c：创建子节点权限
+        d：删除子节点权限
+        a：管理权限
+        *：所有权限
+使用场景
+    区分开发/测试/运维环境,防止误操作
+    可以针对不同IP而产生具体的配置
+
+<h1>Zookeeper安装配置</h1>
+<code bash>
+#建夹下载解压, 未安装wget时使用curl -L -O -J 
+mkdir /usr/local/zookeeper
+cd /usr/local/zookeeper
+curl -L -O -J https://downloads.apache.org/zookeeper/zookeeper-3.7.2/apache-zookeeper-3.7.2-bin.tar.gz
+#解压后无须安装,直接配置使用
+tar zxvf apache-zookeeper-3.7.2-bin.tar.gz
+ 
+#另拷一份配置
+cd apache-zookeeper-3.7.2-bin
+cp conf/zoo_sample.cfg conf/zoo.cfg
+vi conf/zoo.cfg
+#dataDir=/tmp/zookeeper 将临时目录改为持久化目录 /var/lib/zookeeper
+ 
+#安装java环境
+#查看仓库中的jdk
+yum search jdk 
+#java-1.8.0-openjdk与标准jdk是一致的
+yum install -y java-1.8.0-openjdk.x86_64
+#具体版本, 安装位置
+java -version
+which java 
+ 
+#启动,状态,停止
+./bin/zkServer.sh start
+./bin/zkServer.sh status
+./bin/zkServer.sh stop
+
+#放行2181
+firewall-cmd --zone=public --permanent --add-port=2181/tcp
+firewall-cmd --reload
+firewall-cmd --list-all
+</code>
+powershell测试连通
+<code bash>
+Test-NetConnection -ComputerName 192.168.149.136 -Port 2181
+</code>
+
+<h1>常用命令</h1>
+<code bash>
+#以客户端身份连接, 本机时可以不跟-server及之后内容
+./bin/zkCli.sh -server 127.0.0.1:2181
+ 
+#查看命令列表
+help
+#查看ls命令的参数形式, [可选]
+ls
+ 
+#查看节点 
+ls /
+ls /zookeeper
+ls /zookeeper/quotal
+ 
+#查看节点信息
+# ephemeralOwner值为16进制0表示该节点是一个持久节点, 非0则为临时节点
+# cZxid节点创建时的事务 ID (Zxid)
+# ctime节点的创建时间
+# mZxid节点最后一次被修改的事务 ID
+# mtime节点最后一次修改的时间
+# pZxid与此节点相关的父节点的 Zxid
+stat /
+ 
+#创建不带值节点
+create /a1
+ 
+#创建带值节点
+create /a1/b1 ha
+ 
+#查看节点值
+get /a1/b1
+ 
+#修改节点
+set /a1/b1 haha
+ 
+#不支持一次创建多级目录
+create /a1/b2
+#-s创建顺序节点, 节点名后自动附加编号, 编号以直接父节点为基准递增
+create -s /a1/b2/c
+#Created /a1/b2/c0000000000
+ 
+#-e临时节点, 客户端会话关闭临时节点删除有一个短暂的延迟,手动删除节点是最快的删除方式，可以立即看到效果
+#临时节点无法创建子节点
+create -e /a2/b1 he
+ 
+#条件更新,乐观锁,只有当-v参数值与dataVersion一致时才能成功更新
+set /a2/b1 he
+set /a2/b1 hehe
+set /a2/b1 hehehe
+stat /a2/b1
+#dataVersion = 2 
+set -v 1 /a2/b1 hehehehe
+#version No is not valid : /a2/b1
+set -v 2 /a2/b1 hehehehe
+ 
+#delete不能直接删除带子节点的节点, 和set一样支持-v条件删除
+delete /a2/b1
+delete /a2
+ 
+#删除节点及其子节点
+deleteall /a1
+</code>
+
+<h1>ZK原生java操作</h1>
+curator规则混乱监听不靠谱
+<h2>依赖</h2>
+<code xml>
+&lt;dependency&gt;
+    &lt;groupId&gt;org.apache.zookeeper&lt;/groupId&gt;
+    &lt;artifactId&gt;zookeeper&lt;/artifactId&gt;
+    &lt;version&gt;3.7.2&lt;/version&gt;
+&lt;/dependency&gt;
+&lt;dependency>
+    &lt;groupId>ch.qos.logback&lt;/groupId>
+    &lt;artifactId>logback-classic&lt;/artifactId>
+    &lt;version>1.2.3&lt;/version>
+&lt;/dependency>
+</code>
+<h2>ZKConnection</h2>
+<code>
+public class ZKConnection {
+    private static final String SERVER_PATH = "192.168.149.136:2181";
+    // 当客户端在 TIMEOUT 时间内没有向 ZooKeeper 服务器发送心跳（或其他请求），就会认为客户端已经失去连接，并关闭这个会话并清理与该会话相关的临时节点
+    // 短暂的网络波动可能会导致连接重试。如果怀疑网络延迟，适当增大 TIMEOUT 值
+    private static final int TIMEOUT = 10000;
+    private static final CountDownLatch connectedSignal = new CountDownLatch(1);
+    private static ZooKeeper zk;
+ 
+    public static ZooKeeper getConn() throws IOException, InterruptedException {
+        //客户端和服务端之间是异步连接
+        zk = new ZooKeeper(SERVER_PATH, TIMEOUT, new ZKWatcher());
+        System.out.println("Connecting to ZooKeeper...");
+        connectedSignal.await();
+        System.out.println("Connected to ZooKeeper");
+        return zk;
+    }
+ 
+    public static void releaseConn() throws InterruptedException {
+        if (zk != null) {
+            zk.close();
+        }
+    }
+}
+</code>
+<h2>ZKWatcher</h2>
+<code>
+public class ZKWatcher implements Watcher {
+    private static final String SERVER_PATH = "192.168.149.136:2181";
+    // 当客户端在 TIMEOUT 时间内没有向 ZooKeeper 服务器发送心跳（或其他请求），就会认为客户端已经失去连接，并关闭这个会话并清理与该会话相关的临时节点
+    // 短暂的网络波动可能会导致连接重试。如果怀疑网络延迟，适当增大 TIMEOUT 值
+    private static final int TIMEOUT = 10000;
+    private static final CountDownLatch connectedSignal = new CountDownLatch(1);
+    private static ZooKeeper zk;
+ 
+    public static ZooKeeper getConn() throws IOException, InterruptedException {
+        zk = new ZooKeeper(SERVER_PATH, TIMEOUT, new ZKWatcher());
+        System.out.println("============= Connecting to ZooKeeper...");
+        connectedSignal.await();
+        System.out.println("============= Connected to ZooKeeper");
+        return zk;
+    }
+ 
+    @Override
+    public void process(WatchedEvent event) {
+        System.out.println("============= Received event: " + event);
+        if (event.getState() == Event.KeeperState.SyncConnected) {
+            connectedSignal.countDown();
+        }
+ 
+        try {
+            switch (event.getType()) {
+                case NodeCreated:
+                    System.out.println("============= Node created: " + event.getPath());
+                    break;
+                case NodeDeleted:
+                    System.out.println("============= Node deleted: " + event.getPath());
+                    break;
+                case NodeDataChanged:
+                    System.out.println("============= Node data changed: " + event.getPath());
+                    // 获取数据并重新注册监听器
+                    byte[] newData = zk.getData(event.getPath(), true, null);
+                    System.out.println("============= Data updated: " + new String(newData));
+                    break;
+                case NodeChildrenChanged:
+                    System.out.println("============= Node children changed: " + event.getPath());
+                    // 获取子节点列表并重新注册监听器
+                    zk.getChildren(event.getPath(), true);
+                    break;
+                default:
+                    break;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+</code>
+<h2>Demo</h2>
+<code>
+public class Demo {
+    public static void main(String[] args) {
+        ZooKeeper zk = null;
+        try {
+            zk = ZKWatcher.getConn();
+            // 注册节点存在性监听器
+            Stat exists = zk.exists("/t1", true);
+            if (exists == null) {
+                System.out.println("============= 节点不存在");
+            }
+            // 创建节点
+            zk.create("/t1", "hello".getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT); //world:anyone
+ 
+            // 注册数据变更监听器
+            //zk.getData("/t1", true, zk.exists("/t1",false));
+            zk.getData("/t1", true, null);
+            // 注册子节点变更监听器
+            zk.getChildren("/t1", true);
+ 
+            // 创建子节点
+            zk.create("/t1/child1", "child".getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+ 
+            // 删除子节点, -1 作为版本号参数表示忽略版本检查
+            zk.delete("/t1/child1", -1);
+ 
+            // 修改节点数据
+            zk.setData("/t1", "hello2".getBytes(), zk.exists("/t1",false).getVersion());
+ 
+            // 删除节点
+            //zk.delete("/t1", zk.exists("/t1",false).getVersion(), new DeleteCallBack(), "上下文信息");
+            zk.delete("/t1", -1);
+ 
+            // 确保delete被捕获处理
+            Thread.sleep(1000);
+ 
+            // 保持程序运行以监听事件
+            // 服务端命令行验证watcher事件 [zk: localhost:2181(CONNECTED) 121] set /t1 "666"
+            //while (true) {
+            //    Thread.sleep(1000);
+            //}
+        } catch (IOException | InterruptedException | KeeperException e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                ZKConnection.releaseConn();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+ 
+    static class DeleteCallBack implements AsyncCallback.VoidCallback {
+        @Override
+        public void processResult(int rc, String path, Object ctx) {
+            System.out.println("============= 删除节点: " + path);
+            System.out.println("============= 上下文: " + ctx);
+            System.out.println("============= 结果代码: " + rc);
+            if (rc == KeeperException.Code.OK.intValue()) {
+                System.out.println("============= 删除成功");
+            } else {
+                System.out.println("============= 删除失败，错误码: " + rc);
+            }
+        }
+    }
+}
+</code>
+</body>
+</html>

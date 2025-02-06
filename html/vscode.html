@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>vscode</title>
+</head>
+<body><span id="anchor">20240326233524-_工具使用</span>
+<pre>
+<h1>快捷键</h1>
+<p>
+ctrl + shift + p:命令面板
+ctrl + enter:向下新行
+ctrl+ shift + enter:向上新行
+ctrl + x: 剪切行(光标没有选择内容时)
+ctrl +shift + k: 删除行
+alt + ↑/↓: 移动行
+shift + alt + ↑/↓: 复制行
+ctrl + d:全选光标所在的词,复按向下扩选同名词(扩选到某一处之后按下Ctrl + K跳过该处),然后多处重写
+Ctrl + Shift + [/]: 折叠块
+Shift + Alt +A: 块区域注释
+</p>
+
+<h1>贴码</h1>
+<h2>制作jar包</h2>
+对当前剪贴板内容转义,整体缩进
+<code>
+public class Escape {
+    public static void main(String[] args) throws IOException, UnsupportedFlavorException {
+ 
+        Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+ 
+        String text = (String) clipboard.getContents(null).getTransferData(DataFlavor.stringFlavor);
+        text = removeCommonLeadingWhitespace(text); // 处理缩进
+        text = text.replace("&amp;lt;", "&amp;amp;lt;");
+        text = text.replace("&lt;", "&amp;lt;");
+        // replace 适用于简单的字符或字符串替换。不支持正则表达式
+        // replaceAll 适用于基于正则表达式的复杂替换
+        // \r 匹配 回车符, 这是在旧式的 Windows 系统中用来表示行结束的字符（通常与换行符 \n 一起使用）
+        // \n 匹配 换行符，这是在 Unix 和现代 Windows 系统中用来表示行结束的字符
+        // \r?\n 匹配 \r\n（Windows 行结束符）或仅 \n（Unix 行结束符）
+        text = text.replaceAll("(?m)^[ \t]*\r?\n", " \n");
+ 
+        clipboard.setContents(new StringSelection(text), new StringSelection(text));
+    }
+ 
+    // 处理缩进的方法
+    private static String removeCommonLeadingWhitespace(String text) {
+        String[] lines = text.split("\n");
+        int minIndent = Integer.MAX_VALUE;
+ 
+        for (String line : lines) {
+            int indent = getLeadingWhitespaceCount(line);
+            if (indent &lt; minIndent && !line.trim().isEmpty()) {
+                minIndent = indent;
+            }
+        }
+ 
+        if (minIndent == Integer.MAX_VALUE) {
+            return text; // 没有找到缩进
+        }
+ 
+        StringBuilder result = new StringBuilder();
+        for (String line : lines) {
+            if (line.length() > minIndent) {
+                result.append(line.substring(minIndent)).append("\n");
+            } else {
+                result.append("\n");
+            }
+        }
+        return result.toString();
+    }
+ 
+    // 获取行首空白字符数的方法
+    private static int getLeadingWhitespaceCount(String line) {
+        int count = 0;
+        while (count &lt; line.length() && Character.isWhitespace(line.charAt(count))) {
+            count++;
+        }
+        return count;
+    }
+}
+</code>
+<h2>配置鼠标手势</h2>
+添加应用程序
+    按文件名 Code.exe 
+添加动作
+    鼠标右键Z
+添加命令
+    1,执行程序
+        文件: D:\coding\java\jdk\temurin-1.8\bin\java.exe
+        工作目录: D:\Dropbox\archives\_program\src
+        运行参数: -Dfile.encoding=UTF-8 -jar escape.jar
+        运行方式: 最小化
+    2,工具 - 延迟
+        1000ms
+    3,按键 - 快捷键
+        CTRL + v
+<h1>设置</h1>
+<code json>
+{
+    //按下Tab键应用第一个建议
+    "editor.tabCompletion": "on",
+    //不会显示在工作空间中
+    "files.exclude": {
+        "collection": true,
+        "Email Attachments": true,
+        "etc": true,
+        "mp3": true,
+        ".dropbox.cache": true
+    },
+    //标签成对修改
+    "editor.linkedEditing": true,
+    //显示空格和制表符
+    "editor.renderWhitespace": "all",
+    //自动保存
+    "files.autoSave": "onFocusChange",
+    //长文本视区内换行
+    "editor.wordWrap": "on"
+}
+</code>
+
+<h1>插件</h1>
+techer.open-in-browser
+    右键菜单预览网页
+wix.vscode-import-cost
+    引入包大小计算
+ChakrounAnas.turbo-console-log
+    ctrl + alt + l 选中变量之后，使用这个快捷键生成 console.log
+    alt + shift + c 注释所有 console.log
+    alt + shift + u 启用所有 console.log
+    alt + shift + d 删除所有 console.log
+eamodio.gitlens
+    哪一行代码，何时、何人提交都有记录
+sporiley.css-auto-prefix
+    追加 CSS 私有前缀,单独css文件中有效
+    20240327011606.gif
+pranaygp.vscode-css-peek
+    定位 CSS 类名,单独css文件中有效
+chrmarti.regex
+    实时预览正则表达式的效果,单独js文件中有效
+    ctrl + alt + m 启用侧边对比,点击Test Regex...
+raymondcamden.htmlescape-vscode-extension   
+    HTML转义
+eprincev-egor.toggle-upper-case
+    大小写 ctrl+u
+donjayamanne.jquerysnippets
+    jquery snippets
+akamud.vscode-javascript-snippet-pack
+    javascript snippet
+<p>
+[cd]: console.dir
+[ce]: console.error
+[ci]: console.info
+[cl]: console.log
+[cw]: console.warn
+[de]: debugger
+[ae]: addEventListener
+[ac]: appendChild
+[rc]: removeChild
+[cel]: createElement
+[cdf]: createDocumentFragment
+[ca]: classList.add
+[ct]: classList.toggle
+[cr]: classList.remove
+[gi]: getElementById
+[gc]: getElementsByClassName
+[gt]: getElementsByTagName
+[ga]: getAttribute
+[sa]: setAttribute
+[ra]: removeAttribute
+[ih]: innerHTML
+[tc]: textContent
+[qs]: querySelector
+[qsa]: querySelectorAll
+[fe]: forEach
+[fn]: function
+[afn]: anonymous function
+[pr]: prototype
+[iife]: immediately-invoked function expression
+[call]: function call
+[apply]: function apply
+[ofn]: function as a property of an object
+[jp]: JSON.parse
+[js]: JSON.stringify
+[si]: setInterval
+[st]: setTimeout
+[us]: use strict
+[al]: alert
+[co]: confirm
+[pm]: prompt
+</p>
+<h1>正则</h1>
+<code html>
+&lt;!DOCTYPE html>(.|\n)*?&lt;/script>
+</code>
+</pre>
+</body>
+</html>

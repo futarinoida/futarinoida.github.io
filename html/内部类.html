@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>内部类</title>
+</head>
+<body><span id="anchor">20240616183123-_java</span>
+<pre>
+<h1>成员内部类</h1>
+内部类在外部使用时无法直接实例化,需借外部类信息完成
+<code>
+Outer.Inner inner = new Outer().new Inner()
+Outer.Inner inner = outer.new Inner()
+Outer.Inner inner = outer.获取内部类的方法
+ 
+public class Person {
+    class Heart {
+        public void beat() {}
+    }
+    public Heart getHeart() {
+        return new Heart();
+    }
+    public static void main(String[] args) {
+        new Person().getHeart().beat();
+    }
+}
+</code>
+内部类的访问修饰符,可以任意,但是访问范围会受到影响
+内部类可以直接访问外部类的成员
+    如果出现同名属性,优先访问内部类中定义的,可以使用外部类.this.成员的方式访问外部类中同名属性
+外部类无法直接访问内部类信息,需要通过内部类实例new Heart().成员
+内部类编译后命名方式为外部类$内部类.class
+
+<h1>静态内部类</h1>
+静态内部类和非静态内部类一样,都是在被调用时才会被加载
+只能访问外部类的静态成员(外部类.属性),如果需调用外部非静态成员(方法,属性),可以用对象实例,如new 外部类().方法
+    如果出现同名属性,优先访问内部类中定义的,可以使用new 外部类().成员的方式访问外部类中同名属性
+
+<code>
+public class Outer {
+    static int n = 1;
+    static {System.out.println("外部类静态块");}
+    public static void OuterMethod() {
+        System.out.println("外部类静态方法");
+    }
+ 
+    public static class Inner{
+        static {System.out.println("静态内部类静态块");}
+        public static void InnerMethod() {
+            System.out.println("静态内部类静态方法");
+        }
+    }
+    public static void main(String[] args) {
+//        System.out.println("1");//外部类静态块, 1
+//        Outer.Inner.InnerMethod();//外部类静态块, 静态内部类静态块, 静态内部类静态方法
+//        Outer.OuterMethod();//外部类静态块, 外部类静态方法
+    }
+}
+class A {
+    public static void main(String[] args) {
+        //调用类的静态方法时会触发类加载
+        Outer.OuterMethod();//外部类静态块, 外部类静态方法
+    }
+}
+class B {
+    public static void main(String[] args) {
+        Outer.Inner.InnerMethod();//静态内部类静态块, 静态内部类静态方法
+    }
+}
+class C {
+    public static void main(String[] args) {
+        //访问类的静态成员变量会触发类的加载
+        System.out.println(Outer.n);//外部类静态块, 1
+    }
+}
+</code>
+        创建该类或子类的对象会触发类加载。
+        访问类的静态成员变量时会触发类加载。
+            JVM虚拟机只会为静态变量分配一次内存，在加载类的过程中完成对静态变量的内存分配；
+        调用类的静态方法时会触发类加载。
+        对类或接口的静态字段执行读写操作（即执行getstatic、putstatic指令）；不过final修饰的静态字段的除外(已经赋值，String和基本类型，不包含包装类型)，它被初始化为一个编译时常量表达式
+            注意 ：操作静态字段时，只有直接定义这个字段的类才会被初始化；如通过其子类来操作父类中定义的静态字段，只会触发父类&lt;clinit&gt;的初始化而不是子类的初始化
+        使用java命令执行有主方法main的类，也会触发类的加载
+        使用反射方式来强制创建某个类或接口对应的java.lang.Class对象
+
+
+<h1>方法内部类</h1>
+定义在方法内部,作用范围也在方法内
+和方法内部成员使用规则一样,class前面不可以添加public,private,protected,static
+类中不能包含静态成员
+类中可以包含final,abstract修饰的成员
+
+<h1>匿名内部类</h1>
+应用场景
+    给类命名并不会导致代码更容易被理解
+    只用到类的一个实例
+    类在定义后马上用到
+无法编写构造方法,可以添加构造代码块
+可以实现接口也可以继承父类,但是不可兼得
+不能出现静态成员
+无法使用private,public,protected,abstract,static修饰
+编译后的文件命名: 外部类$数字.class
+</pre>
+</body>
+</html>

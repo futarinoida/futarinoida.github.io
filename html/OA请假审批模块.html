@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>OA请假审批模块</title>
+</head>
+<body><span id="anchor">20240616183123-_项目例</span>
+<pre>
+基于Mybatis开发实战
+系统权限设计
+MD5敏感数据加密
+LayUI框架使用入门
+工作流程设计
+
+办公自动化Office Automation
+
+<h1>RBAC</h1>
+Role-Based Access Control 基于角色的访问权限控制
+
+用户角色对照表, 角色资源对照表
+    围绕角色将用户和资源间接关联起来
+20240425163028.webp
+
+<h1>md5摘要</h1>
+md5长度固定,不可逆,容易受彩虹表字典攻击,对猜测的密码进行md5摘要,再与已知的md5比较来尝试获取原密码
+不能要求用户设置特别复杂的密码,因为可能连他自己都记不住
+通过应用不同的盐值,两个相同的密码可以得到不同的摘要
+攻击者即使通过字典猜测破解了md5摘要,得到的也是无意义的字符串,除非获得底层的盐值算法
+
+20240901151904.webp
+
+1.持久化form表单数据,8级以下员工表单状态为processing,8级(总经理)状态为approved
+2.增加第一条流程数据,说明表单已提交,状态为complete
+3.分情况创建其余流程数据
+3.1 7级以下员工,生成部门经理审批任务,请假时间大于72小时,还需生成总经理审批任务
+3.2 7级员工,生成总经理审批任务
+3.3 8级员工,生成总经理审批任务,系统自动通过
+
+<h1>pom</h1>
+<code xml>
+&lt;dependencies>
+    &lt;!-- mysql,mybatis -->
+    &lt;dependency>
+        &lt;groupId>mysql&lt;/groupId>
+        &lt;artifactId>mysql-connector-java&lt;/artifactId>
+        &lt;version>8.0.33&lt;/version>
+    &lt;/dependency>
+    &lt;dependency>
+        &lt;groupId>org.mybatis&lt;/groupId>
+        &lt;artifactId>mybatis&lt;/artifactId>
+        &lt;version>3.5.9&lt;/version>
+    &lt;/dependency>
+    &lt;!-- HikariCP -->
+    &lt;dependency>
+        &lt;groupId>com.zaxxer&lt;/groupId>
+        &lt;artifactId>HikariCP&lt;/artifactId>
+        &lt;version>3.4.5&lt;/version> &lt;!-- 适用于 Java 8 的 HikariCP 版本 -->
+    &lt;/dependency>
+    &lt;!-- fastjson -->
+    &lt;dependency>
+        &lt;groupId>com.alibaba&lt;/groupId>
+        &lt;artifactId>fastjson&lt;/artifactId>
+        &lt;version>1.2.78&lt;/version>
+    &lt;/dependency>
+    &lt;!-- freemarker -->
+    &lt;dependency>
+        &lt;groupId>org.freemarker&lt;/groupId>
+        &lt;artifactId>freemarker&lt;/artifactId>
+        &lt;version>2.3.30&lt;/version>
+    &lt;/dependency>
+    &lt;!-- codec -->
+    &lt;dependency>
+        &lt;groupId>commons-codec&lt;/groupId>
+        &lt;artifactId>commons-codec&lt;/artifactId>
+        &lt;version>1.14&lt;/version>
+    &lt;/dependency>
+    &lt;!-- logback -->
+    &lt;dependency>
+        &lt;groupId>ch.qos.logback&lt;/groupId>
+        &lt;artifactId>logback-classic&lt;/artifactId>
+        &lt;version>1.2.3&lt;/version>
+    &lt;/dependency>
+    &lt;!-- servlet, junit -->
+    &lt;dependency>
+        &lt;groupId>javax.servlet&lt;/groupId>
+        &lt;artifactId>javax.servlet-api&lt;/artifactId>
+        &lt;version>3.1.0&lt;/version>
+        &lt;scope>provided&lt;/scope>
+    &lt;/dependency>
+    &lt;dependency>
+        &lt;groupId>junit&lt;/groupId>
+        &lt;artifactId>junit&lt;/artifactId>
+        &lt;version>4.13.2&lt;/version>
+        &lt;scope>test&lt;/scope>
+    &lt;/dependency>
+&lt;/dependencies>
+ 
+&lt;build>
+    &lt;plugins>
+        &lt;!-- Maven 编译插件 -->
+        &lt;plugin>
+            &lt;groupId>org.apache.maven.plugins&lt;/groupId>
+            &lt;artifactId>maven-compiler-plugin&lt;/artifactId>
+            &lt;version>3.8.1&lt;/version>
+            &lt;configuration>
+                &lt;source>1.8&lt;/source>
+                &lt;target>1.8&lt;/target>
+            &lt;/configuration>
+        &lt;/plugin>
+        &lt;!-- Maven WAR 插件 -->
+        &lt;plugin>
+            &lt;groupId>org.apache.maven.plugins&lt;/groupId>
+            &lt;artifactId>maven-war-plugin&lt;/artifactId>
+            &lt;version>3.4.0&lt;/version>
+        &lt;/plugin>
+    &lt;/plugins>
+&lt;/build>
+</code>
+
+<h1>mybatis-conf</h1>
+<code xml>
+&lt;?xml version="1.0" encoding="UTF-8" ?>
+&lt;!DOCTYPE configuration
+        PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-config.dtd">
+&lt;configuration>
+    &lt;settings>
+        &lt;setting name="mapUnderscoreToCamelCase" value="true"/>
+    &lt;/settings>
+ 
+    &lt;environments default="dev">
+        &lt;environment id="dev">
+            &lt;transactionManager type="JDBC"/>
+            &lt;dataSource type="com.ida.demo4.datasource.HikariCPDataSourceFactory">
+                &lt;property name="driverClassName" value="com.mysql.cj.jdbc.Driver"/>
+                &lt;property name="jdbcUrl" value="jdbc:mysql://localhost:3306/oa?useUnicode=true&amp;characterEncoding=utf-8&amp;serverTimezone=Asia/Shanghai"/>
+                &lt;property name="username" value="root"/>
+                &lt;property name="password" value="root"/>
+                &lt;property name="poolName" value="MyHikariCPPool"/>
+                &lt;property name="maximumPoolSize" value="10"/>
+                &lt;property name="minimumIdle" value="5"/>
+                &lt;property name="idleTimeout" value="30000"/>
+                &lt;property name="connectionTimeout" value="30000"/>
+                &lt;property name="maxLifetime" value="1800000"/>
+                &lt;property name="connectionTestQuery" value="SELECT 1"/>
+            &lt;/dataSource>
+        &lt;/environment>
+    &lt;/environments>
+ 
+    &lt;mappers>
+        &lt;mapper resource="mappers/user.xml"/>
+        &lt;mapper resource="mappers/rbac.xml"/>
+        &lt;mapper resource="mappers/employee.xml"/>
+        &lt;mapper resource="mappers/department.xml"/>
+        &lt;mapper resource="mappers/leave_form.xml"/>
+        &lt;mapper resource="mappers/process_flow.xml"/>
+        &lt;mapper resource="mappers/notice.xml"/>
+    &lt;/mappers>
+ 
+&lt;/configuration>
+</code>
+
+<h1>登录跳转</h1>
+<code>
+@WebServlet(name = "LoginServlet", urlPatterns = "/check_login")
+public class LoginServlet extends HttpServlet {
+    private final Logger logger = LoggerFactory.getLogger(LoginServlet.class);
+    private final UserService userService = new UserService();
+ 
+    @Override
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        req.setCharacterEncoding("utf-8");
+        String username = req.getParameter("username");
+        String password = req.getParameter("password");
+        Map&lt;String,Object> result = new HashMap&lt;>();
+        try {
+            User user = userService.checkLogin(username, password);
+            req.getSession().setAttribute("login_user",user);
+            result.put("code","0");
+            result.put("message","success");
+            result.put("redirect_url","/index");
+        } catch (BussinessException e) {
+            logger.error(e.getMessage(), e);
+            result.put("code",e.getCode());
+            result.put("message",e.getMessage());
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+        }
+        String jsonString = JSON.toJSONString(result);
+        resp.setContentType("text/html;charset=utf-8");
+        resp.getWriter().println(jsonString);
+    }
+}
+</code>
+<code>
+@WebServlet(name = "IndexServlet", urlPatterns = "/index")
+public class IndexServlet extends HttpServlet {
+    private final UserService userService = new UserService();
+    private final EmployeeService employeeService = new EmployeeService();
+    private final DepartmentService departmentService = new DepartmentService();
+ 
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        HttpSession session = req.getSession();
+        User user = (User) session.getAttribute("login_user");
+ 
+        Employee employee = employeeService.selectById(user.getEmployeeId());
+        Department department = departmentService.selectById(employee.getDepartmentId());
+        List&lt;Node> nodeList = userService.selectNodeByUserId(user.getUserId());
+ 
+        session.setAttribute("current_employee",employee);
+        req.setAttribute("node_list",nodeList);
+        session.setAttribute("current_department",department);
+        req.getRequestDispatcher("/index.ftl").forward(req,resp);
+    }
+}
+</code>
+</pre>
+</body>
+</html>

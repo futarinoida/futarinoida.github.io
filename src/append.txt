@@ -1,0 +1,23 @@
+<script id="t">
+var e = document.createElement("script"); 
+e.src = "../js/fuse.js",
+localStorage.setItem('_level',"../"),
+e.setAttribute("id", "s1"), 
+e.onerror = function () { 
+    e.parentNode.removeChild(e); 
+    var e2 = document.createElement("script");
+    e2.setAttribute("id", "s2"), 
+    e2.src = "../../js/fuse.js",
+    localStorage.setItem('_level',"../../"),
+    e2.onerror = function (){
+        e2.parentNode.removeChild(e2); 
+        var e3 = document.createElement("script");
+        e3.setAttribute("id", "s3"), 
+        e3.src = "../../../js/fuse.js", 
+	localStorage.setItem('_level',"../../../"),
+        document.head.appendChild(e3);
+    },
+    document.head.appendChild(e2);
+}, 
+document.head.appendChild(e)
+</script>

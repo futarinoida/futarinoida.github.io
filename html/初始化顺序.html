@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>初始化顺序</title>
+</head>
+<body><span id="anchor">20240616183123-_java</span>
+<pre>
+1.父类静态属性(略过声明而未赋值的),静态代码块.二者依书写顺序执行
+2.子类静态属性(略过声明而未赋值的),静态代码块.二者依书写顺序执行
+3.父类成员属性(略过声明而未赋值的),构造代码块.二者依书写顺序执行
+4.父类构造方法
+5.子类成员属性(略过声明而未赋值的),构造代码块.二者依书写顺序执行
+6.子类构造方法
+</pre>
+</body>
+</html>

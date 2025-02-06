@@ -1,0 +1,1179 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>Servlet</title>
+ </head>
+ <body>
+  <span id="anchor">20240418220255-_java web</span>
+  <pre>
+J2SE (Java 2 Platform, Standard Edition)
+    Java 平台的标准版，属于 Java 2 平台的一部分
+Java SE (Java Platform, Standard Edition)
+    Java SE 是 J2SE 的继任者
+J2EE(Java 2 Platform Enterprise Edition) Java 2 企业版
+    J2EE运行在J2SE之上
+    开发BS(Web)应用程序是J2EE最核心的功能
+    J2EE是一组技术规范与指南,具体实现由软件厂商决定
+        J2EE由13个功能模块组成
+            Servlet(web服务器小程序, 用于生成动态Web内容)
+            JSP(服务器页面,由Servlet扩展而来)
+            JDBC(数据库交互模块)
+        Tomcat是J2EE Web(Servlet与JSP)的实现者之一
+Java EE (Java Platform, Enterprise Edition)
+    Java EE 是 J2EE 的继任者, 继续提供和扩展 J2EE 的功能，并引入了许多新的 API 和特性，以适应现代企业应用程序开发的需求
+    JPA是在Java EE中引入的标准持久化API，用于对象关系映射（ORM），提供了简化的数据库访问层。
+    Servlet 3.0+, Servlet 3.0版本开始引入了基于注解的配置
+Jakarta EE就是Java EE的新名词
+    由于Java商标的问题，导致了项目名称和包命名空间的修改，从而引入不兼容的更新
+    因此，升级Jakarta EE 9及之后版本，必须特别注意将所有javax的引用都改为jakarta，包括直接或间接依赖的部分，否则可能会出现难以排查的异常问题。
+
+JAR、WAR 和 EAR
+    而 JAR 文件只需要 Java 安装
+    WAR 文件只需要符合 Java EE Web Profile 的应用程序服务器即可运行
+        将war包放到tomcat的webapps目录下,运行tomcat的bin目录下startup.bat,会自动解压,没有报错则可以正常访问网页
+        取消端口号,tomcat目录conf/server.xml文件内Connector标签中port属性改80
+        取消上下文路径
+            方式一, 将war重命名为ROOT放到webapps, tomcat 会自动将 ROOT.war 部署为根上下文
+            方式二, tomcat目录conf/server.xml文件内Host标签下增加Context标签,增加path属性并设空,增加docBase属性,如果使用相对路径,则docBase是相对于webapps的相对路径,它的值也就是描述源目录在webapps中的什么地方, 如Context path="" docBase="demo1-1.0-SNAPSHOT"标签自闭合
+    EAR 文件需要完全符合 Java Platform, Enterprise Edition (Java EE) 或 Jakarta Enterprise Edition (EE) 的应用程序服务器，例如 WebSphere 或 JBoss，才能运行。
+
+Artifacts:文物,人造物,工件,阶段性成果
+java web的三大作用域对象: HttpServletRequest 请求对象, HttpSession 用户会话对象, ServletContext web应用全局对象
+
+WEB-INF 目录下的 文件无法直接通过 URL 访问
+
+Servlet是一种服务器端Java程序，主要用于构建基于Web的应用程序, 处理客户端（通常是浏览器）的请求，并生成动态的响应内容
+版本适应
+20240411114951.webp
+
+<h1>Servlet生命周期</h1>
+tomcat启动时解析web.xml和扫描字节码文件,得知Servlet所绑定的url
+当url被访问到时,tomcat构造Servlet对象,通常情况下每个 Servlet 类只有一个实例
+Tomcat 使用的是单例模式来管理 Servlet 的生命周期，一个 Servlet 的实例会被多个请求线程共享
+    如果 Servlet 中包含任何共享的可变状态（例如实例变量、属性等），且这些状态在多个线程之间没有正确同步，那么就可能发生线程安全问题
+
+加载和实例化: 
+    加载这个Servlet类, 然后创建这个Servlet类的一个实例
+初始化: 
+    实例创建之后，容器调用init()方法来初始化Servlet。init()方法只被调用一次，用于执行任何一次性的初始化任务。通常，init()方法会获取ServletConfig对象，可以用来获取初始化参数。
+请求处理: 
+    Servlet被初始化完成后，它就可以处理客户端请求。
+    每次有请求到达时，Servlet容器会创建一个新的线程，并调用service()方法, service()根据请求类型调用相应的doXXX()方法。
+销毁: 
+    destroy()方法只会被调用一次，用于执行任何清理任务，例如关闭资源或保存状态
+垃圾回收: 
+    最后，Servlet实例会被垃圾回收。
+    虽然这是Java对象的标准生命周期的一部分，但对于Servlet来说，重要的是在destroy()方法中完成所有需要的清理工作，而不是依赖垃圾回收。
+
+<h1>表单参数接收</h1>
+所有参数的值都会作为字符串处理, 参数没有值返回空字符串, 参数不存在返回 null
+<code html>
+&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+    &lt;meta charset=&quot;UTF-8&quot;&gt;
+    &lt;title&gt;Index&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;form action=&quot;/page2&quot; method=&quot;post&quot;&gt;&lt;!-- post --&gt;
+    &lt;label&gt;Name:&lt;/label&gt;
+    &lt;input type=&quot;text&quot; name=&quot;name&quot;&gt;
+    &lt;br&gt;
+    &lt;label&gt;性别:&lt;/label&gt;
+    &lt;select name=&quot;sex&quot;&gt;&lt;!-- 单选 --&gt;
+        &lt;option value=&quot;male&quot;&gt;male&lt;/option&gt;
+        &lt;option value=&quot;female&quot;&gt;female&lt;/option&gt;
+    &lt;/select&gt;
+    &lt;br&gt;
+    &lt;label&gt;specialties&lt;/label&gt;
+    &lt;input type=&quot;checkbox&quot; name=&quot;spec&quot; value=&quot;英文&quot;&gt;English&lt;!-- 多选 --&gt;
+    &lt;input type=&quot;checkbox&quot; name=&quot;spec&quot; value=&quot;编程&quot;&gt;Program
+    &lt;input type=&quot;checkbox&quot; name=&quot;spec&quot; value=&quot;游泳&quot;&gt;Swimming
+    &lt;br&gt;
+    &lt;input type=&quot;submit&quot; value=&quot;提交&quot;&gt;
+&lt;/form&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code>
+<code>
+// name属性是可选的, 如果没有提供name属性，Servlet容器会自动为Servlet生成一个默认名称。这通常是类的完全限定名（即包含包名和类名）
+@WebServlet(name = "getInfo",urlPatterns = "/page2")
+public class FormServlet extends HttpServlet {
+    public FormServlet(){
+        System.out.println("正在构造FormServlet对象..."); //sout乱码, vm参数加-Dfile.encoding=UTF-8
+    }
+ 
+    @Override
+    public void init() throws ServletException {
+        System.out.println("正在初始化FormServlet对象...");
+        super.init();
+    }
+ 
+    @Override
+    protected void service(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        req.setCharacterEncoding("UTF-8");
+ 
+        String name = req.getParameter("name");
+        String sex = req.getParameter("sex");
+        String[] specs = req.getParameterValues("spec");
+ 
+        Map&lt;String, String[]> parameterMap = req.getParameterMap();
+        parameterMap.forEach((k,v) -> {
+            System.out.println(k+":"+Arrays.toString(v));
+        });
+ 
+        resp.setContentType("text/html;charset=UTF-8");
+        PrintWriter out = resp.getWriter();
+        //out.write()输出的字符串会紧接在一起,适合需要精确控制输出格式的情况，例如生成特定格式的内容（如 JSON、XML 等）
+        //out.println() 适合简单输出文本内容时自动换行，例如生成 HTML、日志信息等
+        out.println("&lt;p>"+ Arrays.asList(name,sex, Arrays.toString(specs))+"&lt;/p>");
+    }
+ 
+    @Override
+    public void destroy() {
+        System.out.println("正在销毁FormServlet对象...");
+        super.destroy();
+    }
+}
+</code>
+配置形式
+<code xml>
+&lt;servlet&gt;
+    &lt;servlet-name&gt;getInfo&lt;/servlet-name&gt;
+    &lt;servlet-class&gt;com.ida.javaweb.demo1.servlet.FormServlet&lt;/servlet-class&gt;
+&lt;/servlet&gt;
+&lt;servlet-mapping&gt;
+    &lt;servlet-name&gt;getInfo&lt;/servlet-name&gt;
+    &lt;url-pattern&gt;/page2&lt;/url-pattern&gt;
+&lt;/servlet-mapping&gt;
+</code>
+<h2>文件上传</h2>
+表单的 enctype 属性设置为 multipart/form-data，表示表单包含文件上传
+使用Servlet 3.0自带的@MultipartConfig注解启用对 multipart/form-data 请求的支持
+<code html>
+&lt;form action="/page13" method="post" enctype="multipart/form-data">
+    &lt;input type="file" name="file">
+    &lt;input type="submit" value="Upload">
+&lt;/form>
+</code>
+<code>
+@WebServlet("/page13")
+@MultipartConfig(
+        location = "C:/TEMP",
+        fileSizeThreshold = 1024 * 1024,
+        maxFileSize = 1024 * 1024 * 10,
+        maxRequestSize = 1024 * 1024 * 50
+)
+public class FileUploadServlet extends HttpServlet {
+ 
+    @Override
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        Path uploadPath = Paths.get(getServletContext().getRealPath(""), "upload");
+        Files.createDirectories(uploadPath);
+        Part filePart = req.getPart("file");
+        String uniqueFileName = generateUniqueFileName(Paths.get(filePart.getSubmittedFileName()).getFileName().toString());
+        Path destFile = uploadPath.resolve(uniqueFileName);
+        try (InputStream input = filePart.getInputStream()) {
+            Files.copy(input, destFile, StandardCopyOption.REPLACE_EXISTING);
+        }
+        resp.getWriter().write("&lt;img src='/upload/"+uniqueFileName+"'>");
+    }
+ 
+    private String generateUniqueFileName(String fileName) {
+        String uuid = UUID.randomUUID().toString();
+        String extension = "";
+        int dotIndex = fileName.lastIndexOf('.');
+        if (dotIndex > 0) {
+            extension = fileName.substring(dotIndex);
+            fileName = fileName.substring(0, dotIndex);
+        }
+        return fileName + "_" + uuid + extension;
+    }
+}
+</code>
+配置形式
+<code xml>
+&lt;servlet>
+    &lt;servlet-name>fileUploadServlet&lt;/servlet-name>
+    &lt;servlet-class>com.ida.demo13.FileUploadServlet&lt;/servlet-class>
+    &lt;multipart-config>
+        &lt;location>C:/TEMP&lt;/location>
+        &lt;file-size-threshold>1048576&lt;/file-size-threshold> &lt;!-- 1 MB -->
+        &lt;max-file-size>10485760&lt;/max-file-size> &lt;!-- 10 MB -->
+        &lt;max-request-size>52428800&lt;/max-request-size> &lt;!-- 50 MB -->
+    &lt;/multipart-config>
+&lt;/servlet>
+&lt;servlet-mapping>
+    &lt;servlet-name>fileUploadServlet&lt;/servlet-name>
+    &lt;url-pattern>/page13&lt;/url-pattern>
+&lt;/servlet-mapping>
+</code>
+
+<h1>请求和响应方法</h1>
+获取请求信息：
+    getMethod(): 获取请求方法（如 GET、POST）。
+    getRequestURI(): 获取请求的 URI 部分。
+    getRequestURL(): 获取请求的 URL。
+    getQueryString(): 获取请求的查询字符串（URL 中 ? 后面的部分）。
+获取请求参数：
+    getParameter(String name): 获取请求参数的值。
+    getParameterValues(String name): 获取指定请求参数的所有值（用于复选框）。
+    getParameterMap(): 获取所有请求参数的键值对。
+        键是请求参数的名称，值是一个字符串数组（String[]）
+获取请求头：
+    getHeader(String name): 获取指定的请求头的值。
+    getHeaderNames(): 获取所有请求头的名称。
+获取客户端信息：
+    getRemoteAddr(): 获取客户端的 IP 地址。
+    getRemoteHost(): 获取客户端的主机名。
+    getRemotePort(): 获取客户端的端口号。
+获取请求体数据：
+    getReader(): 获取请求体的字符输入流，适合读取文本数据
+    getInputStream(): 获取请求体的字节输入流。适合读取二进制数据或未经处理的原始数据
+
+设置响应状态码：
+    setStatus(int sc): 设置响应状态码。
+        200:服务器处理成功
+        404:无法找到文件
+        500:内部服务器错误
+        403:服务器拒绝访问
+        301,302:请求重定向
+        400:无效的请求
+        401:未经过授权
+        503:服务器超负载或正停机维护,无法处理请求
+    sendError(int sc): 发送错误状态码。
+        调用这个方法后，Servlet容器会向客户端发送一个HTTP错误响应，响应中包含指定的状态码和相应的错误页面（如果配置了错误页面）。
+    sendError(int sc, String msg): 发送带错误信息的错误状态码。
+<code>
+public class ErrorCode {
+    @WebServlet("/page21")
+    public static class ErrorCode1 extends HttpServlet {
+        @Override
+        protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+            resp.sendError(503);
+        }
+    }
+    @WebServlet("/page22")
+    public static class ErrorCode2 extends HttpServlet {
+        @Override
+        protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+            resp.setCharacterEncoding("UTF-8");
+            resp.sendError(666,"三个6");
+        }
+    }
+}
+</code>
+设置响应头：
+    setHeader(String name, String value): 设置响应头。
+    addHeader(String name, String value): 添加响应头。
+    setContentType(String type): 设置响应的内容类型。
+    setCharacterEncoding(String charset): 设置响应的字符编码。
+重定向：
+    sendRedirect(String location): 发送重定向响应。
+获取响应输出流：
+    getWriter(): 获取响应的字符输出流。
+    getOutputStream(): 获取响应的字节输出流。
+
+<h1>get和post</h1>
+Get方式是将数据通过在URL附加数据显性向服务器发送数据
+    Chrome调试面板Headers显示为Query String Parameters
+Post方式会将数据存放在Form Data中隐性向服务器发送数据
+    Chrome调试面板Headers显示为Form Data
+        在HTML表单中，当使用POST方法提交数据时，默认情况下，表单数据会以 application/x-www-form-urlencoded 的格式进行编码和发送到服务器
+一个类继承HttpServlet后不重写service(),而分别重写doGet()和doPost()
+    将由父类的service()方法判断请求的类型,然后分发给doGet()和doPost()
+form表单无method属性时默认get
+
+<h1>转发与重定向</h1>
+req.getRequestDispatcher("/page16").forward(req,resp)
+    转发时浏览器只产生一次请求
+        浏览器请求/page15 &gt; /page15 &gt; /page16 &gt; 响应浏览器
+resp.sendRedirect("/page16")
+    重定向时浏览器产生两次请求
+        浏览器请求/page15 &gt; /page15 &gt; 响应浏览器告之重新请求/page16 &gt; 浏览器请求/page16 &gt; /page16 &gt; 响应浏览器
+
+<h1>过滤器</h1>
+浏览器请求先经过滤器再到servlet, 在Web应用启动时被创建且全局唯一,并发环境下为单例多线程
+3.1.0版本的javax.servlet-api, 过滤器方法init和destroy未被default修饰,需要实现
+"/" 仅匹配 http://example.com/。它不会匹配子路径, 
+    "/*" 匹配 http://example.com/、http://example.com/page
+
+复合过滤
+<code>
+@WebFilter(Filter(fileName="filter-one",urlPatterns={"/a/*","*.jsp"}))
+</code>
+配置形式
+<code xml>
+    &lt;filter&gt;
+        &lt;filter-name&gt;filter-one&lt;/filter-name&gt;
+        &lt;filter-class&gt;FilterTest&lt;/filter-class&gt;
+    &lt;/filter&gt;
+    &lt;filter-mapping&gt;
+        &lt;filter-name&gt;filter-one&lt;/filter-name&gt;
+        &lt;url-pattern&gt;/a/*&lt;/url-pattern&gt;
+    &lt;/filter-mapping&gt;
+    &lt;filter-mapping&gt;
+        &lt;filter-name&gt;filter-one&lt;/filter-name&gt;
+        &lt;url-pattern&gt;*.jsp&lt;/url-pattern&gt;
+    &lt;/filter-mapping&gt;
+</code>
+
+<h2>过滤链</h2>
+过滤器应具有各自单独的功能
+当以配置web.xml文件绑定过滤路径时,过滤器的执行顺序以filter-mapping书写顺序为准
+    注解形式时,根据过滤器类名的字母顺序决定
+过滤链是双向穿透的
+    浏览器请求 -> f1 -> f2 -> f3 -> servlet响应 -> f3 -> f2 -> f1 -> 浏览器
+filterChain.doFilter()
+    该行代码的执行与否, 决定了中止请求或继续向后传递请求
+    处理完请求后，控制权会返回到该行代码之后的部分，这部分代码在响应返回时执行
+<code>
+public class FilterChainTest {
+    @WebServlet("/page18")
+    public static class Root extends HttpServlet {
+        @Override
+        protected void service(HttpServletRequest req, HttpServletResponse resp) {
+            System.out.println("/page18");
+        }
+    }
+    @WebFilter(filterName = "f1",urlPatterns = "/page18/*")
+    public static class F1 implements Filter {
+        @Override
+        public void doFilter(ServletRequest req, ServletResponse resp, FilterChain chain) throws IOException, ServletException {
+            System.out.println("[往] f1");
+            chain.doFilter(req,resp);
+            System.out.println("[返] f1");
+        }
+        @Override
+        //init,destroy
+    }
+    @WebFilter(filterName = "f2",urlPatterns = "/page18/*")
+    public static class F2 implements Filter {
+        @Override
+        public void doFilter(ServletRequest req, ServletResponse resp, FilterChain chain) throws IOException, ServletException {
+            System.out.println("[往] f2");
+            chain.doFilter(req,resp);
+            System.out.println("[返] f2");
+        }
+        @Override
+        //init,destroy
+    }
+    @WebFilter(filterName = "f3",urlPatterns = "/page18/*")
+    public static class F3 implements Filter {
+        @Override
+        public void doFilter(ServletRequest req, ServletResponse resp, FilterChain chain) throws IOException, ServletException {
+            System.out.println("[往] f3");
+            chain.doFilter(req,resp);
+            System.out.println("[返] f3");
+        }
+        @Override
+        //init,destroy
+    }
+}
+</code>
+
+<h2>应用例: 适配桌面端和移动端</h2>
+应用目录下建立desktop和mobile两个文件夹,文件清单保持一致
+<code>
+@WebFilter(filterName = "ClientFilter",urlPatterns = {"*.html"})
+public class ClientFilter implements Filter {
+    @Override
+    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+        HttpServletRequest req = (HttpServletRequest) request;
+        HttpServletResponse resp = (HttpServletResponse) response;
+        String uri = req.getRequestURI();
+        if (uri.startsWith("/desktop") || uri.startsWith("/mobile")){ 
+            chain.doFilter(request,response); //如果已经被正确导向则直接放行
+        }else{
+            String s = req.getHeader("user-agent").toLowerCase();
+            if (s.contains("android") || s.contains("iphone")){
+                resp.sendRedirect("/mobile"+uri); //否则重定向
+            } else{
+                resp.sendRedirect("/desktop"+uri);
+            }
+        }
+    }
+    @Override
+    //init,destroy
+}
+</code>
+
+<h1>请求响应乱码</h1>
+<h2>Servlet中显式设置字符编码</h2>
+对于request
+    分为get和post两种情况
+        get
+            对于tomcat8以前的版本,需要到tomcat的conf/server.xml文件中为Connector标签添加属性:URIEncoding="UTF-8"
+        post
+            req.setCharacterEncoding("UTF-8");
+            get请求直接将参数放在url中没有请求体,所以setCharacterEncoding()对get请求无效
+对于response
+    resp.setContentType("text/html;charset=utf-8");
+
+<h2>自定义字符编码过滤器</h2>
+<code>
+@WebFilter(
+        filterName = "characterEncodingFilter",
+        urlPatterns = {"/*"},
+        initParams = {
+                @WebInitParam(name = "encoding", value = "UTF-8")
+        }
+)
+public class CharacterEncodingFilter implements Filter {
+    private String encoding = "UTF-8";
+ 
+    @Override
+    public void init(FilterConfig filterConfig) {
+        if (filterConfig.getInitParameter("encoding") != null)
+            encoding = filterConfig.getInitParameter("encoding");
+    }
+ 
+    @Override
+    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+            throws IOException, ServletException {
+        HttpServletRequest req = (HttpServletRequest) request;
+        req.setCharacterEncoding(encoding);
+ 
+        HttpServletResponse resp = (HttpServletResponse) response;
+        resp.setContentType("text/html;charset=UTF-8");
+        chain.doFilter(request, response);
+    }
+ 
+    @Override
+    public void destroy() {}
+}
+</code>
+配置形式
+<code xml>
+&lt;filter&gt;
+    &lt;filter-name&gt;characterEncodingFilter&lt;/filter-name&gt;
+    &lt;filter-class&gt;com.ida.javaweb.demo1.filter.CharacterEncodingFilter&lt;/filter-class&gt;
+    &lt;init-param&gt;
+        &lt;param-name&gt;encoding&lt;/param-name&gt;
+        &lt;param-value&gt;UTF-8&lt;/param-value&gt;
+    &lt;/init-param&gt;
+&lt;/filter&gt;
+&lt;filter-mapping&gt;
+    &lt;filter-name&gt;characterEncodingFilter&lt;/filter-name&gt;
+    &lt;url-pattern&gt;/*&lt;/url-pattern&gt; &lt;!-- /* 包括根路径 / 以及所有子路径; / 仅匹配应用的根路径请求 -->
+&lt;/filter-mapping&gt;
+</code>
+
+<h1>默认首页和错误页面</h1>
+当根目录下放有首页文件时,访问example.com隐式跳转到了example.com/index.html
+    如果配置了"/"的servlet, 直接访问example.com/index.html, 得到的是"/"的servlet的响应
+
+如果显式定义了此列表则不再使用默认规则, 当网页打开根目录时,会按列表顺序查找目录下是否有以下文件,有则加载,打开二级目录时也同样会进行查找和加载
+<code xml>
+&lt;welcome-file-list&gt;
+    &lt;welcome-file&gt;index.html&lt;/welcome-file&gt;
+    &lt;welcome-file&gt;index.jsp&lt;/welcome-file&gt;
+    &lt;welcome-file&gt;index.htm&lt;/welcome-file&gt;
+    &lt;welcome-file&gt;default.html&lt;/welcome-file&gt;
+    &lt;welcome-file&gt;default.jsp&lt;/welcome-file&gt;
+    &lt;welcome-file&gt;default.htm&lt;/welcome-file&gt;
+&lt;/welcome-file-list&gt;
+</code>
+
+tomcat默认的错误页面会暴露底层的路径类名框架结构等应用信息
+    如果服务器发生了500内部服务器错误，则 500.html 将作为错误页面被加载。
+    如果抛出了 java.lang.Exception 异常，并且没有匹配到特定的 HTTP 错误代码配置，500.html 也会作为错误页面被加载。
+<code xml>
+&lt;error-page&gt;
+    &lt;error-code&gt;500&lt;/error-code&gt;
+    &lt;location&gt;/error/500.html&lt;/location&gt;
+&lt;/error-page&gt;
+&lt;error-page&gt;
+    &lt;exception-type&gt;java.lang.Exception&lt;/exception-type&gt;
+    &lt;location&gt;/error/500.html&lt;/location&gt;
+&lt;/error-page&gt;
+</code>
+
+<h1>启动时初始化Servlet</h1>
+配置 load-on-startup 会在服务器启动时初始化 Servlet，而不是在第一次请求时, 用于系统的预处理,启动时慢,加载完后快
+load-on-startup从0起按序串行加载
+web.xml中可以不用写servlet-mapping,因为不对外提供服务
+    在使用注解时,虽然设置loadOnStartup后url不对外暴露，但urlPatterns属性仍然是必需的，因为这是 Servlet 规范的一部分
+        加个内部无意义的统一前缀隔离它们
+<code>
+public class PreProcessing {
+    @WebServlet(urlPatterns="/pointless/2", loadOnStartup=2)
+    public static class AnalysisSth extends HttpServlet {
+        @Override
+        public void init() {
+            System.out.println("2:分析一些东西");
+        }
+    }
+    @WebServlet(urlPatterns="/pointless/1", loadOnStartup=1)
+    public static class ImportSth extends HttpServlet {
+        @Override
+        public void init() {
+            System.out.println("1:导入一些东西");
+        }
+    }
+    @WebServlet(urlPatterns="/pointless/0", loadOnStartup=0)
+    public static class CreatSth extends HttpServlet {
+        @Override
+        public void init() {
+            System.out.println("0:创建一些东西");
+        }
+    }
+}
+</code>
+配置形式
+<code xml>
+&lt;servlet&gt;
+    &lt;servlet-name&gt;creatSth&lt;/servlet-name&gt;
+    &lt;servlet-class&gt;com.ida.demo13.PreProcessing$CreatSth&lt;/servlet-class&gt;&lt;!-- 内部类$ --&gt;
+    &lt;load-on-startup&gt;0&lt;/load-on-startup&gt;
+&lt;/servlet&gt;
+&lt;servlet&gt;
+    &lt;servlet-name&gt;importSth&lt;/servlet-name&gt;
+    &lt;servlet-class&gt;com.ida.demo13.PreProcessing$ImportSth&lt;/servlet-class&gt;
+    &lt;load-on-startup&gt;1&lt;/load-on-startup&gt;
+&lt;/servlet&gt;
+&lt;servlet&gt;
+    &lt;servlet-name&gt;analysisSth&lt;/servlet-name&gt;
+    &lt;servlet-class&gt;com.ida.demo13.PreProcessing$AnalysisSth&lt;/servlet-class&gt;
+    &lt;load-on-startup&gt;2&lt;/load-on-startup&gt;
+&lt;/servlet&gt;
+</code>
+
+
+<h1>Servlet全局上下文参数和初始化参数</h1>
+ServletContext提供了与整个web应用程序相关的信息和操作
+    每个web应用程序有且只有一个 ServletContext 实例
+        它在web应用程序启动时创建，并在web应用程序关闭时销毁
+ServletConfig提供了特定于一个servlet的配置信息
+    每个servlet都有一个 ServletConfig 实例
+<code>
+@WebServlet(
+        urlPatterns = {"/page3"},
+        initParams = {
+                @WebInitParam(name = "one", value = "1"),
+                @WebInitParam(name = "two", value = "2")
+        }
+)
+public class ServletContextAndServletConfig extends HttpServlet {
+    private String init_p1;
+ 
+    @Override
+    public void init(ServletConfig config) throws ServletException {
+        super.init(config);
+        init_p1 = config.getInitParameter("one");
+    }
+ 
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) {
+        System.out.println(init_p1);
+        String init_p2 = getServletConfig().getInitParameter("two");
+        System.out.println(init_p2);
+ 
+        String global_p3 = getServletContext().getInitParameter("three");
+        System.out.println(global_p3);
+ 
+        getServletContext().setAttribute("global_attr_four",4);
+        Integer global_attr_four = (Integer) getServletContext().getAttribute("global_attr_four");
+        System.out.println(global_attr_four);
+    }
+}
+</code>
+配置形式
+<code xml>
+&lt;context-param>
+    &lt;param-name>three&lt;/param-name>
+    &lt;param-value>3&lt;/param-value>
+&lt;/context-param>
+ 
+&lt;servlet>
+    &lt;servlet-name>servletContextAndServletConfig&lt;/servlet-name>
+    &lt;servlet-class>com.ida.demo13.ServletContextAndServletConfig&lt;/servlet-class>
+    &lt;init-param>
+        &lt;param-name>one&lt;/param-name>
+        &lt;param-value>1&lt;/param-value>
+    &lt;/init-param>
+    &lt;init-param>
+        &lt;param-name>two&lt;/param-name>
+        &lt;param-value>2&lt;/param-value>
+    &lt;/init-param>
+&lt;/servlet>
+&lt;servlet-mapping>
+    &lt;servlet-name>servletContextAndServletConfig&lt;/servlet-name>
+    &lt;url-pattern>/page3&lt;/url-pattern>
+&lt;/servlet-mapping>
+</code>
+
+<h1>响应类型</h1>
+text/plain  html  css  javascript
+image/jpeg  gif  png  svg+xml
+audio/mpeg  wav
+video/mp4  ogg
+application/json xml pdf zip javascript octet-stream x-msdownload
+    application/octet-stream
+        强制浏览器以二进制数据处理和下载文件，而不尝试解析或显示内容。
+        它适用于所有文件类型，并确保文件始终被下载，而不是在浏览器中显示
+        如果需要下载任何类型的文件而不确定具体文件类型，使用 application/octet-stream
+    application/x-msdownload
+        专门为 Microsoft 可执行文件（如 .exe 文件）设计的 MIME 类型。
+        它通常用于强制浏览器下载可执行文件而不是尝试运行或显示它们
+            可执行文件（Executable File）是一种包含可以被计算机直接执行的指令的文件。可执行文件通常是编译后的程序代码，可以在计算机上运行而不需要进一步处理或解释。
+        如果明确是下载可执行文件（如 .exe 文件），使用 application/x-msdownload 可能更合适。
+            一些浏览器或下载管理器可能会根据 application/x-msdownload 识别并特别处理可执行文件的下载，而 application/octet-stream 不会有特定的处理。
+    application/x-www-form-urlencoded
+        返回URL编码后的表单数据
+multipart/form-data
+    上传文件和提交其他类型的数据
+
+<h2>返回图片</h2>
+<code>
+@WebServlet("/page8")
+public class ImageServlet extends HttpServlet {
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        resp.setContentType("image/jpeg");
+        Path imageFile = Paths.get(getServletContext().getRealPath("/img/test.jpg"));
+        //Files.readAllBytes 会将整个文件一次性读入内存中，如果是小文件且确定服务器有足够的内存可以使代码更简洁
+        //而逐块读取（例如使用缓冲区循环读取）的方式只需要在内存中保留一块数据，可以更快地开始将文件数据写入响应流，降低响应的初始延迟。
+        byte[] imageData = Files.readAllBytes(imageFile);
+        resp.getOutputStream().write(imageData);
+    }
+}
+</code>
+<h2>返回文件下载动作</h2>
+<code>
+@WebServlet("/page9")
+public class DownloadServlet extends HttpServlet {
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        // 从请求参数中获取文件名 Manual.txt
+        String fileName = req.getParameter("fileName");
+        //防止通过恶意构造请求进行目录遍历攻击
+        if (fileName == null || fileName.isEmpty() || fileName.contains("..") || fileName.contains("/") || fileName.contains("\\")) {
+            resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid file name.");
+            return;
+        }
+        String relativePath = "/resources/doc/" + fileName;
+        String filePath = getServletContext().getRealPath(relativePath);
+        Path file = Paths.get(filePath);
+ 
+        if (Files.exists(file) && !Files.isDirectory(file)) {//同时检查路径是否为目录
+            //resp.setContentType("application/x-msdownload");
+            //使用 Files.probeContentType(file) 根据文件类型动态设置MIME类型，而不是固定为 application/x-msdownload。
+            resp.setContentType(Files.probeContentType(file));
+            resp.setHeader("Content-Disposition", "attachment; filename=" + fileName);
+ 
+            try {
+                //一次性读入内存
+                byte[] fileData = Files.readAllBytes(file);
+                resp.getOutputStream().write(fileData);
+            } catch (IOException e) {
+                resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Error reading the file.");
+            }
+        } else {
+            resp.sendError(HttpServletResponse.SC_NOT_FOUND, "File not found.");
+        }
+    }
+}
+</code>
+<h2>任意源文件下载</h2>
+<code>
+@WebServlet("/page14")
+public class SecureFileDownloadServlet extends HttpServlet {
+    private static final String UPLOAD_DIR = "uploads";
+ 
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        String fileName = req.getParameter("fileName");
+
+        if (fileName == null || fileName.isEmpty() || fileName.contains("..") || fileName.contains("/") || fileName.contains("\\")) {
+            resp.getWriter().println("Invalid file name");
+            return;
+        }
+ 
+        String applicationPath = getServletContext().getRealPath("");
+        String downloadPath = applicationPath + File.separator + UPLOAD_DIR + File.separator + fileName;
+        //normalize() 方法在路径处理中非常有用，可以确保路径是标准化的，去除冗余的路径元素，防止路径遍历攻击
+        //移除当前目录标识 (.) 例如/a/b/./c 规范化后会变成 /a/b/c
+        //解析父目录标识 (..) 例如，/a/b/c/../d 规范化后会变成 /a/b/d, /a/b/c/../../d 规范化后会变成 /a/d
+        //移除冗余的路径分隔符 例如，/a//b/c 规范化后会变成 /a/b/c
+        Path filePath = Paths.get(downloadPath).normalize();
+        //二次检查路径合法性
+        if (!filePath.startsWith(Paths.get(applicationPath + File.separator + UPLOAD_DIR).normalize())) {
+            resp.getWriter().println("Invalid file path");
+            return;
+        }
+ 
+        if (!Files.exists(filePath)) {
+            resp.getWriter().println("File not found");
+            return;
+        }
+ 
+        resp.setContentType("application/octet-stream");
+        resp.setHeader("Content-Disposition", "attachment; filename=\"" + fileName + "\"");
+ 
+        //逐块读取文件并写入响应
+        //filePath.toFile()相比String.valueOf(filePath)
+        //在文件下载的场景中, 使用filePath.toFile()时, Java 会正确处理路径中的大多数字符包括空格, 更直接和高效,避免了不必要的字符串转换
+        try (FileInputStream fileInputStream = new FileInputStream(filePath.toFile());
+             OutputStream outputStream = resp.getOutputStream()) {
+            byte[] buffer = new byte[4096];
+            int bytesRead;
+            while ((bytesRead = fileInputStream.read(buffer)) != -1) {
+                outputStream.write(buffer, 0, bytesRead);
+            }
+        }
+ 
+        //一次性读取并写入响应
+        //byte[] fileData = Files.readAllBytes(filePath);
+        //resp.getOutputStream().write(fileData);
+    }
+}
+</code>
+
+<h1>Session和Cookie</h1>
+Session
+    服务器端(tomcat内存)存储用户会话信息，通过HttpSession对象来管理
+    当一个新浏览器发送请求时，Tomcat会检测到这是一个新的请求，于是为其创建一个新的会话（Session），并生成一个唯一的Session ID。
+        这个Session ID会随着响应一起发送回浏览器，通常通过一个Cookie来保存。
+    浏览器在接收到这个Session ID后，会将其存储在Cookie中。
+        只要这个Cookie在有效期内，每次浏览器发送请求时都会携带这个Session ID。
+    这样，当Servlet需要操作会话属性时，Tomcat就会根据这个Session ID找到对应的会话空间进行读写操作。
+    在不关闭浏览器应用的情况下，即使关闭并重新打开标签页，Session通常仍然可以使用。
+        因为Session是与整个浏览器应用（即整个浏览器进程）相关联的，而不是与单个标签页相关联。
+Cookie
+    客户端存储用户信息，通过HttpServletResponse对象来设置Cookie，通过HttpServletRequest对象来读取Cookie
+    cookie在有效期内总是伴随浏览器请求发送给tomcat
+
+<h2>session</h2>
+<code>
+public class SessionSetGet {
+    @WebServlet("/page4")
+    public static class SessionSet extends HttpServlet {
+        @Override
+        protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+            HttpSession session = req.getSession();
+            session.setAttribute("sessionId","会话ID:"+session.getId());
+            req.getRequestDispatcher("/page5").forward(req,resp);
+        }
+    }
+ 
+    @WebServlet("/page5")
+    public static class SessionGet extends HttpServlet {
+        @Override
+        protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+            HttpSession session = req.getSession();
+            String s = (String) session.getAttribute("sessionId");
+            resp.getWriter().println("[session信息] " + s);
+        }
+    }
+}
+</code>
+<h3>Session有效期</h3>
+    通过配置Tomcat的conf/web.xml文件,单位分钟
+<code xml>
+&lt;web-app&gt;
+    &lt;session-config&gt;
+        &lt;session-timeout&gt;30&lt;/session-timeout&gt;
+    &lt;/session-config&gt;
+&lt;/web-app&gt;
+</code>
+    过期时间是从用户最后一次与服务器交互开始计算
+    如果用户在30分钟内没有任何操作，包括与服务器交互，那么Session会过期。
+    但是，如果用户在30分钟内有任何操作，包括点击按钮、填写表单或与服务器进行其他形式的交互，那么Session的过期时间会被重置，并且会继续有效，直到用户再次长时间无操作。
+
+<h3>SessionId的cookie有效期</h3>
+未设置有效期时,浏览器关闭后SessionId的cookie消失
+    但是session没有销毁，它会等Session有效期过了之后才会销毁
+而设置了有效期时会使得SessionId的cookie在浏览器关闭后再次打开时，仍然可以读取原来的SessionId
+
+方式1
+    在Tomcat的conf/context.xml文件中添加SessionCookie子元素
+        专注于Session Cookie的配置，配置项较少且简单
+<code xml>
+&lt;Context&gt;
+    &lt;SessionCookie name=&quot;JSESSIONID&quot; path=&quot;/&quot; maxAge=&quot;3600&quot; httpOnly=&quot;true&quot; secure=&quot;false&quot;/&gt;
+&lt;/Context&gt;
+</code>
+        name：Session Cookie的名称（默认为JSESSIONID）。
+        path：Session Cookie的路径（默认为/）。
+        maxAge：Session Cookie的最大存活时间，以秒为单位。
+        httpOnly：是否仅通过HTTP协议传输，防止客户端脚本访问（默认为true）。
+        secure：是否仅通过HTTPS传输（默认为false）。
+
+方式2
+    在Tomcat的conf/context.xml文件中或者在Web应用的META-INF/context.xml文件中添加Manager子元素
+        除了Session Cookie的配置，还涉及会话管理的其他配置，如会话持久化
+<code xml>
+&lt;Context&gt;
+    &lt;Manager pathname="" sessionCookieName="JSESSIONID" sessionCookiePath="/" sessionCookieDomain="" sessionCookieMaxAge="3600"/&gt;
+&lt;/Context&gt;
+</code>
+        pathname：会话持久化文件的路径。如果设置为空字符串，则禁用会话持久化。
+        sessionCookieName：Session Cookie的名称（默认为JSESSIONID）。
+        sessionCookiePath：Session Cookie的路径（默认为/）。
+        sessionCookieDomain：Session Cookie的域（可选）。
+        sessionCookieMaxAge：Session Cookie的最大存活时间，以秒为单位。
+
+<h2>cookie</h2>
+会话 Cookie (Session Cookie)
+    默认情况下，未指定有效期的 Cookie 会在用户关闭浏览器时被删除
+持久化 Cookie (Persistent Cookie)
+    通过设置 Cookie 的有效期，可以创建持久化 Cookie，它们在关闭浏览器后依然存在，直到过期时间为止
+<code>
+public class CookieGetSet {
+    @WebServlet("/page6")
+    public static class AddCookie extends HttpServlet {
+        @Override
+        protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+            Cookie cookie = new Cookie("username", "汤姆");
+            cookie.setMaxAge(60 * 60 * 24 * 3);//设置的 Cookie 有效期信息通过 HTTP 响应头传达给浏览器
+            resp.addCookie(cookie);
+            resp.getWriter().println("login success");
+        }
+    }
+ 
+    @WebServlet("/page7")
+    public static class GetCookie extends HttpServlet {
+        @Override
+        protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+            Cookie[] cookies = req.getCookies();
+            String s = null;
+            if (cookies != null) {
+                for (Cookie cookie : cookies) {
+                    System.out.println(cookie.getName() + ":" + cookie.getValue());
+                    if (cookie.getName().equals("username")) {
+                        s = cookie.getValue();
+                        //将 Max-Age 设置为零以删除 Cookie
+                        //cookie.setMaxAge(0);
+                        //resp.addCookie(cookie);
+                        break;
+                    }
+                }
+            }
+            resp.getWriter().println(s == null ? "user not exist" : "username:" + s);
+        }
+    }
+}
+</code>
+
+
+<h1>监听器</h1>
+过滤器用于处理请求和响应
+监听器通常用于初始化和清理任务
+
+对象监听接口(对象初始化完成/session创建,销毁)
+    ServletContextListener
+        contextInitialized
+        contextDestroyed
+    HttpSessionListerner
+        requestInitialized
+        requestDestroyed
+    ServletRequestListener
+        sessionCreated
+        sessionDestroyed
+
+属性监听接口(属性的新建,删除和修改)
+    ServletContextAttributeListener / HttpSessionAttributeListener / ServletRequestAttributeListener
+        attributeAdded
+        attributeRemoved
+        attributeReplaced
+
+@WebListener 没有特定的属性来配置。它的唯一作用是标记类为Web应用程序中的监听器
+web.xml等价形式
+<code xml>
+&lt;listener&gt;
+    &lt;listener-class&gt;ListenerObj&lt;/listener-class&gt;
+&lt;/listener&gt;
+&lt;listener&gt;
+    &lt;listener-class&gt;ListenerAttr&lt;/listener-class&gt;
+&lt;/listener&gt;
+</code>
+<code>
+@WebListener
+public class ListenerObj implements ServletContextListener, HttpSessionListener, ServletRequestListener {
+    @Override
+    public void contextInitialized(ServletContextEvent servletContextEvent) {
+        System.out.println("初始化ServletContext");
+    }
+    @Override
+    public void contextDestroyed(ServletContextEvent servletContextEvent) {
+        System.out.println("销毁ServletContext");
+    }
+    @Override
+    public void requestInitialized(ServletRequestEvent servletRequestEvent) {
+        HttpServletRequest req = (HttpServletRequest) servletRequestEvent.getServletRequest();
+        System.out.println("初始化HttpServletRequest:"+req.getRequestURI());
+    }
+    @Override
+    public void requestDestroyed(ServletRequestEvent servletRequestEvent) {
+        System.out.println("销毁HttpServletRequest");
+    }
+    @Override
+    public void sessionCreated(HttpSessionEvent httpSessionEvent) {
+        HttpSession session = httpSessionEvent.getSession();
+        System.out.println("创建Session:"+session.getId());
+    }
+    @Override
+    public void sessionDestroyed(HttpSessionEvent httpSessionEvent) {
+        System.out.println("销毁Session");
+    }
+}
+</code>
+<code>
+@WebListener
+public class ListenerAttr implements ServletContextAttributeListener, HttpSessionAttributeListener, ServletRequestAttributeListener {
+    @Override
+    public void attributeAdded(ServletContextAttributeEvent servletContextAttributeEvent) {
+        System.out.println("ServletContext增加属性:" + servletContextAttributeEvent.getName() + "-" + servletContextAttributeEvent.getValue());
+    }
+    @Override
+    public void attributeRemoved(ServletContextAttributeEvent servletContextAttributeEvent) {
+        System.out.println("ServletContext移除属性:" + servletContextAttributeEvent.getName() + "-" + servletContextAttributeEvent.getValue());
+    }
+    @Override
+    public void attributeReplaced(ServletContextAttributeEvent servletContextAttributeEvent) {
+        System.out.println("ServletContext修改属性:" + servletContextAttributeEvent.getName() + "-" + servletContextAttributeEvent.getValue());
+    }
+    @Override
+    public void attributeAdded(ServletRequestAttributeEvent servletRequestAttributeEvent) {
+        System.out.println("ServletRequest增加属性:" + servletRequestAttributeEvent.getName() + "-" + servletRequestAttributeEvent.getValue());
+    }
+    @Override
+    public void attributeRemoved(ServletRequestAttributeEvent servletRequestAttributeEvent) {
+        System.out.println("ServletRequest移除属性:" + servletRequestAttributeEvent.getName() + "-" + servletRequestAttributeEvent.getValue());
+    }
+    @Override
+    public void attributeReplaced(ServletRequestAttributeEvent servletRequestAttributeEvent) {
+        System.out.println("ServletRequest修改属性:" + servletRequestAttributeEvent.getName() + "-" + servletRequestAttributeEvent.getValue());
+    }
+    @Override
+    public void attributeAdded(HttpSessionBindingEvent httpSessionBindingEvent) {
+        System.out.println("Session增加属性:" + httpSessionBindingEvent.getName() + "-" + httpSessionBindingEvent.getValue());
+    }
+    @Override
+    public void attributeRemoved(HttpSessionBindingEvent httpSessionBindingEvent) {
+        System.out.println("Session移除属性:" + httpSessionBindingEvent.getName() + "-" + httpSessionBindingEvent.getValue());
+    }
+    @Override
+    public void attributeReplaced(HttpSessionBindingEvent httpSessionBindingEvent) {
+        System.out.println("Session修改属性:" + httpSessionBindingEvent.getName() + "-" + httpSessionBindingEvent.getValue());
+    }
+}
+</code>
+<code>
+@WebServlet("/page19")
+public class ListenerServlet extends HttpServlet {
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        req.getServletContext().setAttribute("ServletContext_attr","ServletContext_value");
+        req.getSession().setAttribute("Session_attr","Session_value");
+        req.setAttribute("request_attr","request_value");
+ 
+        req.getServletContext().setAttribute("ServletContext_attr","ServletContext_value2");
+        req.getSession().setAttribute("Session_attr","Session_value2");
+        req.setAttribute("request_attr","request_value2");
+ 
+        req.getServletContext().removeAttribute("ServletContext_attr");
+        req.getSession().removeAttribute("Session_attr");
+        req.removeAttribute("request_attr");
+    }
+}
+</code>
+
+<h2>流量分析统计</h2>
+<h3>listener</h3>
+<code>
+@WebListener
+public class RequestTotalListener implements ServletRequestListener, ServletContextListener {
+ 
+    @Override
+    public void contextInitialized(ServletContextEvent servletContextEvent) {
+        List&lt;String> timeList = new ArrayList&lt;>();
+        List&lt;Integer> valueList = new ArrayList&lt;>();
+        servletContextEvent.getServletContext().setAttribute("timeList", timeList);
+        servletContextEvent.getServletContext().setAttribute("valueList", valueList);
+        System.out.println("初始统计列表已创建");
+    }
+ 
+    @Override
+    public void requestInitialized(ServletRequestEvent servletRequestEvent) {
+        HttpServletRequest req = (HttpServletRequest)servletRequestEvent.getServletRequest();
+        String url = req.getRequestURL().toString();
+        if (url.endsWith("/page20")){
+            return;
+        }
+        List&lt;String> timeList = (List&lt;String>) servletRequestEvent.getServletContext().getAttribute("timeList");
+        List&lt;Integer> valueList = (List&lt;Integer>) servletRequestEvent.getServletContext().getAttribute("valueList");
+        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm");
+        String time = sdf.format(new Date());
+        if (!timeList.contains(time)) {
+            timeList.add(time);
+            valueList.add(1);
+            servletRequestEvent.getServletContext().setAttribute("timeList", timeList);
+            servletRequestEvent.getServletContext().setAttribute("valueList", valueList);
+        } else {
+            int index = timeList.indexOf(time);
+            valueList.set(index, valueList.get(index) + 1);
+            servletRequestEvent.getServletContext().setAttribute("valueList", valueList);
+        }
+    }
+ 
+    @Override
+    public void contextDestroyed(ServletContextEvent servletContextEvent) {}
+ 
+    @Override
+    public void requestDestroyed(ServletRequestEvent servletRequestEvent) {}
+}
+</code>
+<h3>servlet</h3>
+<code>
+@WebServlet("/page20")
+public class RequestTotalServlet extends HttpServlet {
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        List&lt;String> timeList =(List)req.getServletContext().getAttribute("timeList");
+        List&lt;Integer> valueList =(List)req.getServletContext().getAttribute("valueList");
+ 
+        Map&lt;String,List> map = new HashMap&lt;>();
+        map.put("timeList",timeList);
+        map.put("valueList",valueList);
+ 
+        String json = JSON.toJSONString(map);
+        resp.getWriter().write(json);
+    }
+}
+</code>
+<h3>echarts</h3>
+图表库https://echarts.apache.org/handbook/zh/get-started/
+<code html>
+&lt;html&gt;
+&lt;head&gt;
+    &lt;meta charset="utf-8"&gt;
+    &lt;title&gt;total&lt;/title&gt;
+    &lt;script src="js/jquery-1.11.1.min.js"&gt;&lt;/script&gt;
+    &lt;script src="js/echarts.min.js"&gt;&lt;/script&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;div id="main" style="height: 300px;width: 600px"&gt;&lt;/div&gt;
+    &lt;script&gt;
+        function requestTotal(){
+            $.ajax({
+                "url":"/page20",
+                "type":"get",
+                "dataType":"json",
+                "success":function (data){
+                    var myChart = echarts.init(document.getElementById('main'));
+                    var option = {
+                        title: {
+                            text: '访问统计'
+                        },
+                        tooltip: {},
+                        legend: {
+                            data: ['访问量']
+                        },
+                        xAxis: {
+                            data: data.timeList
+                        },
+                        yAxis: {},
+                        series: [
+                            {
+                                name: '访问量',
+                                type: 'line',
+                                data: data.valueList
+                            }
+                        ]
+                    };
+                    myChart.setOption(option);
+                }
+            })
+        }
+        setInterval(requestTotal,1000)
+    &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code>
+20240330190641.webp
+
+<h2>静态数据预加载</h2>
+<code>
+@WebListener
+public class SCListener implements ServletContextListener {
+    @Override
+    public void contextInitialized(ServletContextEvent servletContextEvent) {
+        List&lt;Channel&gt; list = new ArrayList&lt;&gt;();
+        list.add(new SearchEngine("谷歌","www.google.com"));
+        list.add(new SearchEngine("DuckduckGo","www.duckduckgo.com"));
+        servletContextEvent.getServletContext().setAttribute("channels",list);
+    }
+ 
+    @Override
+    public void contextDestroyed(ServletContextEvent servletContextEvent) {}
+}
+</code>
+<code>
+&lt;%@ page contentType="text/html;charset=UTF-8" language="java" %&gt;
+&lt;%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %&gt;
+&lt;html&gt;
+&lt;head&gt;
+  &lt;meta charset="UTF-8"&gt;
+  &lt;title&gt;Title&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;c:forEach items="${applicationScope.channels}" var="item"&gt;
+  &lt;span&gt;${item.name} ${item.url}&lt;/span&gt; |
+&lt;/c:forEach&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code>
+
+<h1>避免在请求期间重复从数据库获取相同的数据</h1>
+<code>
+public class CachedDataServlet extends HttpServlet {
+    private static final long serialVersionUID = 1L;
+    //使用 ConcurrentHashMap 作为缓存存储 cache。它允许线程安全的并发操作
+    private static final Map&lt;String, Object> cache = new ConcurrentHashMap&lt;>();
+ 
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        String key = request.getParameter("key");
+
+        if (key == null || key.isEmpty()) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Missing or empty 'key' parameter.");
+            return;
+        }
+ 
+        Object data;
+        if (cache.containsKey(key)) {
+            data = cache.get(key);
+            response.setStatus(HttpServletResponse.SC_OK);
+            response.getWriter().println("Cached data: " + data);
+        } else {
+            try {
+                data = fetchDataFromDatabase(key);
+                cache.put(key, data);
+                response.setStatus(HttpServletResponse.SC_OK);
+                response.getWriter().println("Fetched and cached data: " + data);
+            } catch (Exception e) {
+                response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                response.getWriter().println("Error fetching data: " + e.getMessage());
+                e.printStackTrace(); // Log the exception for debugging
+            }
+        }
+    }
+ 
+    private Object fetchDataFromDatabase(String key) throws Exception {
+        // Simulate fetching data from a database
+        if (key.equals("error")) {
+            throw new Exception("Simulated database error");
+        }
+        return "Data for " + key;
+    }
+}
+</code>
+</pre>
+ </body>
+</html>

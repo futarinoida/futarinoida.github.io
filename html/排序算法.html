@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>排序算法</title>
+</head>
+<body><span id="anchor">20240618093949-_模式算法</span>
+<pre>
+在 Java 中，默认的排序算法 (Collections.sort 和 Arrays.sort 使用的是 TimSort) 通常比手动实现的快速排序算法要快。以下是原因：
+    优化程度：TimSort 是一种混合排序算法，结合了合并排序和插入排序的优点，针对不同的数据模式进行了大量优化。它在处理已排序或部分排序的数据时表现特别出色。
+    稳定性：TimSort 是稳定排序，保持相同元素的相对顺序，而标准的快速排序不是稳定的。
+    内置优化：Java 的内置排序方法在底层进行了多种优化，包括减少对象分配、优化递归调用等，这些优化在手动实现的算法中很难完全实现。
+    垃圾回收：Java 内置排序方法对垃圾回收有更好的处理，尤其是在处理大型数组或列表时。
+
+TimSort
+    优点:
+        结合了归并排序和插入排序的优点。
+        稳定排序，适合处理部分已排序的数据。
+        Python的sorted()函数和Java的Arrays.sort()方法都使用TimSort。
+    缺点:
+        实现复杂。
+    最佳应用场景: 适用于大多数一般用途的排序，特别是当数据集已经部分排序时表现出色。
+
+冒泡排序 (Bubble Sort)
+    优点:
+        实现简单，易于理解。
+    缺点:
+        时间复杂度为O(n²)，性能很差，不适合大数据集。
+    最佳应用场景: 适用于小数据集和对教学目的的示例。
+
+插入排序 (Insertion Sort)
+    优点:
+        实现简单。
+        对于几乎已经排序的数据集，性能很好。
+        稳定排序。
+    缺点:
+        时间复杂度为O(n²)，对于大数据集性能较差。
+    最佳应用场景: 适用于小数据集或部分已排序的数据。
+
+快速排序 (Quick Sort)
+    优点:
+        平均时间复杂度为O(n log n)，性能优异。
+        对大多数随机数据集表现良好。
+    缺点:
+        最坏情况时间复杂度为O(n²)，例如数据已经排序或接近排序的情况下（可通过随机选择主元或三数取中法改进）。
+        不稳定排序。
+    最佳应用场景: 适用于一般用途的排序，特别是随机数据集。
+
+选择排序 (Selection Sort)
+    优点:
+        实现简单。
+        内存需求低，仅需要常数级额外空间。
+    缺点:
+        时间复杂度为O(n²)，性能较差。
+        不稳定排序。
+    最佳应用场景: 适用于小数据集或内存有限的情况。
+
+总结
+    TimSort通常是最优选择，特别是对部分已排序的数据集。
+    快速排序在大多数随机数据集上的性能最佳。
+    插入排序在小型数据集或部分已排序的数据集上表现良好。
+    冒泡排序和选择排序一般仅在小数据集或教学中使用。
+
+稳定排序
+    稳定排序是指在排序过程中，相等的元素在排序后仍保持其相对顺序不变。也就是说，如果在未排序的列表中，两个相等的元素 A 和 B，A 原本在 B 之前，那么在排序后的列表中，A 仍然在 B 之前。
+    稳定排序在某些情况下非常有用，特别是在需要多关键字排序的时候。例如，你有一个包含多个字段的记录列表，你首先根据一个字段排序，然后根据另一个字段排序。如果第二次排序使用稳定排序算法，那么相等字段的记录的相对顺序将保持不变。
+
+    常见的稳定排序算法：
+        插入排序
+        冒泡排序
+        归并排序
+        TimSort
+    不稳定排序算法：
+        快速排序
+        选择排序
+        堆排序
+
+    假设有一个对象数组，每个对象包含一个名称和一个年龄字段，如下所示：
+[
+  {name: "Alice", age: 25},
+  {name: "Bob", age: 20},
+  {name: "Charlie", age: 25},
+  {name: "David", age: 20}
+]
+    如果我们按年龄字段进行稳定排序，结果将是：
+[
+  {name: "Bob", age: 20},
+  {name: "David", age: 20},
+  {name: "Alice", age: 25},
+  {name: "Charlie", age: 25}
+]
+    注意到年龄相同的记录（Bob 和 David 以及 Alice 和 Charlie）在排序后仍保持它们原来的相对顺序。
+
+<h1>冒泡排序</h1>
+<code>
+public static void bubbleSort(int[] arr) {
+    int i, j, tmp;
+    for (i = 0; i &lt; arr.length - 1; i++) {
+        for (j = 0; j &lt; arr.length - 1 - i; j++) {
+            if (arr[j] > arr[j + 1]) {
+                tmp = arr[j];
+                arr[j] = arr[j + 1];
+                arr[j + 1] = tmp;
+            }
+        }
+    }
+}
+public static void main(String[] args) {
+    int[] arr = {5, 2, 2, 4, 6, 7, 2, 1, 3};
+    System.out.println(Arrays.toString(arr));
+    bubbleSort(arr);
+    System.out.println(Arrays.toString(arr));
+}
+</code>
+
+<h1>快速排序</h1>
+https://blog.csdn.net/zou_albert/article/details/107405455
+它的基本思想就是选取一个基准，一趟排序确定两个区间，一个区间全部比基准值小，另一个区间全部比基准值大，接着再选取一个基准值来进行排序，以此类推，最后得到一个有序的数列
+假设我们现在对
+6 1 2 7 9 3 4 5 10 8
+这个 10 个数进行排序
+首先在这个序列中随便找一个数作为基准数（就是一个用来参照的数）。为了方便，就让第一个数 6 作为基准数吧。接下来，需要将这个序列中所有比基准数大的数放在 6 的右边，比基准数小的数放在 6 的左边，类似下面这种排列
+3 1 2 5 4 6 9 7 10 8
+在初始状态下，数字 6 在序列的第 1 位。我们的目标是将 6 挪到序列中间的某个位置，假设这个位置是 k。现在就需要寻找这个 k，并且以第 k 位为分界点，左边的数都小于等于 6，右边的数都大于等于 6
+方法其实很简单：分别从初始序列两端开始“探测”。先从右往左找一个小于 6 的数，再从左往右找一个大于 6 的数，然后交换他们。
+首先哨兵 j 开始出动。因为此处设置的基准数是最左边的数，所以需要让哨兵 j 先出动
+20240618130836.webp
+哨兵 j 一步一步地向左挪动（即 j–），直到找到一个小于 6 的数停下来。接下来哨兵 i 再一步一步向右挪动（即 i++），直到找到一个数大于 6 的数停下来。最后哨兵 j 停在了数字 5 面前，哨兵 i 停在了数字 7 面前。
+20240618131154.webp
+“探测”继续。哨兵 j 继续向左挪动，他发现了 3（比基准数 6 要小，满足要求）之后又停了下来。哨兵 i 继续向右移动，糟啦！此时哨兵 i 和哨兵 j 相遇了，哨兵 i 和哨兵 j 都走到 3 面前。说明此时“探测”结束。我们将基准数 6 和 3 进行交换, 此时以基准数 6 为分界点，6 左边的数都小于等于 6，6 右边的数都大于等于 6。回顾一下刚才的过程，其实哨兵 j 的使命就是要找小于基准数的数，而哨兵 i 的使命就是要找大于基准数的数，直到 i 和 j 碰头为止。
+20240618131554.webp
+现在基准数 6 已经归位，它正好处在序列的第 6 位。此时我们已经将原来的序列，以 6 为分界点拆分成了两个序列，左边的序列是“3 1 2 5 4”，右边的序列是“ 9 7 10 8 ”。接下来还需要分别处理这两个序列。因为 6 左边和右边的序列目前都还是很混乱的。不过不要紧，我们已经掌握了方法，接下来只要模拟刚才的方法分别处理 6 左边和右边的序列即可。
+20240618141129.webp
+快速排序之所比较快，因为相比冒泡排序，每次交换是跳跃式的。每次排序的时候设置一个基准点，将小于等于基准点的数全部放到基准点的左边，将大于等于基准点的数全部放到基准点的右边。这样在每次交换的时候就不会像冒泡排序一样每次只能在相邻的数之间进行交换，交换的距离就大的多了。因此总的比较和交换次数就少了，速度自然就提高了
+<code>
+public class Demo {
+    //Collator.getInstance(Locale.CHINESE) 是一个相对昂贵的操作,避免重复创建 Collator 实例
+    private static final Collator collator = Collator.getInstance(Locale.CHINESE);
+ 
+    public static void quickSort(int[] arr, int low, int high) {
+        if (low > high) {
+            return;
+        }
+        int l = low;
+        int h = high;
+        int base = arr[low]; //定义左起始为基准点
+        int tmp;
+
+        while (l &lt; h) { //直到两者相逢停下
+            while (base &lt;= arr[h] && l &lt; h) //从右往左直到遇见小于base的数时停下
+                h--;
+            while (base >= arr[l] && l &lt; h) //从左往右直到遇见大于base的数时停下
+                l++;
+            if (l &lt; h) {
+                tmp = arr[h]; //两者都停下时交换位置
+                arr[h] = arr[l];
+                arr[l] = tmp;
+            }
+        }
+        arr[low] = arr[l];
+        arr[l] = base; //交换位置,确定出base的确切位置, 分隔出左右两部分
+
+        quickSort(arr, low, h - 1); //同样的方法递归左部
+        quickSort(arr, h + 1, high); //同样的方法递归右部
+    }
+    public static void quickSort(String[] arr, int low, int high) {
+        if (low > high) {
+            return;
+        }
+        int l = low;
+        int h = high;
+        String base = arr[low];
+        String tmp;
+ 
+        while (l &lt; h) {
+            while (collator.compare(base, arr[h]) &lt;= 0 && l &lt; h)
+                h--;
+            while (collator.compare(base, arr[l]) >= 0 && l &lt; h)
+                l++;
+            if (l &lt; h) {
+                tmp = arr[h];
+                arr[h] = arr[l];
+                arr[l] = tmp;
+            }
+        }
+        arr[low] = arr[l];
+        arr[l] = base;
+
+        quickSort(arr, low, h - 1);
+        quickSort(arr, h + 1, high);
+    }
+ 
+    public static void main(String[] args) {
+        int[] arr = {10, 7, 2, 4, 7, 62, 3, 4, 2, 1, 8, 9, 19};
+        quickSort(arr, 0, arr.length - 1);
+        System.out.println(Arrays.toString(arr));
+ 
+        String[] arr2 = {"123", "abc", "*", "中文", "1a2b3", "中国", "a", "12a", "aa", "bb", "b2ba", "b3bc", "cc", "dd", "12", "中1文", "中3c","中3文","中2", "99", "00"};
+        quickSort(arr2, 0, arr2.length - 1);
+        System.out.println(Arrays.toString(arr2));
+    }
+}
+</code>
+
+<h1>插入排序</h1>
+20240618152109.webp
+<code>
+public class Demo {
+    public static void insertionSort(int[] arr) {
+        int target, j;
+        for (int i = 1; i &lt; arr.length; i++) { //将数组第一个元素视为已排序的部分
+            target = arr[i]; //取出未排部分的第一个元素
+            j = i - 1; //已排元素中的最个一个元素的位置
+            while (j >= 0 && arr[j] > target) { //遍历已排部分, 如果有比自己(target)大的则已排右移
+                arr[j + 1] = arr[j];
+                j--;
+            }
+            arr[j + 1] = target; //(前面已经j--,此处j+1实际为j), 没有比自己大的则放末尾
+        }
+    }
+ 
+    public static void main(String[] args) {
+        int[] arr = {5, 2, 2, 4, 6, 7, 2, 1, 3};
+        insertionSort(arr);
+        System.out.println(Arrays.toString(arr));
+    }
+}
+</code>
+
+<h1>选择排序</h1>
+是用逐个选择的方式来进行排序，逐个选择出数组中的最大（或最小）的元素，直到选择至最后一个元素
+20240618160201.gif
+<code>
+public class Demo {
+    public static void selectSort(int[] arr) {
+        int i, j, min, t;
+        for (i = 0; i &lt; arr.length - 1; i++) {
+            min = i;//最小数位置
+            for (j = i + 1; j &lt; arr.length; j++) { //已确立顺序的最后一个依次与后面的比较
+                if (arr[j] &lt; arr[min])
+                    min = j;
+            }
+            if (min != i) { //非同一位置时交换
+                t = arr[i];
+                arr[i] = arr[min];
+                arr[min] = t;
+            }
+        }
+    }
+    public static void main(String[] args) {
+        int[] arr = {52, 14, 63, 14, 59, 8, 68, 35, 8, 67, 45, 99};
+        selectSort(arr);
+        System.out.println(Arrays.toString(arr));
+    }
+}
+</code>
+</pre>
+</body>
+</html>

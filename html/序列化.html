@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>序列化</title>
+ </head>
+ <body>
+  <span id="anchor">20240328174034-_java</span>
+  <pre>
+序列化是将对象的状态转换为字节流的过程
+    持久化： 将对象的状态保存到磁盘文件或数据库中，以便在程序退出后仍能保留对象的状态。
+    网络传输： 在分布式系统中，通过网络传输对象，允许不同进程之间进行通信。
+    缓存： 将对象存储在内存或磁盘中，以便在需要时快速加载。
+
+反序列化是将字节流重新转换为对象的过程
+    恢复对象状态： 从磁盘或数据库中读取对象的状态，以恢复程序退出前的状态。
+    接收网络数据： 从网络中接收到序列化的对象，并在本地重建这些对象
+
+serialVersionUID
+    用于验证在序列化和反序列化过程中，发送者和接收者的版本是否一致。
+    它是类版本的唯一标识符，如果类的定义发生任何变更（例如增加或删除字段），则需要更新 serialVersionUID
+    序列化操作的时候系统会把当前类的serialVersionUID写入到序列化文件中
+        IDEA自动生成 serialVersionUID
+            搜索serializable, 勾选"Serializable class without 'serialVersionUID'提示
+    反序列化时系统会去检测文件中的serialVersionUID，判断它是否与当前类的serialVersionUID一致，如果一致就说明序列化类的版本与当前类版本是一样的，可以反序列化成功，否则InvalidCalssException
+
+在Java中实现序列化主要通过两个接口:
+    Serializable 接口
+        这是一个标识接口，不包括任何方法
+        一个对象想要被序列化,要实现此接口或者它的子接口。
+        这个对象的所有属性（包括private属性、包括其引用的对象）都可以被序列化和反序列化来保存、传递。
+        序列化不会对静态变量进行序列化，因为序列化只是保存对象的状态，静态变量属于类的状态
+        不想序列化的字段可以使用transient修饰。(transient 短暂的)
+            由于Serializable对象完全以它存储的二进制位为基础来构造，因此并不会调用任何构造函数，因此Serializable类无需默认构造函数，但是当Serializable类的父类没有实现Serializable接口时，反序列化过程会调用父类的默认构造函数，因此该父类必需有默认构造函数，否则会抛异常。
+            使用transient关键字阻止序列化虽然简单方便，但被它修饰的属性被完全隔离在序列化机制之外，导致了在反序列化时无法获取该属性的值，而通过在需要序列化的对象的Java类里加入writeObject()方法与readObject()方法可以控制如何序列化各属性，甚至完全不序列化某些属性或者加密序列化某些属性。
+    Externalizable 接口
+        它是Serializable接口的子类，用户要实现的writeExternal()和readExternal() 方法，用来决定如何序列化和反序列化。
+            因为序列化和反序列化方法需要自己实现，因此可以指定序列化哪些属性，而transient在这里无效。
+        对Externalizable对象反序列化时，会先调用类的无参构造方法，这是有别于默认反序列方式的。
+            如果把类的无参构造方法删除，或者把该构造方法的访问权限设置为private、默认或protected级别，会抛出java.io.InvalidException: no valid constructor异常，因此Externalizable对象必须有默认构造函数，而且必需是public的。
+
+<code>
+public class Apple implements Serializable {
+    private static final long serialVersionUID = -4251269726946099535L;
+    private int x;
+    private String y;
+    transient private String z;
+    static String staticField = "I am static";
+    Apple(int x, String y) {
+        this.x = x;
+        this.y = y;
+        this.z = "z";
+    }
+    @Override
+    public String toString() {
+        return "x = " + x + "  " + "y = " + y + "  " + "z = " + z + "  " + "staticField = " + staticField;
+    }
+ 
+    public static void main(String[] args) {
+        String objFile = "Apple.txt";
+        Apple apple = new Apple(1, "apple");
+        try(ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(objFile))){
+            oos.writeObject(apple);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+ 
+        Apple.staticField = "Changed static field";
+ 
+        Apple appleRead = null;
+        try(ObjectInputStream ois = new ObjectInputStream(new FileInputStream(objFile))){
+            appleRead = (Apple) ois.readObject();
+        } catch (IOException | ClassNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+        System.out.println(appleRead);// x = 1  y = apple  z = null  staticField = Changed static field
+    }
+}
+</code>
+</pre>
+</body>
+</html>

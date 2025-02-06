@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>FreeMarker</title>
+</head>
+<body><span id="anchor">20240521124656-_视图</span>
+<pre>
+在 Java Web 开发中，一些主流的模板引擎包括：
+    Thymeleaf：
+        高度集成于 Spring Framework 中，支持 HTML5，具有优雅的模板语法和强大的功能，如表达式求值、国际化等。
+    FreeMarker：
+        轻量级模板引擎，广泛用于生成 HTML、XML、JSON 等文档格式，支持宏、条件判断、循环等模板语法。
+    Velocity：
+        Apache Velocity 是一个基于文本的模板引擎，使用简单，适合生成 HTML 和 XML 等文本格式的内容。
+    JSP：
+        虽然不是专门的模板引擎，但在 Java Web 开发中被广泛使用，允许在 HTML 页面中嵌入 Java 代码，适合简单的动态页面生成。
+    Handlebars：
+        JavaScript 模板引擎，但也有 Java 的实现版本，支持基于 Mustache 模板语法，适合前后端分离应用中的模板渲染。
+    Pebble：
+        类似于 Django 模板语法的 Java 模板引擎，支持继承、布局、条件判断等功能，用于生成动态内容。
+    Groovy Template Engine：
+        使用 Groovy 语言编写的模板引擎，结合 Groovy 的强大特性，支持嵌入 Groovy 脚本生成动态内容。
+
+jsp与freemarker区别
+20240330212357.webp
+
+代入三位以上或可能超过三位的数字属性注意加上?c, 否则会加入逗号分隔导致后台解析失败
+
+<h1>依赖</h1>
+<code xml>
+&lt;dependency&gt;
+    &lt;groupId&gt;org.freemarker&lt;/groupId&gt;
+    &lt;artifactId&gt;freemarker&lt;/artifactId&gt;
+    &lt;version&gt;2.3.30&lt;/version&gt;
+&lt;/dependency&gt;
+</code>
+<h1>基于配置文件</h1>
+<code xml>
+&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;
+&lt;web-app xmlns=&quot;http://xmlns.jcp.org/xml/ns/javaee&quot;
+         xmlns:xsi=&quot;http://www.w3.org/2001/XMLSchema-instance&quot;
+         xsi:schemaLocation=&quot;http://xmlns.jcp.org/xml/ns/javaee http://xmlns.jcp.org/xml/ns/javaee/web-app_3_1.xsd&quot;
+         version=&quot;3.1&quot;&gt;
+    &lt;servlet&gt;
+        &lt;!-- 处理类 --&gt;
+        &lt;servlet-name&gt;freemarker&lt;/servlet-name&gt;
+        &lt;servlet-class&gt;freemarker.ext.servlet.FreemarkerServlet&lt;/servlet-class&gt;
+        &lt;init-param&gt;
+            &lt;!-- 模板文件的存放路径 --&gt;
+            &lt;param-name&gt;TemplatePath&lt;/param-name&gt;
+            &lt;param-value&gt;/WEB-INF/classes/templates&lt;/param-value&gt;
+        &lt;/init-param&gt;
+        &lt;init-param&gt;
+            &lt;!-- 以指定编码读取模板文件 --&gt;
+            &lt;param-name&gt;default_encoding&lt;/param-name&gt;
+            &lt;param-value&gt;UTF-8&lt;/param-value&gt;
+        &lt;/init-param&gt;
+    &lt;/servlet&gt;
+    &lt;servlet-mapping&gt;
+        &lt;servlet-name&gt;freemarker&lt;/servlet-name&gt;
+        &lt;!-- 拦截处理.ftl结尾的url --&gt;
+        &lt;url-pattern&gt;*.ftl&lt;/url-pattern&gt;
+    &lt;/servlet-mapping&gt;
+&lt;/web-app&gt;
+</code>
+<h1>基于配置对象</h1>
+<code>
+@WebServlet("/page30")
+public class FreeMarkerServlet extends HttpServlet {
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        
+        Configuration cfg = new Configuration(Configuration.VERSION_2_3_30); //注意Configuration是freemarker里的类, 版本号与依赖一致
+        try {
+            String path = FreeMarkerServlet.class.getClassLoader().getResource("templates").getPath();
+            cfg.setDirectoryForTemplateLoading(new File(path));
+            cfg.setDefaultEncoding("UTF-8"); // 设置读取.ftl文件时的编码
+            cfg.setOutputEncoding("UTF-8"); // 设置 FreeMarker 的输出编码
+            Template template = cfg.getTemplate("example.ftl"); //加载模板
+ 
+            //创建数据模型
+            Map&lt;String, Object> data = new HashMap&lt;>();
+            Map&lt;String, String> info = new HashMap&lt;>();
+            info.put("cpu", "AMD7");
+            Computer computer = new Computer(
+                    "002",
+                    "dy",
+                    2,
+                    null,
+                    new Date(2024 - 1900, 3 - 1, 30),//2024年3月30号, 年份减1900, 月分减1
+                    12345.6f,
+                    info
+            );
+            data.put("title", "示例页面");
+            data.put("items", Arrays.asList("项目1", "项目2", "项目3"));
+            data.put("date", new Date());
+            data.put("num", 1234567.0678);
+            data.put("num2", 1234567);
+            data.put("computer", computer);
+ 
+            // 输出到控制台
+            Writer out = new BufferedWriter(new OutputStreamWriter(System.out, "UTF-8"));
+            template.process(data, out); //合并数据模型和模板
+            out.flush();
+ 
+            // 写入文件
+             String outputPath = path+File.separator+"output.html";
+             try (Writer fileOut = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(outputPath), "UTF-8"))) {
+                 template.process(data, fileOut);
+             }
+ 
+             // 响应 HTTP 请求
+            template.process(data, resp.getWriter());
+ 
+        } catch (IOException | TemplateException e) {
+            e.printStackTrace();
+        }
+    }
+}
+ 
+public class Computer{
+    private String sn;
+    private String model;
+    private int state;
+    private String user;
+    private Date date;
+    private Float price;
+    private Map&lt;String,String> info;
+}
+</code>
+
+<h1>模板语法</h1>
+<code ftl>
+&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot; &gt;
+&lt;head&gt;
+    &lt;meta charset=&quot;UTF-8&quot;&gt;
+    &lt;title&gt;${title}&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;#-- 遍历List, Array --&gt;
+&lt;ul&gt;
+    &lt;#list items as item&gt;
+        &lt;li&gt;${item_index+1} ${item}&lt;/li&gt;&lt;#-- 后缀_index,索引的语法规则 --&gt;
+        &lt;#if item_has_next>
+            |
+        &lt;/#if>
+    &lt;/#list&gt;
+&lt;/ul&gt;
+ 
+&lt;#list computers_map?keys as key&gt;&lt;#-- ?keys 语法规则,按健值遍历map --&gt;
+      ${key}-${computers_map[key].model}
+&lt;/#list&gt;
+ 
+&lt;#-- 默认值 --&gt;
+${not_exist!&quot;N/A&quot;}&lt;br&gt;
+ 
+&lt;#-- ?string() 格式化输出 --&gt;
+${date?string(&quot;yyyy-MM-dd HH:mm:ss SSS&quot;)}&lt;br&gt;
+${num}&lt;br&gt;
+${num?c}&lt;br&gt;&lt;#-- 原样 --&gt;
+${num?string(&quot;0.00&quot;)}&lt;br&gt;
+${num2}&lt;br&gt;
+${num2?c}&lt;br&gt;
+${num2?string(&quot;0.00&quot;)}&lt;br&gt;
+${num?string(&#39;#.##&#39;)}&lt;br&gt;&lt;#-- #表示不强制 --&gt;
+${num?string(&#39;,###.00&#39;)}&lt;br&gt;&lt;#--整数部分每三位分割--&gt;
+${num?string(&#39;,###.##&#39;)}&lt;br&gt;&lt;#--小数点后多余两位就只保留两位，不足两位就取实际位数--&gt;
+${num?string(&#39;000000000000.00&#39;)}&lt;br&gt;&lt;#-- 0补齐 --&gt;
+ 
+&lt;#-- 对象 不支持非公共类--&gt;
+&lt;#if computer.sn==&quot;002&quot;&gt;
+重要设备
+&lt;/#if&gt;&lt;br&gt;
+SN:${computer.sn}&lt;br&gt;
+model:${computer.model}&lt;br&gt;
+ 
+&lt;#-- 条件分支 --&gt;
+&lt;#if computer.state==1&gt;
+使用中
+&lt;#elseif computer.state==2&gt;
+闲置
+&lt;#else&gt;
+淘汰
+&lt;/#if&gt;&lt;br&gt;
+ 
+&lt;#-- 选择分支 注意break --&gt;
+&lt;#switch computer.state&gt;
+    &lt;#case 1&gt;
+使用中
+        &lt;#break&gt;
+    &lt;#case 2&gt;
+闲置
+        &lt;#break&gt;
+    &lt;#default&gt;
+作废
+&lt;/#switch&gt;&lt;br&gt;
+ 
+&lt;#-- ?? 不为null时 --&gt;
+&lt;#if computer.user??&gt;
+    用户:${computer.user}
+&lt;/#if&gt;&lt;br&gt;
+date:${computer.date?string(&quot;yyyy-MM&quot;)}&lt;br&gt;
+ 
+price:${computer.price}&lt;br&gt;&lt;#-- 12345.6f 会自动变 12,345.6 当进行回显时后台将无法作为数字处理 --&gt;
+price:${computer.price?c}&lt;br&gt;&lt;#-- 12345.599609375 --&gt;
+ 
+&lt;#-- 点和方括号--&gt;
+cpu:${computer.info.cpu}&lt;br&gt;
+cpu:${computer.info[&quot;cpu&quot;]}&lt;br&gt;
+ 
+&lt;#-- memory:${computer.info[memory]!&quot;N/A&quot;} 无此key时,方括号写法报错--&gt;
+memory:${computer.info.memory!&quot;N/A&quot;}
+ 
+&lt;/body&gt;
+&lt;/html&gt;
+</code>
+
+<h2>内建函数</h2>
+20240331111706.webp
+
+<h1>自定义指令</h1>
+<code>
+public class UpperDirective implements TemplateDirectiveModel {
+    @Override
+    public void execute(Environment env,
+                        Map params,
+                        TemplateModel[] loopVars,
+                        TemplateDirectiveBody body
+    ) throws TemplateException, IOException {
+ 
+        if (body != null) {
+            StringWriter sw = new StringWriter();
+            body.render(sw);
+            env.getOut().write(sw.toString().toUpperCase());
+        }
+    }
+}
+</code>
+<code>
+@WebServlet("/page31")
+public class CustomCommand extends HttpServlet {
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        Configuration cfg = new Configuration(Configuration.VERSION_2_3_30);
+        try {
+            String path = CustomCommand.class.getClassLoader().getResource("templates").getPath();
+            cfg.setDirectoryForTemplateLoading(new File(path));
+            cfg.setDefaultEncoding("UTF-8");
+            cfg.setOutputEncoding("UTF-8");
+            Template template = cfg.getTemplate( "custom-command.ftl");
+
+            Map&lt;String, Object> data = new HashMap&lt;>();
+            data.put("title", "自定义指令");
+            //将自定义指令注册到 FreeMarker 的数据模型中
+            data.put("upper", new UpperDirective());
+ 
+            template.process(data, resp.getWriter());
+        } catch (IOException | TemplateException e) {
+            throw new RuntimeException(e);
+        }
+    }
+}
+</code>
+<code html>
+<!DOCTYPE html>
+&lt;html lang=&quot;en&quot; &gt;
+&lt;head&gt;
+    &lt;meta charset=&quot;UTF-8&quot;&gt;
+    &lt;title&gt;${title}&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;@upper&gt;abc&lt;/@upper&gt;
+&lt;@upper&gt;123&lt;/@upper&gt;
+&lt;@upper&gt;啊&lt;/@upper&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code>
+
+<h1>spring boot中使用</h1>
+通过 spring-boot-starter-freemarker 与 Spring Boot 集成
+<code properties>
+spring.freemarker.template-loader-path=classpath:/templates/
+spring.freemarker.suffix=.ftl
+spring.freemarker.charset=UTF-8
+spring.freemarker.cache=false
+</code>
+如果 request、session 和 application 都有名为 current_employee 的属性，并且在 Freemarker 模板中使用 ${current_employee.name}
+在开发环境中，你可以关闭 Freemarker 模板缓存，以便每次修改模板后都能立即看到效果。在生产环境中，建议开启缓存以提高性能。
+
+选择 Freemarker：如果你需要生成多种格式的文件（如 XML、JSON）、处理复杂的逻辑，或者在项目中需要大量的动态内容生成，Freemarker 是一个强大的选择。
+选择 Thymeleaf：如果你的项目主要是 Web 应用，尤其是基于 Spring 的项目，并且你希望模板文件在未渲染时仍能作为有效的 HTML 文件查看，Thymeleaf 是一个非常适合的选择。它的自然模板和与 Spring 的深度集成使得开发体验更为流畅。
+</pre>
+</body>
+</html>

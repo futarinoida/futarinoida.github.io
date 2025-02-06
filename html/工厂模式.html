@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>工厂模式</title>
+</head>
+<body><span id="anchor">20240616183123-_模式算法</span>
+<pre>
+20240711151708.webp
+通过创建工厂类来隐藏额外的创建细节, 作为使用者来说不关心底层的创建逻辑是什么样的, 只需要了解工厂中有哪些方法, 返回的是什么接口就可以了
+
+<h1>多语言</h1>
+<code>
+interface I18N { //Internationalization
+    String greeting();
+}
+class Chinese implements I18N {
+    @Override
+    public String greeting() {
+        return "你好";
+    }
+}
+class English implements I18N{
+    @Override
+    public String greeting() {
+        return "Hello";
+    }
+}
+class I18nFactory{
+    //静态工厂
+    public static I18N getI18n(String area) {
+        switch (area) {
+            case "CN":
+                return new Chinese();
+            case "US":
+                return new English();
+            default:
+                return null;
+        }
+    }
+}
+public class Software {
+    public static void main(String[] args) {
+        I18N i18N = I18nFactory.getI18n("US");
+        System.out.println(i18N.greeting());
+    }
+}
+</code>
+<h1>多平台</h1>
+<code>
+public interface Device {
+    String getIndex();
+}
+ 
+public class DesktopDevice implements Device{
+    @Override
+    public String getIndex() {
+        return "/desktop/index.html";
+    }
+}
+ 
+public class MobileDevice implements Device{
+    @Override
+    public String getIndex() {
+        return "/mobile/index.html";
+    }
+}
+ 
+public class DeviceFactory {
+    public static Device getDevice(HttpServletRequest req) {
+        String ua = req.getHeader("User-Agent");
+        if(ua.contains("Windows NT")){
+            return new DesktopDevice();
+        } else if(ua.contains("Android") || ua.contains("iPhone")){
+            return new MobileDevice();
+        }
+        return null;
+    }
+}
+ 
+@WebServlet("/index.html")
+public class DeviceIndex extends HttpServlet {
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        Device device = DeviceFactory.getDevice(req);
+        req.getRequestDispatcher(device.getIndex()).forward(req,resp);
+    }
+}
+</code>
+</pre>
+</body>
+</html>

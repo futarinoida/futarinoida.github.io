@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>XML</title>
+</head>
+<body><span id="anchor">20240320133304-_数据交换格式</span>
+<pre>
+eXtensible Markup Language 可扩展标记语言
+
+<h1>基本规则</h1>
+用于传输和结构化存储而非展示
+需要声明XML的版本和编码格式
+每个XML文档必须且只能有一个根元素
+标签是大小写敏感的, 成对或自闭合
+属性用单引或双引
+元素内容中 &lt; 和 & 必须转义
+属性值中 ", ', &lt;, >, 和 & 必须转义
+<code xml>
+&lt;escapedCharacters&gt;
+    Less than: &amp;lt;
+    Greater than: &amp;gt;
+    Ampersand: &amp;amp;
+    Double Quote: &amp;quot;
+    Single Quote: &amp;apos;
+&lt;/escapedCharacters&gt;
+</code>
+CDATA(Character Data)区块内的内容会被 XML 解析器忽略，不会被解析成 XML 元素或属性。
+    CDATA 区块内的内容会原样保留，包括空白和换行符
+    适用于包含 HTML 片段、脚本代码或其他包含特殊字符的文本数据
+<code xml>
+&lt;note&gt;
+    &lt;to&gt;Tove&lt;/to&gt;
+    &lt;from&gt;Jani&lt;/from&gt;
+    &lt;heading&gt;Reminder&lt;/heading&gt;
+    &lt;!-- &lt;![CDATA[ ]]&gt; --&gt;
+    &lt;body&gt;&lt;![CDATA[Don&#39;t forget me this weekend! &lt;special&gt;tags&lt;/special&gt; and &amp; special characters]]&gt;&lt;/body&gt;
+&lt;/note&gt;
+</code>
+    CDATA 区块内不能包含 ]]> 字符序列，因为这会被解析为 CDATA 区块的结束标志。
+    如果需要包含 ]]>，可以将其拆分, 例如A ]]> B拆分为A ]]和> B
+<code xml>
+<data>&lt;![CDATA[A ]]]]&gt;&lt;![CDATA[&gt; B]]&gt;</data>
+</code>
+
+<h1>名字空间</h1>
+用于避免命名冲突，通过定义前缀来区分不同的元素和属性, 特别是在将多个 XML 文档合并时, 命名空间通过将元素和属性名称限定到一个唯一的 URI上来实现
+<code xml>
+&lt;root xmlns:h=&quot;http://www.w3.org/TR/html4/&quot; xmlns:f=&quot;http://www.w3schools.com/furniture&quot;&gt;
+    &lt;h:table&gt;
+        &lt;h:tr&gt;
+            &lt;h:td&gt;Apples&lt;/h:td&gt;
+            &lt;h:td&gt;Bananas&lt;/h:td&gt;
+        &lt;/h:tr&gt;
+    &lt;/h:table&gt;
+    &lt;f:table&gt;
+        &lt;f:name&gt;African Coffee Table&lt;/f:name&gt;
+        &lt;f:width&gt;80&lt;/f:width&gt;
+        &lt;f:length&gt;120&lt;/f:length&gt;
+    &lt;/f:table&gt;
+&lt;/root&gt;
+</code>
+xmlns 是 XML 命名空间（XML Namespaces）的缩写, h 和 f 分别表示两个不同的命名空间。通过命名空间，可以在一个文档中使用同名但属于不同命名空间的元素
+
+无前缀的命名空间声明
+    当不使用前缀时，可以将命名空间声明为默认命名空间
+<code xml>
+&lt;!-- note 元素及其所有子元素都属于 http://www.example.com/note 命名空间 --&gt;
+&lt;note xmlns=&quot;http://www.example.com/note&quot;&gt;
+    &lt;to&gt;Tove&lt;/to&gt;
+    &lt;from&gt;Jani&lt;/from&gt;
+    &lt;heading&gt;Reminder&lt;/heading&gt;
+    &lt;body&gt;Don&#39;t forget me this weekend!&lt;/body&gt;
+&lt;/note&gt;
+</code>
+
+使用 XML Schema 定义（XSD） .xsd
+    schema 模式
+<code xml>
+&lt;xs:schema xmlns:xs=&quot;http://www.w3.org/2001/XMLSchema&quot; xmlns=&quot;http://www.example.com/note&quot; targetNamespace=&quot;http://www.example.com/note&quot;&gt;
+    &lt;xs:element name=&quot;note&quot;&gt;
+        &lt;xs:complexType&gt;
+            &lt;xs:sequence&gt;
+                &lt;xs:element name=&quot;to&quot; type=&quot;xs:string&quot;/&gt;
+                &lt;xs:element name=&quot;from&quot; type=&quot;xs:string&quot;/&gt;
+                &lt;xs:element name=&quot;heading&quot; type=&quot;xs:string&quot;/&gt;
+                &lt;xs:element name=&quot;body&quot; type=&quot;xs:string&quot;/&gt;
+            &lt;/xs:sequence&gt;
+        &lt;/xs:complexType&gt;
+    &lt;/xs:element&gt;
+&lt;/xs:schema&gt;
+</code>
+    xs:schema 
+        这是根元素，表示这是一个 XML Schema 定义, xs 是前缀，用于指示元素属于 xs 命名空间即XML Schema, www.w3.org/2001/XMLSchema
+    xmlns:xs="www.w3.org/2001/XMLSchema
+        xmlns 是 XML 命名空间声明的缩写。这个声明为前缀 xs 定义了命名空间 www.w3.org/2001/XMLSchema。此命名空间包含了 XML Schema 定义（XSD）语言的所有元素和数据类型。
+        这个 URI 是标准的 XML Schema 命名空间，告诉解析器 xs 前缀的所有元素都是来自 XML Schema 定义的标准元素和数据类型
+    xmlns="www.example.com/note"
+        这个声明定义了一个默认命名空间，没有前缀，适用于该元素（即根元素xs:schema）及其所有没有显式命名空间前缀的子元素
+    targetNamespace="www.example.com/note"
+        targetNamespace 属性定义了该 Schema 的目标命名空间，即此 Schema 定义的所有元素和类型的命名空间
+        www.example.com/note 作为 targetNamespace，意味着所有在这个 Schema 中定义的元素都属于这个命名空间。
+        targetNamespace 使得该 Schema 中定义的元素和类型在其他文档或 Schema 中引用时能够明确其来源和作用域，避免名称冲突。
+            命名空间xmlns：XML 命名空间是通过 URI来唯一标识的。它用于区分不同 XML 元素和类型的定义，防止名称冲突。
+            目标命名空间（targetNamespace）：这是 XML Schema 文件声明的命名空间，它指定了该 Schema 中定义的元素和类型所在的命名空间。
+            通过使用 targetNamespace，可以确保不同 XML Schema 文件中的元素和类型不会发生冲突。即使它们的名字相同，只要它们的命名空间不同，就可以共存。
+            当其他 XML 文件引用该 Schema 文件时，可以使用 targetNamespace 的值来指定命名空间前缀和 URI
+
+<h1>DTD</h1>
+Document Type Definition
+定义XML文档的合法构建模块
+<code xml>
+&lt;!DOCTYPE note [
+    &lt;!ELEMENT note (to, from, heading, body)&gt;
+    &lt;!ELEMENT to (#PCDATA)&gt;
+    &lt;!ELEMENT from (#PCDATA)&gt;
+    &lt;!ELEMENT heading (#PCDATA)&gt;
+    &lt;!ELEMENT body (#PCDATA)&gt;
+]&gt;
+</code>
+声明元素 !ELEMENT 元素名 内容描述
+    内容描述
+        #PCDATA: 表示该元素可以包含解析字符数据（Parsed Character Data）。
+        ANY,元素可以包含任意内容，包括子元素和字符数据
+            !ELEMENT any-element ANY
+        EMPTY
+            自闭合标签,不包含子元素和字符数据
+        ELEMENT1, ELEMENT2, ...: 逗号分隔的元素列表，表示顺序出现。
+            !ELEMENT person (name, age)
+        ELEMENT1 | ELEMENT2 | ...: 管道符分隔的元素列表，表示选择其中之一。
+        (ELEMENT)*: 表示该元素可以出现零次或多次。
+        (ELEMENT)+: 表示该元素可以出现一次或多次。
+            !ELEMENT persons (person+)
+        (ELEMENT)?: 表示该元素可以出现零次或一次。
+
+声明属性 !ATTLIST 元素名 属性名 属性类型 默认值
+    属性类型
+        CDATA: 字符数据。
+        ID: 唯一标识符。
+        IDREF: 引用另一个元素的 ID。
+        IDREFS: 引用多个 ID。适合用于需要建立复杂关联关系的数据管理场景
+<code xml>
+&lt;!ELEMENT university (students, courses, registrations)&gt;
+&lt;!ELEMENT students (student+)&gt;
+&lt;!ELEMENT student (name, age)&gt;
+&lt;!ELEMENT courses (course+)&gt;
+&lt;!ELEMENT course (title, instructor)&gt;
+&lt;!ELEMENT registrations (registration+)&gt;
+&lt;!ELEMENT registration EMPTY&gt;
+ 
+&lt;!ATTLIST student id ID #REQUIRED&gt;
+&lt;!ATTLIST course id ID #REQUIRED&gt;
+&lt;!ATTLIST registration studentID IDREF #REQUIRED courseID IDREF #REQUIRED&gt;
+</code>
+<code xml>
+&lt;?xml version=&quot;1.0&quot;?&gt;
+&lt;!DOCTYPE university SYSTEM &quot;university.dtd&quot;&gt;
+&lt;university&gt;
+    &lt;students&gt;
+        &lt;student id=&quot;s1&quot;&gt;
+            &lt;name&gt;John Doe&lt;/name&gt;
+            &lt;age&gt;20&lt;/age&gt;
+        &lt;/student&gt;
+        &lt;student id=&quot;s2&quot;&gt;
+            &lt;name&gt;Jane Smith&lt;/name&gt;
+            &lt;age&gt;22&lt;/age&gt;
+        &lt;/student&gt;
+    &lt;/students&gt;
+    &lt;courses&gt;
+        &lt;course id=&quot;c1&quot;&gt;
+            &lt;title&gt;Introduction to Computer Science&lt;/title&gt;
+            &lt;instructor&gt;Dr. Brown&lt;/instructor&gt;
+        &lt;/course&gt;
+        &lt;course id=&quot;c2&quot;&gt;
+            &lt;title&gt;Advanced Mathematics&lt;/title&gt;
+            &lt;instructor&gt;Dr. Green&lt;/instructor&gt;
+        &lt;/course&gt;
+    &lt;/courses&gt;
+    &lt;registrations&gt;
+        &lt;registration studentID=&quot;s1&quot; courseID=&quot;c1&quot;/&gt;
+        &lt;registration studentID=&quot;s2&quot; courseID=&quot;c2&quot;/&gt;
+        &lt;registration studentID=&quot;s1&quot; courseID=&quot;c2&quot;/&gt;
+    &lt;/registrations&gt;
+&lt;/university&gt;
+</code>
+        ENTITY: 引用外部实体。
+<code xml>
+&lt;!ELEMENT document (content)&gt;
+&lt;!ELEMENT content (#PCDATA)&gt;
+&lt;!ATTLIST content reference ENTITY #IMPLIED&gt;
+&lt;!ENTITY example &quot;This is an example entity.&quot;&gt;
+</code>
+<code xml>
+&lt;?xml version=&quot;1.0&quot;?&gt;
+&lt;!DOCTYPE document SYSTEM &quot;single-entity.dtd&quot;&gt;
+&lt;document&gt;
+    &lt;content reference=&quot;example&quot;&gt;
+        &amp;example;
+    &lt;/content&gt;
+&lt;/document&gt;
+</code>
+            content 元素具有一个 reference 属性(不是必须)，其类型为 ENTITY。虽然在实际使用中，直接在内容中使用实体引用更为常见，但使用这种方式定义属性也有其特定的应用场景，比如通过属性引用来描述数据之间的关系
+
+        ENTITIES: 引用多个外部实体。通过定义实体，可以在多个地方重复使用相同的数据块，提高文档的可维护性和一致性,可以将一些常用的数据（如符号、URL 等）定义为实体，简化文档管理
+<code xml>
+&lt;!ELEMENT gallery (image+, body)&gt;
+&lt;!ELEMENT image EMPTY&gt;
+&lt;!ELEMENT body (#PCDATA)&gt;
+&lt;!ENTITY letter SYSTEM "letter.txt"&gt;
+&lt;!ATTLIST image
+    id ID #REQUIRED
+    src ENTITY #REQUIRED&gt;
+&lt;!ENTITY img1 SYSTEM &quot;image1.jpg&quot;&gt;
+&lt;!ENTITY img2 SYSTEM &quot;image2.jpg&quot;&gt;
+</code>
+<code xml>
+&lt;?xml version=&quot;1.0&quot;?&gt;
+&lt;!DOCTYPE gallery SYSTEM &quot;image-entity.dtd&quot;&gt;
+&lt;gallery&gt;
+    &lt;image id=&quot;i1&quot; src=&quot;img1&quot;/&gt;
+    &lt;image id=&quot;i2&quot; src=&quot;img2&quot;/&gt;
+    &lt;body&gt;&amp;letter;&lt;/body&gt
+&lt;/gallery&gt;
+</code>
+            在元素内容中使用实体引用时需要使用 &entity_name; 语法, 在属性中直接使用实体名称
+
+        NMTOKEN: 表示一个合法的 XML 名称标记（Name Token）,例如用作标识符active/inactive
+        NMTOKENS: 多个名称名称标记。例如用作分类标签(animal cat),多重属性值(admin user)
+<code xml>
+&lt;!ELEMENT item (#PCDATA)&gt;
+&lt;!ATTLIST item
+    categories NMTOKENS #REQUIRED&gt;
+</code>
+<code xml>
+&lt;?xml version=&quot;1.0&quot;?&gt;
+&lt;!DOCTYPE items SYSTEM &quot;nmtokens-example.dtd&quot;&gt;
+&lt;items&gt;
+    &lt;item categories=&quot;book tutorial&quot;&gt;XML Guide&lt;/item&gt;
+    &lt;item categories=&quot;video learning&quot;&gt;XML Tutorial&lt;/item&gt;
+&lt;/items&gt;
+</code>
+    默认值
+        #REQUIRED: 属性是必需的。
+        #IMPLIED: 属性是可选的。
+        #FIXED "value": 属性具有固定值。
+<code xml>
+&lt;!ELEMENT product (#PCDATA)&gt;
+&lt;!ATTLIST product
+    category CDATA #FIXED &quot;electronics&quot;&gt;
+</code>
+<code xml>
+&lt;?xml version=&quot;1.0&quot;?&gt;
+&lt;!DOCTYPE product SYSTEM &quot;fixed-attribute.dtd&quot;&gt;
+&lt;product category=&quot;electronics&quot;&gt;Smartphone&lt;/product&gt;
+</code>
+            XML 文件中的 product 元素必须具有 category="electronics" 属性值
+
+        "value": 默认值。
+
+
+<h1>XML Schema 定义（XSD）</h1>
+比DTD更强大的XML文档结构定义语言，支持数据类型定义
+通过使用命名空间、元素、属性、简单和复杂类型、限制、扩展等功能，可以精确地描述 XML 数据的模式
+<code xml>
+&lt;xs:schema xmlns:xs=&quot;http://www.w3.org/2001/XMLSchema&quot;&gt;
+    &lt;xs:element name=&quot;note&quot;&gt;
+        &lt;xs:complexType&gt;
+            &lt;xs:sequence&gt;
+                &lt;xs:element name=&quot;to&quot; type=&quot;xs:string&quot;/&gt;
+                &lt;xs:element name=&quot;from&quot; type=&quot;xs:string&quot;/&gt;
+                &lt;xs:element name=&quot;heading&quot; type=&quot;xs:string&quot;/&gt;
+                &lt;xs:element name=&quot;body&quot; type=&quot;xs:string&quot;/&gt;
+            &lt;/xs:sequence&gt;
+        &lt;/xs:complexType&gt;
+    &lt;/xs:element&gt;
+&lt;/xs:schema&gt;
+</code>
+<h2>elementFormDefault</h2>
+    如果没有显式指定 elementFormDefault 属性
+        如果 targetNamespace 存在且被定义，那么隐式的 elementFormDefault="unqualified"
+        如果 targetNamespace 未被定义，那么隐式的 elementFormDefault="qualified"
+    qualified
+        表示该 Schema 定义的所有元素在引用时必须有命名空间前缀。
+            当父元素明确指定了其所属的命名空间, 如果子元素继承自父元素的命名空间，则不需要重复指明命名空间
+        例如对于如下的 XML Schema 定义
+<code xml>
+&lt;xs:schema xmlns:xs=&quot;http://www.w3.org/2001/XMLSchema&quot;
+           targetNamespace=&quot;http://www.example.com/note&quot;
+           elementFormDefault=&quot;qualified&quot;&gt;
+    &lt;xs:element name=&quot;note&quot; type=&quot;xs:string&quot;/&gt;
+&lt;/xs:schema&gt;
+</code>
+        实例 XML 文档中，note 元素必须带有 xmlns 命名空间声明
+<code xml>
+&lt;note xmlns=&quot;http://www.example.com/note&quot;&gt;Hello, XML!&lt;/note&gt;
+</code>
+    unqualified
+        XML 实例文档中的元素可以不显式指定命名空间。
+        此时，XML 实例文档中的元素在未提供命名空间声明的情况下，默认属于无命名空间
+<code xml>
+&lt;xs:schema xmlns:xs=&quot;http://www.w3.org/2001/XMLSchema&quot;
+           targetNamespace=&quot;http://www.example.com/note&quot;
+           elementFormDefault=&quot;unqualified&quot;&gt;
+    &lt;xs:element name=&quot;note&quot; type=&quot;xs:string&quot;/&gt;
+&lt;/xs:schema&gt;
+</code>
+<code xml>
+&lt;note&gt;Hello, XML!&lt;/note&gt;
+</code>
+        note 元素的默认命名空间是 www.example.com/note
+
+<h2>常用组件</h2>
+    简单类型
+<code xml>
+&lt;xs:element name=&quot;age&quot; type=&quot;xs:integer&quot;/&gt;
+</code>
+    限制和模式
+<code xml>
+&lt;xs:simpleType name=&quot;USState&quot;&gt;
+    &lt;xs:restriction base=&quot;xs:string&quot;&gt;
+        &lt;xs:enumeration value=&quot;CA&quot;/&gt;
+        &lt;xs:enumeration value=&quot;NY&quot;/&gt;
+        &lt;xs:enumeration value=&quot;TX&quot;/&gt;
+    &lt;/xs:restriction&gt;
+&lt;/xs:simpleType&gt;
+</code>
+    扩展和重定义
+<code xml>
+&lt;xs:complexType name=&quot;person&quot;&gt;
+    &lt;xs:sequence&gt;
+        &lt;xs:element name=&quot;name&quot; type=&quot;xs:string&quot;/&gt;
+    &lt;/xs:sequence&gt;
+&lt;/xs:complexType&gt;
+ 
+&lt;xs:complexType name=&quot;employee&quot;&gt;
+    &lt;xs:complexContent&gt;
+        &lt;xs:extension base=&quot;person&quot;&gt;
+            &lt;xs:sequence&gt;
+                &lt;xs:element name=&quot;employeeID&quot; type=&quot;xs:string&quot;/&gt;
+            &lt;/xs:sequence&gt;
+        &lt;/xs:extension&gt;
+    &lt;/xs:complexContent&gt;
+&lt;/xs:complexType&gt;
+</code>
+
+<h2>数据类型</h2>
+字符串
+    xs:ID 类型的值必须以字母或下划线 (_) 开头，不能以数字开头
+20240624110438.webp
+数值
+20240624110508.webp
+日期和时间
+20240624110636.webp
+其他
+20240624110707.webp
+
+<h2>属性</h2>
+xs:element
+20240624111323.webp
+xs:attribute
+20240624111556.webp
+xs:simpleType 和 xs:complexType
+20240624111926.webp
+xs:restriction
+20240624112023.webp
+
+<h2>关键词</h2>
+20240624113514.webp
+20240624113515.webp
+20240624113516.webp
+命名空间和根元素：
+    xs:schema：XML Schema 的根元素，定义命名空间、目标命名空间和模式的默认设置。
+元素和类型定义：
+    xs:element：定义 XML 文档中的元素，可以是简单类型（如字符串、整数）或复杂类型（包含子元素和属性）。
+    xs:complexType：用于定义包含子元素和/或属性的复杂类型。
+    xs:simpleType：用于定义简单类型，可以通过限制（如枚举、最小值、最大值）进行自定义。
+子元素结构：
+    xs:sequence：定义子元素的顺序，所有子元素必须按指定顺序出现。
+    xs:all：定义子元素可以以任何顺序出现，每个子元素最多出现一次。
+    xs:choice：定义一组选项中的一个可以出现。
+属性和限制：
+    xs:attribute：定义元素的属性。
+    xs:restriction：定义简单类型的限制，可以通过枚举、最小值、最大值、模式等进行约束。
+    xs:enumeration：用于定义枚举值，限制属性或元素的值只能是预定义的枚举值之一。
+    xs:minInclusive、xs:maxInclusive：用于定义数值或日期的最小值和最大值。
+    xs:minLength、xs:maxLength：用于限制字符串或列表的最小和最大长度。
+    xs:pattern：使用正则表达式限制字符串的模式。
+文档说明：
+    xs:annotation：为模式中的元素、类型等添加注释。
+    xs:documentation：在注释中添加具体的文档说明。
+扩展和导入：
+    xs:extension：基于现有的类型进行扩展，增加新的元素或属性。
+    xs:import：导入其他命名空间中的模式定义。
+    xs:include：包含其他模式文件的定义。
+键和唯一性约束：
+    xs:key、xs:keyref、xs:unique：用于定义唯一键约束和键引用，确保特定元素或属性的唯一性，并建立关系。
+列表和联合：
+    xs:list：定义元素或属性为某类型的列表。
+    xs:union：定义元素或属性可以是多种类型中的一种。
+
+<h1>XML、DTD 和 XSD</h1>
+DTD 是 XML 的一种早期文档类型定义语言
+    DTD文件并不是严格意义上的 XML 格式文件, 尽管它们使用 XML 语法来定义文档的结构和验证规则, 但它们有一些限制和特殊的语法规则，与一般的 XML 文档不完全相同
+    DTD 文件必须以 !DOCTYPE 声明开头，用于指示关联的 XML 文档使用的 DTD；
+    而普通的 XML 文档可以没有 !DOCTYPE 声明或者使用其他类型的文档类型定义
+    虽然DTD在功能和表达能力上相对有限，但仍然有广泛的支持和应用。现代的XML处理工具通常会提供对DTD的基本支持
+XSD 是 XML 的另一种文档类型定义语言
+    XSD 使用 XML 格式本身定义文档结构、数据类型和约束条件，提供比 DTD 更丰富和精确的数据模型
+    XSD 文件本身就是 XML 格式，这意味着它们可以像任何其他 XML 文档一样进行解析、编辑和处理。
+    这种一致性使得 XSD 文件能够利用现有的 XML 工具和库来处理。
+
+<h1>验证器</h1>
+用于验证XML文档或其相关文档类型定义（DTD、XML Schema等）的工具或库。
+    其主要功能是检查文档是否符合特定的语法和语义规则，并且可以捕获和报告不合规的部分
+
+当 XML 文件包含 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 声明时，解析器就会知道它可能包含与 XML Schema 实例相关的属性
+解析器和验证工具实现了 XML Schema 规范，从而知道如何识别和处理 xsi:schemaLocation 等属性
+
+XML文档验证
+    检查XML文档的结构、元素、属性、值等是否符合其相关的DTD或XML Schema定义。
+    这包括检查元素是否按照定义的顺序出现，属性是否正确声明和使用，以及元素的值是否符合定义的数据类型等。
+    在进行XML文档验证时，获取相关的DTD或XML Schema定义信息的方式取决于XML解析器或验证器的具体实现和配置
+        本地文件引用
+            最常见的方式是在XML文档中通过DOCTYPE声明引用本地的DTD文件或者通过schemaLocation属性引用本地的XML Schema文件
+            当解析器解析XML文档时，会根据这些引用从本地文件系统加载DTD或XML Schema文件，并使用它们来验证文档
+<code xml>
+&lt;!DOCTYPE note SYSTEM "note.dtd">
+</code>
+            SYSTEM 是一种标识符，用于指定外部 DTD 文件的位置
+<code xml>
+&lt;note xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="note.xsd">
+    &lt;person&gt;
+        &lt;name&gt;John Doe&lt;/name&gt;
+        &lt;age&gt;30&lt;/age&gt;
+    &lt;/person&gt;
+    &lt;product&gt;
+        &lt;name&gt;Laptop&lt;/name&gt;
+        &lt;price&gt;1200&lt;/price&gt;
+    &lt;/product&gt;
+</code>
+            noNamespaceSchemaLocation属性用来指定 XML 文档的 XML Schema 位置，但前提是 XML 文档本身没有显式声明命名空间
+            指定多个 XML Schema 文件时，可以通过空格或换行将它们分隔开来
+            person和product元素没有显式指定命名空间，即没有前缀和命名空间URI关联, 因此它们属于默认的命名空间，也就是没有命名空间。
+            其约束由 noNamespaceSchemaLocation 或者其他方式指定的 XML Schema 文件来定义和验证
+ 
+        网络引用
+            解析器在验证XML文档时会从指定的网络地址下载DTD或XML Schema文件
+<code xml>
+&lt;!DOCTYPE note SYSTEM "http://www.example.com/note.dtd">
+</code>
+<code xml>
+&lt;root xmlns:xsi=&quot;http://www.w3.org/2001/XMLSchema-instance&quot;
+      xsi:schemaLocation=&quot;http://www.example.com/ns1 schema1.xsd
+                          http://www.example.com/ns2 schema2.xsd&quot;
+      xmlns:ns1=&quot;http://www.example.com/ns1&quot;
+      xmlns:ns2=&quot;http://www.example.com/ns2&quot;&gt;
+    &lt;ns1:exampleElement&gt;This element belongs to ns1 namespace.&lt;/ns1:exampleElement&gt;
+    &lt;ns2:anotherElement&gt;This element belongs to ns2 namespace.&lt;/ns2:anotherElement&gt;
+    &lt;!-- 其他XML内容 --&gt;
+</root>
+</code>
+            schemaLocation属性用于指定 XML 文档中各命名空间的 XML Schema 位置。使用这个属性来告知 XML 解析器每个命名空间对应的 XML Schema,格式是以命名空间 URI 和对应的 XML Schema 文件位置成对出现，用空格或换行符分隔
+            xsi: 这是一个命名空间前缀，noNamespaceSchemaLocation,schemaLocation 是 xsi 命名空间中定义的属性
+            xmlns:xsi 声明可以省略如果不使用 xsi:schemaLocation 或 xsi:noNamespaceSchemaLocation
+ 
+        内联定义
+            XML文档本身也可以内联定义DTD或XML Schema，而不是通过外部引用。适用于简单的XML文档或者需要独立性的情况
+<code xml>
+&lt;!DOCTYPE note [
+  &lt;!ELEMENT note (to, from, heading, body)&gt;
+  &lt;!ELEMENT to (#PCDATA)&gt;
+  &lt;!ELEMENT from (#PCDATA)&gt;
+  &lt;!ELEMENT heading (#PCDATA)&gt;
+  &lt;!ELEMENT body (#PCDATA)&gt;
+]&gt;
+&lt;root&gt;..&lt;/root&gt;
+</code>
+<code xml>
+&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;
+&lt;note&gt;
+ 
+  &lt;!-- 内联定义XML Schema --&gt;
+  &lt;xs:schema xmlns:xs=&quot;http://www.w3.org/2001/XMLSchema&quot;
+             targetNamespace=&quot;http://www.example.com/note&quot;
+             xmlns=&quot;http://www.example.com/note&quot;
+             elementFormDefault=&quot;qualified&quot;&gt;
+ 
+    &lt;xs:element name=&quot;note&quot;&gt;
+      &lt;xs:complexType&gt;
+        &lt;xs:sequence&gt;
+          &lt;xs:element name=&quot;to&quot; type=&quot;xs:string&quot;/&gt;
+          &lt;xs:element name=&quot;from&quot; type=&quot;xs:string&quot;/&gt;
+          &lt;xs:element name=&quot;heading&quot; type=&quot;xs:string&quot;/&gt;
+          &lt;xs:element name=&quot;body&quot; type=&quot;xs:string&quot;/&gt;
+        &lt;/xs:sequence&gt;
+      &lt;/xs:complexType&gt;
+    &lt;/xs:element&gt;
+ 
+  &lt;/xs:schema&gt;
+ 
+  &lt;!-- XML文档内容 --&gt;
+  &lt;to&gt;John&lt;/to&gt;
+  &lt;from&gt;Jane&lt;/from&gt;
+  &lt;heading&gt;Reminder&lt;/heading&gt;
+  &lt;body&gt;Don&#39;t forget the meeting tomorrow.&lt;/body&gt;
+&lt;/note&gt;
+</code>
+        编程方式指定
+            在某些情况下，特别是在使用编程语言处理XML时，可以直接通过API或配置方式指定DTD或XML Schema的位置或内容。这种方式适用于动态生成或处理XML文档的场景
+
+DTD验证
+    验证XML文档是否符合DTD定义的结构和规范。
+    它会检查XML文档中使用的元素和属性是否在DTD中正确定义，以及是否遵循DTD中规定的约束条件。
+
+XML Schema验证
+    用于验证XML文档是否符合XML Schema（XSD）定义的结构和数据类型。
+    XML Schema相比于DTD提供了更强大和灵活的类型定义能力，可以定义复杂的数据结构和约束条件。
+
+验证过程
+    加载XML文档及其相关的DTD或XML Schema定义。
+    解析XML文档，将其转换为内部数据结构（如DOM或SAX）。
+    使用验证器对文档进行验证，验证器会逐行或逐节点地检查文档的内容。
+    如果发现错误或不合规的部分，验证器会生成相应的错误或警告信息，指出具体的问题所在。
+    开发人员根据验证器返回的信息来修正XML文档中的问题，直到文档通过验证为止。
+
+工具和库
+    常见的XML验证器包括Java平台上的Xerces、SAX、DOM等库，以及其他编程语言中的各种XML处理工具和框架。
+    IDE（集成开发环境）也通常提供XML验证功能
+
+
+<h1>XML外部实体（XXE）攻击</h1>
+通过XML的实体扩展机制利用XML解析器的漏洞进行攻击, 可能导致敏感数据泄露、拒绝服务（DoS）攻击，甚至在某些情况下，可以远程执行代码
+    XML实体是XML文档中的一种变量，用于定义和重用文本片段。
+    外部实体引用（External Entity Reference）允许实体指向外部资源，如文件或URL。
+    这就可能被攻击者利用来访问本地文件系统或发送请求到远程服务器。
+
+在这个示例中，外部实体xxe指向了本地文件系统中的/etc/passwd文件。如果一个不安全的XML解析器解析了这个XML文档，它会尝试读取并包含/etc/passwd文件的内容。
+<code xml>
+&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;
+&lt;!DOCTYPE foo [
+  &lt;!ELEMENT foo ANY &gt;
+  &lt;!ENTITY xxe SYSTEM &quot;file:///etc/passwd&quot; &gt;
+]&gt;
+&lt;foo&gt;&amp;xxe;&lt;/foo&gt;
+</code>
+    攻击者可以通过外部实体读取本地文件或环境变量，获取敏感信息
+    通过定义深度嵌套的实体或大量实体，可以使解析器耗尽资源，导致拒绝服务
+    可以通过外部实体引导服务器发送恶意请求
+通过禁用外部实体解析、验证和过滤输入、使用安全库以及保持软件更新，可以有效防范XXE攻击。理解XXE攻击的工作原理和防护措施，对于确保XML数据处理的安全性至关重要。
+
+<h1>XPath</h1>
+XML Path Language 是一种用于在 XML 文档中查找和操作元素和属性的语言
+XPath 作为一种查询语言，主要设计用于嵌入在其他语言或工具中使用，以便于在 XML 文档中查找和操作节点。
+尽管 XPath 可以独立描述路径表达式，但它通常并不会单独作为一个独立的编程语言来使用，而是通过嵌入在其他环境中来发挥其作用
+    某些数据库系统(如mysql)支持使用 XPath 来查询存储在 XML 数据类型中的数据
+        首先将 XML 文件的内容读入内存，然后将其插入到 MySQL 表的一个字段中，通常是 TEXT 或 BLOB 类型的字段
+        然后使用 MySQL 的 XML 函数来解析和查询这些 XML 数据
+            ExtractValue()用于从 XML 字符串中提取值
+            UpdateXML()用于更新 XML 文档中的值
+涉及查询时优先使用xpath, 简化查询难度和编码数量
+
+基本概念
+    节点：XML 文档的基本组成部分，包括元素节点、属性节点、文本节点、命名空间节点、处理指令节点、注释节点和文档节点。
+    节点集：XPath 表达式的返回值通常是一个节点集。
+
+路径表达式
+    绝对路径
+        以斜杠 / 开头，从根节点选取。
+        /bookstore/book 选取根节点 bookstore 下的所有 book 子节点。
+    相对路径
+        不以斜杠 / 开头，从当前节点选取。
+        book 选取当前节点的所有 book 子节点。
+
+    / 从根节点选取。
+    // 选取匹配选择器的节点，而不考虑它们的位置。
+        //book 选取文档中所有 book 节点。
+    . 选取当前节点。
+    .. 选取当前节点的父节点。
+    @ 选取属性。
+        /bookstore/book/@price 选取所有 book 节点的 price 属性。
+
+常用函数
+<code xml>
+&lt;root&gt;
+  &lt;element&gt;123&lt;/element&gt;
+&lt;/root&gt;
+&lt;!-- string(/root/element) 将参数转换为字符串 --&gt;
+&lt;!-- number(/root/element) 将参数转换为数字 --&gt;
+ 
+&lt;root&gt;
+  &lt;first&gt;John&lt;/first&gt;
+  &lt;last&gt;Doe&lt;/last&gt;
+&lt;/root&gt;
+&lt;!-- concat(/root/first, &#39; &#39;, /root/last)  John Doe --&gt;
+ 
+&lt;root&gt;
+  &lt;element&gt;XPath functions&lt;/element&gt;
+&lt;/root&gt;
+&lt;!-- contains(/root/element, &#39;functions&#39;) true --&gt;
+&lt;!-- starts-with(/root/element, &#39;XPath&#39;) true --&gt;
+ 
+&lt;root&gt;
+  &lt;element&gt;Hello World&lt;/element&gt;
+&lt;/root&gt;
+&lt;!-- substring(/root/element, 1, 5) Hello --&gt;
+&lt;!-- substring-before(/root/element, &#39; &#39;) Hello --&gt;
+&lt;!-- substring-after(/root/element, &#39; &#39;) World --&gt;
+ 
+&lt;root&gt;
+  &lt;value&gt;1&lt;/value&gt;
+  &lt;value&gt;2&lt;/value&gt;
+  &lt;value&gt;3&lt;/value&gt;
+&lt;/root&gt;
+&lt;!-- sum(/root/value) 6 --&gt;
+&lt;!-- /root/element[last()] &lt;value&gt;3&lt;/value&gt; --&gt;
+&lt;!-- /root/element[position()=2] &lt;value&gt;2&lt;/value&gt; --&gt;
+&lt;!-- count(/root/element) root 元素下名为 element 的子元素的数量 3 --&gt;
+&lt;!-- /bookstore/book[last()]/title &lt;title&gt;Learning XML&lt;/title&gt; --&gt;
+ 
+&lt;root&gt;
+  &lt;element&gt;123.456&lt;/element&gt;
+&lt;/root&gt;
+&lt;!-- floor(/root/element) 123 --&gt;
+&lt;!-- ceiling(/root/element) 124 --&gt;
+&lt;!-- round(/root/element) 123 --&gt;
+ 
+&lt;root&gt;
+  &lt;element&gt;false&lt;/element&gt;
+&lt;/root&gt;
+&lt;!-- boolean(/root/element) false --&gt;
+&lt;!-- not(/root/element) true --&gt;
+ 
+&lt;root&gt;
+  &lt;element id=&quot;unique&quot;&gt;Content&lt;/element&gt;
+&lt;/root&gt;
+&lt;!-- id(&#39;unique&#39;) 选取具有指定 ID 的元素 &lt;element id=&quot;unique&quot;&gt;Content&lt;/element&gt; --&gt;
+</code>
+<code xml>
+&lt;bookstore&gt;
+  &lt;!-- This is a comment --&gt;
+  &lt;book category=&quot;children&quot;&gt;
+    &lt;title lang=&quot;en&quot;&gt;Harry Potter&lt;/title&gt;
+    &lt;author&gt;J.K. Rowling&lt;/author&gt;
+    &lt;price&gt;29.99&lt;/price&gt;
+    &lt;description&gt;This is a children&#39;s book about a wizard.&lt;/description&gt;
+  &lt;/book&gt;
+  &lt;book category=&quot;fiction&quot;&gt;
+    &lt;title lang=&quot;en&quot;&gt;The Hobbit&lt;/title&gt;
+    &lt;author&gt;J.R.R. Tolkien&lt;/author&gt;
+    &lt;price&gt;34.95&lt;/price&gt;
+    &lt;description&gt;This is a book about a hobbit&#39;s adventure.&lt;/description&gt;
+  &lt;/book&gt;
+  &lt;?editor note=&quot;Review for accuracy&quot;?&gt;
+  &lt;book category=&quot;learning&quot;&gt;
+    &lt;title lang=&quot;en&quot;&gt;Learning XML&lt;/title&gt;
+    &lt;author&gt;Erik T. Ray&lt;/author&gt;
+    &lt;price&gt;39.95&lt;/price&gt;
+    &lt;description&gt;This is a book about learning XML.&lt;/description&gt;
+  &lt;/book&gt;
+</code>
+    /bookstore/book/node() 
+        选取每本书的所有子节点，包括元素和文本节点 
+    /bookstore/book/title/text()
+        选取每本书的 title 元素的文本内容 
+    /bookstore/comment()
+        选取 bookstore 元素下的所有注释
+    /bookstore/book[1]/title
+        选择第一本书的标题
+    /bookstore/book[price > 30]
+        选择价格大于 30 的书
+    /bookstore/book[title[@lang='en'] and price > 35] 
+    /books/book[count(*)=2] 选择具有特定数量子节点的节点 
+    /books/book[@category='fiction' or @price > 20] 
+    /books/book[not(@category)] 
+        选择 books 元素下没有 category 属性的所有 book 元素
+
+轴（Axes）
+    //title/ancestor::book 
+        选择每个 title 元素的父节点 book
+    //title/ancestor-or-self::book 
+        选择每个 title 元素以及其父节点 book（但 title 不是 book 的祖先，因此结果与 ancestor 相同）
+    //book/@category 
+        选择所有 book 元素的 category 属性
+    /bookstore/book/child::title 
+        选择每个 book 元素的 title 子节点。
+    /bookstore/descendant::title 
+        选择 bookstore 元素下的所有 title 元素
+    /bookstore/descendant-or-self::book 
+        选择 bookstore 元素及其所有子节点中的 book 元素（但 bookstore 不是 book）
+    //title/following::price 
+        选择每个 title 元素之后的所有 price 元素
+    //book/following-sibling::book 
+        选择每个 book 元素之后的所有 book 元素（即第二个和第三个 book 元素）
+    //title/parent::book 
+        选择每个 title 元素的父节点 book
+    //price/preceding::title 
+        选择每个 price 元素之前的所有 title 元素
+    //book/preceding-sibling::book 
+        选择每个 book 元素之前的所有 book 元素（即第一个和第二个 book 元素）
+    //title/self::title 
+        选择每个 title 元素
+    //title/ancestor::node() 
+        选择每个 title 元素的父节点 book 和祖先节点 bookstore
+    //title/ancestor-or-self::node() 
+        选择每个 title 元素及其父节点 book 和祖先节点 bookstore
+    /bookstore/book/child::node() 
+        选择每个 book 元素的所有子节点（title、author、price）
+    /bookstore/descendant::node() 
+        选择 bookstore 元素下的所有节点（包括所有 book 元素及其子节点）
+    /bookstore/descendant-or-self::node() 
+        选择 bookstore 元素及其所有后代节点（包括所有 book 元素及其子节点）
+    //title/following::node() 
+        选择每个 title 元素之后的所有节点
+    //book/following-sibling::node() 
+        选择每个 book 元素之后的所有兄弟节点。
+    /bookstore/book/namespace::node() 
+        选择 bookstore 元素下的所有命名空间节点
+    //title/parent::node() 
+        选择每个 title 元素的父节点 book
+    //price/preceding::node() 
+        选择每个 price 元素之前的所有节点
+    //book/preceding-sibling::node() 
+        选择每个 book 元素之前的所有兄弟节点
+    //title/self::node() 
+        选择每个 title 元素
+
+
+<h1>Dom4j</h1>
+JAXP：
+    sun公司提供的解析器，支持dom和sax两种思想
+        dom文档对象模型: 文档,根节点,节点,文本,属性
+    基于事件的解析方式，逐行读取XML文档，并在遇到特定的标记（如开始标签、结束标签、文本等）时触发事件处理器。
+
+DOM4J(Document Object Model for Java)：
+    将整个XML文档加载到内存中，创建一个树状结构，然后通过这个结构来操作和查询XML数据。
+    是dom4j组织提供的一个用来解析处理XML、 XPath和XSLT开源框架, 提供了对 XPath 的支持
+    将XML视为Document对象,xml标签被定义为Element对象
+
+test_Schema.xsd
+<code xml>
+&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;
+&lt;xs:schema xmlns:xs=&quot;http://www.w3.org/2001/XMLSchema&quot;&gt;
+  &lt;!-- 定义部门类型 --&gt;
+  &lt;xs:complexType name=&quot;departmentType&quot;&gt;
+    &lt;xs:sequence&gt;
+      &lt;xs:element type=&quot;xs:string&quot; name=&quot;dname&quot;/&gt;
+      &lt;xs:element type=&quot;xs:string&quot; name=&quot;address&quot;/&gt;
+    &lt;/xs:sequence&gt;
+  &lt;/xs:complexType&gt;
+  &lt;!-- 定义员工类型 --&gt;
+  &lt;xs:complexType name=&quot;employeeType&quot;&gt;
+    &lt;xs:sequence&gt;
+      &lt;xs:element type=&quot;xs:string&quot; name=&quot;name&quot;/&gt;
+      &lt;xs:element name=&quot;age&quot;&gt;
+        &lt;xs:simpleType&gt;
+          &lt;xs:restriction base=&quot;xs:integer&quot;&gt;
+            &lt;xs:minInclusive value=&quot;18&quot;/&gt;
+            &lt;xs:maxInclusive value=&quot;60&quot;/&gt;
+          &lt;/xs:restriction&gt;
+        &lt;/xs:simpleType&gt;
+      &lt;/xs:element&gt;
+      &lt;xs:element type=&quot;xs:short&quot; name=&quot;salary&quot;/&gt;
+      &lt;xs:element type=&quot;departmentType&quot; name=&quot;department&quot;/&gt;
+    &lt;/xs:sequence&gt;
+    &lt;xs:attribute type=&quot;xs:short&quot; name=&quot;no&quot; use=&quot;required&quot;/&gt;
+  &lt;/xs:complexType&gt;
+  &lt;!-- 定义根元素 --&gt;
+  &lt;xs:element name=&quot;hr&quot;&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:sequence&gt;
+        &lt;xs:element type=&quot;employeeType&quot; name=&quot;employee&quot; maxOccurs=&quot;unbounded&quot; minOccurs=&quot;0&quot;/&gt;
+      &lt;/xs:sequence&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+&lt;/xs:schema&gt;
+</code>
+test_DTD.dtd
+<code xml>
+&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; ?&gt;
+&lt;!ELEMENT hr (employee*)&gt;
+&lt;!ELEMENT employee (name,age,salary,department)&gt;
+&lt;!ATTLIST employee no CDATA #REQUIRED&gt;
+&lt;!ELEMENT name (#PCDATA)&gt;
+&lt;!ELEMENT age (#PCDATA)&gt;
+&lt;!ELEMENT salary (#PCDATA)&gt;
+&lt;!ELEMENT department (dname,address)&gt;
+&lt;!ELEMENT dname (#PCDATA)&gt;
+&lt;!ELEMENT address (#PCDATA)&gt;
+</code>
+<code xml>
+&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; ?&gt;
+&lt;hr xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="test_Schema.xsd"&gt;
+&lt;!--
+&lt;!DOCTYPE hr SYSTEM &quot;D:\Dropbox\workspace\try\src\main\java\ xml\test_DTD.dtd&quot;&gt;
+&lt;hr&gt;
+--&gt;
+    &lt;employee no=&quot;3309&quot;&gt;
+        &lt;name&gt;张三&lt;/name&gt;
+        &lt;age&gt;31&lt;/age&gt;
+        &lt;salary&gt;4000&lt;/salary&gt;
+        &lt;department&gt;
+            &lt;dname&gt;会计部&lt;/dname&gt;
+            &lt;address&gt;B103&lt;/address&gt;
+        &lt;/department&gt;
+    &lt;/employee&gt;
+    &lt;employee no=&quot;3310&quot;&gt;
+        &lt;name&gt;李四&lt;/name&gt;
+        &lt;age&gt;23&lt;/age&gt;
+        &lt;salary&gt;3000&lt;/salary&gt;
+        &lt;department&gt;
+            &lt;dname&gt;工程部&lt;/dname&gt;
+            &lt;address&gt;B104&lt;/address&gt;
+        &lt;/department&gt;
+    &lt;/employee&gt;
+&lt;/hr&gt;
+</code>
+
+依赖包
+<code xml>
+&lt;!-- dom4j 对 XML 文档进行解析、创建、遍历、查询和修改等操作 --&gt;
+&lt;dependency&gt;
+    &lt;groupId&gt;org.dom4j&lt;/groupId&gt;
+    &lt;artifactId&gt;dom4j&lt;/artifactId&gt;
+    &lt;version&gt;2.1.4&lt;/version&gt;
+&lt;/dependency&gt;
+&lt;!--jaxen：Xpath表达式解释器--&gt;
+&lt;dependency&gt;
+    &lt;groupId&gt;jaxen&lt;/groupId&gt;
+    &lt;artifactId&gt;jaxen&lt;/artifactId&gt;
+    &lt;version&gt;1.2.0&lt;/version&gt;
+&lt;/dependency&gt;
+</code>
+<code>
+public class Demo {
+    @Test
+    public void read() {
+        InputStream file = Demo.class.getClassLoader().getResourceAsStream("test_Schema.xml");
+        //SAXReader是读取xml文件的核心类,用于将xml解析后以树的形式保存在内存中
+        SAXReader saxReader = new SAXReader();
+        try {
+            Document doc = saxReader.read(file);
+            Element root = doc.getRootElement();//获取根节点
+ 
+            List&lt;Element> emps = root.elements();//获取根节点下的标签集合
+            for (Element emp : emps) {
+                Element name = emp.element("name");//获取标签
+                System.out.println(name.getText());//获取标签内容文本
+                System.out.println((emp.elementText("age")));//直接获取标签内容文本
+
+                Attribute attr = emp.attribute("no");//获取属性
+                System.out.println(attr.getText());//获取属性文本
+            }
+        } catch (DocumentException e) {
+            throw new RuntimeException(e);
+        }
+    }
+ 
+    @Test
+    public void write() {
+        String file = Demo.class.getClassLoader().getResource("test_Schema.xml").getFile();//获取文件路径
+        SAXReader saxReader = new SAXReader();
+        try {
+            Document doc = saxReader.read(new File(file));//用 new File(file) 而不是 file 本身，因为 file 是字符串路径
+            Element root = doc.getRootElement();
+ 
+            Element employee = root.addElement("employee");
+            employee.addAttribute("no", "3312");
+ 
+            employee.addElement("name").setText("王五");
+            employee.addElement("age").setText("31");
+            employee.addElement("salary").setText("3600");
+ 
+            Element department = employee.addElement("department");
+            department.addElement("dname").setText("人事部");
+            department.addElement("address").setText("B106");
+ 
+            // 配置OutputFormat以使输出自动缩进
+            OutputFormat format = OutputFormat.createPrettyPrint();
+            format.setEncoding("UTF-8");
+ 
+            //此处BufferedWriter不能以try-resources的方式
+            //问题的关键在于 try-with-resources 关闭了 BufferedWriter，而 XMLWriter 在它的 write() 方法中仍然需要使用这个 BufferedWriter。
+            //这种顺序上的不匹配导致了写入时的错误
+            BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "UTF-8"));
+            //使用 XMLWriter 类来写入文件,XMLWriter 类在写入 XML 文件时提供了灵活的选项和高效的处理方式, 提供了更好的错误处理机制，特别适合需要格式化输出和处理编码的情况
+            XMLWriter xmlWriter = new XMLWriter(writer, format);
+            xmlWriter.write(doc);
+            writer.close();
+        } catch (DocumentException | IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+}
+</code>
+<code>
+public class dom4j_XPath {
+    public static void main(String[] args) {
+//        inquire("/hr/employee");
+//        inquire("//employee");
+//        inquire("//employee[salary&lt;4000]");
+//        inquire("//employee[name='李四']");
+//        inquire("//employee[@no=3309]");
+//        inquire("//employee[1]");
+//        inquire("//employee[last()]");
+//        inquire("//employee[position()&lt;2]");
+        inquire("//employee[1] | //employee[3]");
+    } 
+ 
+    public static void inquire(String xpathExp) {
+        String file = dom4j_XPath.class.getClassLoader().getResource("test_Schema.xml").getPath();
+        SAXReader reader = new SAXReader();
+        try {
+            Document document = reader.read(file);
+            List&lt;Node> nodes = document.selectNodes(xpathExp);//执行xpath查询
+            for (Node node : nodes) {
+                Element employee = (Element) node;
+                System.out.println(employee.attributeValue("no"));
+                System.out.println(employee.elementText("name"));
+                System.out.println(employee.elementText("age"));
+                System.out.println(employee.elementText("salary"));
+            }
+        } catch (DocumentException e) {
+            e.printStackTrace();
+        }
+    }
+}
+</code>
+</pre>
+</body>
+</html>

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="viewport" content="width=1920, initial-scale=1.0">
+<script src="../js/wallpaper.js"></script>
+<style>
+html,body {
+    margin: 0;
+    padding: 0;
+}
+body {
+    background-color: black;
+    overflow: hidden;
+    background-position: center;
+    background-repeat: no-repeat;
+    height: 100vh;
+    width: 100vw;
+    background-size: contain;
+}
+.tooltip {
+    position: absolute;
+    background-color: rgba(0, 0, 0, 0.75);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 5px;
+    font-size: 14px;
+    white-space: nowrap;
+    display: none;
+    pointer-events: none;
+}
+</style>
+</head>
+<body>
+</body>
+<script>
+const messages = [
+    "六神和会自安然，一日清闲自在仙",
+    "读书须用意，一字值千金",
+    "难字压顶，寸步难行；闯字当头，随意纵横"
+];
+
+window.onload=function(){
+    var randomIndex = Math.floor(Math.random() * wallpapers.length);
+    document.body.style.backgroundImage= "url("+wallpapers[randomIndex]+")";
+
+    document.addEventListener("click", function(event) {
+        let tooltip = document.getElementById("tooltip");
+        if (!tooltip) {
+            tooltip = document.createElement("div");
+            tooltip.id = "tooltip";
+            tooltip.className = "tooltip";
+            document.body.appendChild(tooltip);
+        }
+
+        let randomMessage = messages[Math.floor(Math.random() * messages.length)];
+        tooltip.innerText = randomMessage;
+
+        tooltip.style.left = event.pageX + "px";
+        tooltip.style.top = event.pageY + "px";
+        tooltip.style.display = "block";
+
+        clearTimeout(tooltip.timer);
+        tooltip.timer = setTimeout(() => {
+            tooltip.style.display = "none";
+        }, 15000);
+    });
+}
+
+function audio_all_handler(m) {
+    var identifier = JSON.parse(localStorage.getItem('identifier'));
+    identifier["audio_all_handler"]=m;
+    localStorage.setItem("identifier",JSON.stringify(identifier));
+}
+var span = document.createElement('span');
+span.innerHTML="<span accesskey='p' onclick='audio_all_handler(\"p\")'></span><span accesskey='n' onclick='audio_all_handler(\"n\")'></span></span><span accesskey='l' onclick='audio_all_handler(\"l\")'></span><span accesskey='o' onclick='audio_all_handler(\"o\")'></span>"
+span.setAttribute("style", "display:none");
+document.body.appendChild(span);
+</script>
+</html>

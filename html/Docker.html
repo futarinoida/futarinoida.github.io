@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>Docker</title>
+</head>
+<body><span id="anchor">20240601141418-_环境容器</span>
+<pre>
+Docker是一个用来装程序及其环境的容器,属于Linux容器的一种封装,提供简单易用的容器使用接口
+Docker 和分布式系统有密切的关系，Docker 作为容器化平台，为构建、部署和管理分布式系统提供了重要的支持和便利
+    提供统一的环境,可以确保应用程序在不同的环境中（如开发、测试、生产）具有一致的运行环境，从而减少由于环境差异导致的问题
+    隔离的运行环境，确保不同服务或微服务在同一台主机上运行时不会互相干扰
+    使用 Docker 和容器编排工具（如 Kubernetes），可以动态地扩展或缩减服务实例的数量，以应对不同的负载需求
+    减少了传统虚拟化技术的资源开销。容器可以在同一台主机上运行多个实例，提高了资源利用率
+
+20240601152214.webp
+将镜像推到仓库, 各种测试都针对的是相同的镜像
+20240601152215.webp
+
+<h1>Docker与虚拟机的区别</h1>
+20240601151254.webp
+
+<h1>UnionFS</h1>
+UnionFS（联合文件系统）是一种文件系统服务，可以将多个目录合并成一个文件系统。它通常用于 Linux 容器环境，如 Docker 和 Kubernetes，以实现层级存储和文件系统的快照功能
+
+关键特性
+    将多个目录或文件系统层级合并成一个统一的文件系统视图。
+    每个层可以是只读或读写。
+    可以创建文件系统的快照和增量快照，方便版本控制和回滚。
+    通过共享未修改的层，实现高效的存储利用率。
+    只有修改的层需要额外的存储空间。
+
+UnionFS 在 Docker 中的应用
+    镜像层：
+        Docker 镜像由多个只读层组成，每层代表镜像的一次变更（如安装软件包、修改配置等）。
+        这些层按照顺序叠加，形成完整的文件系统视图。
+        20240812202341.webp
+    容器层：
+        当容器启动时，Docker 在镜像层之上添加一个可写层，称为容器层。
+        容器运行时的所有修改（新增文件、修改文件等）都发生在这个可写层。
+        容器的这一层是可以修改的,而镜像是不可以修改的
+            例如镜像内有一个apache的配置文件, 在容器层对其进行修改, 因为镜像是只读的, 因此实际上是将其复制一份到容器层进行修改, 文件查找时从最上层向下找
+        20240812202734.webp
+    镜像和容器的共享：
+        不同的容器可以共享相同的镜像层，提高存储效率。
+        只有容器层是独立的，确保容器之间的隔离。
+        同一个镜像可以生成多个容器独立运行,而他们之间没有任何的干扰, 生成一个容器,就会产生一个容器文件, 不会因容器的关闭而被删除
+       
+<h1>仓库</h1>
+hub.docker.com 
+
+20240601170504.webp
+
+client
+    提供给用户一个终端,用户输入Docker提供的命令来管理本地或远程的服务器
+deamon
+    服务端守护进程, 接收client发送的命令并执行相应的操作
+
+<h1>安装docker</h1>
+<code bash>
+#查看centOS版本信息
+cat /etc/redhat-release
+ 
+#如果没有代理, 配置境内yum源
+#wget -O /etc/yum.repos.d/CentOS-Base.repo http://mirrors.aliyun.com/repo/Centos-7.repo
+#yum clean all
+#yum makecache
+
+#如果之前安装过docker, 卸载旧版本,较旧的Docker版本称为docker或docker-engine。如果已安装这些程序，请卸载它们以及相关的依赖项
+#使用空格加一个反斜杠来表示命令在下一行继续，以便使长命令在编写脚本时更易读。直到输入完成并按回车键结束整条命令，系统才会执行命令
+yum remove docker \
+    docker-client \
+    docker-client-latest \
+    docker-common \
+    docker-latest \
+    docker-latest-logrotate \
+    docker-logrotate \
+    docker-engine
+ 
+#检查更新
+yum check-update
+ 
+#安装更新
+yum update
+ 
+#安装所需的软件包, 这些包允许 yum 使用 yum-config-manager
+#安装 yum-utils、device-mapper-persistent-data 和 lvm2 三个包。
+#yum install -y yum-utils device-mapper-persistent-data lvm2
+yum install -y yum-utils \
+  device-mapper-persistent-data \
+  lvm2
+ 
+#添加 Docker 的官方仓库
+#如果没有代理, 境内yum-config-manager --add-repo http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
+yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+ 
+#查看docker版本
+yum list docker-ce --showduplicates | sort -r
+ 
+#安装指定的版本
+yum install docker-ce-18.09.0 docker-ce-cli-18.09.0 containerd.io
+ 
+#装完成后，运行下面的命令，验证是否安装成功。
+docker version
+#查看docker状态
+docker info
+ 
+#Docker 是服务器-客户端架构。命令行运行docker命令的时候，需要本机有 Docker 服务。用下面的命令启停和确认状态
+systemctl start docker
+systemctl stop docker
+systemctl status docker
+</code>
+
+<h1>docker容器操作</h1>
+<code bash>
+#查看本机有哪些镜像
+docker images
+ 
+#拉取测试镜像, 默认目录为library可不写, 默认tag为latest
+#docker pull library/hello-world:latest
+docker pull hello-world
+ 
+#运行测试镜像, docker run [OPTIONS] IMAGE [COMMAND] [ARG...]
+docker run hello-world
+#为了生成这条信息，Docker 采取了以下步骤：
+# 1. Docker 客户端连上 Docker 守护进程(服务端)。
+# 2. Docker 守护进程从 Docker Hub 提取 “hello-world ”镜像。
+# 3. Docker 守护进程从该镜像文件中创建了一个新容器，该容器运行的可执行文件，产生你正在阅读的输出结果。
+# 4. Docker 守护进程将输出流式传输到 Docker 客户端，然后将其发送到你的终端。
+ 
+#搜索镜像
+docker search nginx
+ 
+#拉取nginx镜像
+docker pull nginx:1.13.0
+ 
+#前台运行, ctrl+c停止
+docker run nginx:1.13.0
+ 
+#使用 docker run 命令创建一个新的容器时，可以使用 --name 选项指定容器名称。例如，创建一个名为 my_nginx 的 Nginx 容器, -d后台运行并打印出容器id
+#重命名容器 docker rename old_name new_nam 这不会停止或重新启动容器，容器会继续运行，只是名称会被更改
+docker run --name my_nginx -d nginx
+ 
+#列出所有容器，-a包括已停止的容器
+docker ps -a
+ 
+#停止一个运行中的 Docker 容器, 容器id不必写完整,写出开头字符确保能惟一识别即可
+docker stop container_id_or_name
+#恢复运行已停止的容器
+docker start container_id_or_name
+#删除容器
+docker rm container_id_or_name
+ 
+#进入运行中的容器内部
+#-i, 交互式 STDIN 即使未连接也保持打开状态, STDIN（标准输入）是计算机程序从外部获取输入数据的默认通道
+#-t, 分配伪TTY, TTY（伪终端）指的是计算机终端，"teletypewriter"（电传打字机）的缩写
+#-i 和 -t 选项一起使用，以交互方式运行命令并获得一个伪终端
+#调用容器内部的bash命令, 容器id不必写完整,写出开头字符确保能惟一识别即可
+docker exec -it 83c bash
+pwd
+ls
+#touch 命令用于更新文件的访问和修改时间戳。如果文件不存在，touch 会创建一个空文件
+touch a.txt
+ls 
+rm a.txt
+#查找 nginx 可执行文件的路径
+which nginx
+#从 Docker 容器内部退出, 输入 exit 或按 Ctrl + D
+exit
+ 
+#宿主机端口映射到容器内端口, 宿主机端口:容器内端口
+#端口映射是在容器创建时指定的，所以如果你想要修改端口映射，就需要重新创建容器, 大写P表示docker会随机选择一个宿主机端口映射到容器内部开放的网络端口上
+docker run --name my_nginx2 -d -p 8080:80 nginx:1.13.0
+ 
+#显示容器的IP地址
+docker inspect my_nginx2
+docker inspect my_nginx2|grep IPAddress
+</code>
+
+<h1>网络模式</h1>
+Docker 提供了三种主要的网络模式（网络驱动）来管理容器之间以及容器与外部世界之间的网络连接。
+    Bridge 网络（桥接网络）
+        桥接网络是 Docker 的默认网络模式。在这种模式下，每个容器都会连接到一个虚拟桥接器（docker0），并且每个容器都会获得一个独立的 IP 地址。
+        容器之间可以通过 IP 地址或容器名称通信。
+        宿主机可以通过桥接网络访问容器。
+        可以通过 docker network create 创建自定义的桥接网络，并通过 docker run --network 指定容器使用哪个网络。
+    Host 网络（主机网络）
+        在主机网络模式下，容器共享宿主机的网络栈。容器不会获得独立的 IP 地址，而是使用宿主机的 IP 地址。
+        容器中的应用程序将直接使用宿主机的网络接口。
+        性能较高，因为减少了网络虚拟化的开销。
+        可能会导致端口冲突，因为容器和宿主机共享同一组端口。
+    None 网络（无网络）
+        无网络模式下，容器没有任何网络接口。通常用于对网络隔离要求非常高的情况。
+        容器之间以及容器与宿主机之间不能通过网络通信。
+        适用于不需要网络功能的应用程序或严格的安全需求。
+
+Docker的端口映射是通过网络地址转换（NAT）实现的。当容器启动时，Docker会在宿主机上创建一个iptables规则，将容器内部的应用服务端口映射到宿主机上的一个随机可用端口。这样，当外部请求访问宿主机的映射端口时，iptables规则会将请求转发到容器内部的应用服务端口。
+当在 Docker 中进行端口映射时，即使宿主机没有开放任何端口，Docker 仍会在宿主机上创建相应的 iptables 规则。这是因为 Docker 使用 iptables 来管理流量的转发规则
+
+<h1>Dockerfile</h1>
+Dockerfile 是用来定义一个 Docker 镜像的文件，通过一系列指令描述如何构建镜像
+每条指令会在镜像构建时创建一个新的层。
+Dockerfile 通常包括基础镜像的选择、依赖项的安装、文件的复制、命令的执行等步骤
+通过这个文件可以直观的了解到镜像的组成结构
+<code bash>
+#FROM指定基础镜像。所有的 Dockerfile 都必须以 FROM 指令开始。
+#alpine是一个轻量级的 Linux 发行版，特别适合用于 Docker 镜像中，因为它的体积非常小，可以显著减少镜像的大小。通常，Alpine 镜像用于创建更精简、更高效的 Docker 镜像
+#maintainer维护者
+#构建镜像: 在包含 Dockerfile 的目录中运行以下命令，指定镜像名称和标签（可选）, -t 给镜像命名, 点（.）使用当前目录中的 Dockerfile 和所有相关文件来构建镜像
+cd /root
+cat > Dockerfile &lt;&lt; EOF
+> FROM alpine:lasted
+> MAINTAINER ida
+> CMD echo 'ok, bro'
+> EOF
+docker build -t first_docker_image .
+docker images
+docker run first_docker_image
+</code>
+</pre>
+</body>
+</html>

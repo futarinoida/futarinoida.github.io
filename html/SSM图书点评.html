@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>SSM图书点评</title>
+</head>
+<body><span id="anchor">20240508101739-_项目例</span>
+<pre>
+<h1>SSM框架</h1>
+SSM框架是指Spring + SpringMVC + MyBatis的组合，是一种用于构建Java Web应用程序的常见技术组合
+    开发者可以使用Spring来管理应用程序的组件，使用SpringMVC来处理Web请求和响应，使用MyBatis来访问数据库。
+        Spring框架：
+            提供了一个全功能的IoC（控制反转）容器和AOP（面向切面编程）容器，简化了Java开发中的配置和开发过程。Spring框架还提供了如事务管理、数据访问支持、消息传递等。
+            Spring 框架的核心模块: spring-core, spring-beans, spring-context, spring-aop, spring-tx, spring-expression (SpEL)
+        SpringMVC框架：
+            基于MVC（模型-视图-控制器）模式，用于构建Web应用程序的Web层。SpringMVC框架提供了易于扩展和灵活的方式来处理HTTP请求和响应。
+            Spring MVC 构建在 Spring 核心之上，除了依赖 Spring 的核心模块外，还包括了 spring-web, spring-webmvc
+            引入 spring-webmvc 依赖时，实际上引入了整个 Spring 框架的核心功能以及 Spring MVC 的所有功能。这意味着你无需单独引入其他 Spring 核心依赖
+        MyBatis框架：
+            是一个持久层框架，简化了数据库访问代码的编写。MyBatis使用XML或注解配置SQL映射，将Java方法与SQL语句进行映射，避免了手动编写大量的JDBC代码。
+
+<h1>整合步骤</h1>
+Spring与Spring MVC环境配置
+    web.xml配置DispatcherServlet
+    整合freemarker视图, 需要spring-context-support的支持
+    引入jackson序列化工具, Spring MVC 默认支持 Jackson 作为 JSON 消息转换器，因此通常不需要额外配置
+    设置请求响应编码
+
+Spring与mybatis整合
+    mysql驱动
+    spring-jdbc提供对JDBC事务的管理功能, MyBatis本身不管理事务，它依赖于外部的事务管理器
+    druid替代MyBatis自带的数据库连接池
+    mybatis 
+    mybatis-spring, 提供了MyBatis 和 Spring 的事务管理集成, SqlSessionFactoryBean简化了配置MyBatis的过程, Mapper 扫描, SqlSessionTemplate
+    
+其它组件
+    spring-test 用于处理 Spring 特性和上下文相关的测试
+    junit 用于基本的测试结构和执行
+
+<h1>表和功能</h1>
+20240824093004.webp
+20240824093005.webp
+20240824093740.webp
+
+<h1>配置文件</h1>
+<h2>pom.xml</h2>
+<code xml>
+&lt;properties>
+    &lt;maven.compiler.source>8&lt;/maven.compiler.source>
+    &lt;maven.compiler.target>8&lt;/maven.compiler.target>
+    &lt;project.build.sourceEncoding>UTF-8&lt;/project.build.sourceEncoding>
+ 
+    &lt;springframework.version>5.1.9.RELEASE&lt;/springframework.version>
+    &lt;jackson.version>2.16.0&lt;/jackson.version>
+&lt;/properties>
+ 
+&lt;dependencies>
+    &lt;!-- spring mvc, 专注于 Web 应用的 MVC 部分，处理请求、响应、视图解析等 -->
+    &lt;dependency>
+        &lt;groupId>org.springframework&lt;/groupId>
+        &lt;artifactId>spring-webmvc&lt;/artifactId>
+        &lt;version>${springframework.version}&lt;/version>
+    &lt;/dependency>
+    &lt;!-- spring context support,对 Spring 核心功能的扩展支持，特别是在集成其他常见的 Java EE 技术和第三方库时 -->
+    &lt;dependency>
+        &lt;groupId>org.springframework&lt;/groupId>
+        &lt;artifactId>spring-context-support&lt;/artifactId>
+        &lt;version>${springframework.version}&lt;/version>
+    &lt;/dependency>
+    &lt;!-- spring jdbc -->
+    &lt;dependency>
+        &lt;groupId>org.springframework&lt;/groupId>
+        &lt;artifactId>spring-jdbc&lt;/artifactId>
+        &lt;version>${springframework.version}&lt;/version>
+    &lt;/dependency>
+    &lt;!-- spring test -->
+    &lt;dependency>
+        &lt;groupId>org.springframework&lt;/groupId>
+        &lt;artifactId>spring-test&lt;/artifactId>
+        &lt;version>${springframework.version}&lt;/version>
+    &lt;/dependency>
+    &lt;!-- jackson -->
+    &lt;dependency>
+        &lt;groupId>com.fasterxml.jackson.core&lt;/groupId>
+        &lt;artifactId>jackson-core&lt;/artifactId>
+        &lt;version>${jackson.version}&lt;/version>
+    &lt;/dependency>
+    &lt;dependency>
+        &lt;groupId>com.fasterxml.jackson.core&lt;/groupId>
+        &lt;artifactId>jackson-databind&lt;/artifactId>
+        &lt;version>${jackson.version}&lt;/version>
+    &lt;/dependency>
+    &lt;dependency>
+        &lt;groupId>com.fasterxml.jackson.core&lt;/groupId>
+        &lt;artifactId>jackson-annotations&lt;/artifactId>
+        &lt;version>${jackson.version}&lt;/version>
+    &lt;/dependency>
+    &lt;!-- mysql, mybatis -->
+    &lt;dependency>
+        &lt;groupId>mysql&lt;/groupId>
+        &lt;artifactId>mysql-connector-java&lt;/artifactId>
+        &lt;version>8.0.33&lt;/version>
+    &lt;/dependency>
+    &lt;dependency>
+        &lt;groupId>org.mybatis&lt;/groupId>
+        &lt;artifactId>mybatis&lt;/artifactId>
+        &lt;version>3.5.9&lt;/version>
+    &lt;/dependency>
+    &lt;dependency>
+        &lt;groupId>org.mybatis&lt;/groupId>
+        &lt;artifactId>mybatis-spring&lt;/artifactId>&lt;!-- 与 Spring 的事务管理、依赖注入 (DI) 等功能集成 -->
+        &lt;version>2.0.3&lt;/version>
+    &lt;/dependency>
+    &lt;dependency>
+        &lt;groupId>com.alibaba&lt;/groupId>
+        &lt;artifactId>druid&lt;/artifactId>
+        &lt;version>1.2.23&lt;/version>
+    &lt;/dependency>
+    &lt;dependency>
+        &lt;groupId>com.baomidou&lt;/groupId>
+        &lt;artifactId>mybatis-plus&lt;/artifactId>
+        &lt;version>3.3.2&lt;/version>
+    &lt;/dependency>
+    &lt;!-- freemarker -->
+    &lt;dependency>
+        &lt;groupId>org.freemarker&lt;/groupId>
+        &lt;artifactId>freemarker&lt;/artifactId>
+        &lt;version>2.3.30&lt;/version>
+    &lt;/dependency>
+    &lt;!-- logback -->
+    &lt;dependency>
+        &lt;groupId>ch.qos.logback&lt;/groupId>
+        &lt;artifactId>logback-classic&lt;/artifactId>
+        &lt;version>1.2.3&lt;/version>
+    &lt;/dependency>
+    &lt;!-- jsoup -->
+    &lt;dependency>
+        &lt;groupId>org.jsoup&lt;/groupId>
+        &lt;artifactId>jsoup&lt;/artifactId>
+        &lt;version>1.17.2&lt;/version>
+    &lt;/dependency>
+    &lt;!-- 图形验证码 -->
+    &lt;dependency>
+        &lt;groupId>com.github.penggle&lt;/groupId>
+        &lt;artifactId>kaptcha&lt;/artifactId>
+        &lt;version>2.3.2&lt;/version>
+    &lt;/dependency>
+    &lt;!-- 文件上传 -->
+    &lt;dependency>
+        &lt;groupId>commons-fileupload&lt;/groupId>
+        &lt;artifactId>commons-fileupload&lt;/artifactId>
+        &lt;version>1.4&lt;/version>
+    &lt;/dependency>
+    &lt;!-- 编解码 -->
+    &lt;dependency>
+        &lt;groupId>commons-codec&lt;/groupId>
+        &lt;artifactId>commons-codec&lt;/artifactId>
+        &lt;version>1.14&lt;/version>
+    &lt;/dependency>
+    &lt;!-- 编译时容器 -->
+    &lt;dependency>
+        &lt;groupId>javax.servlet&lt;/groupId>
+        &lt;artifactId>javax.servlet-api&lt;/artifactId>
+        &lt;version>3.1.0&lt;/version>
+        &lt;scope>provided&lt;/scope>
+    &lt;/dependency>
+    &lt;dependency>
+        &lt;groupId>junit&lt;/groupId>
+        &lt;artifactId>junit&lt;/artifactId>
+        &lt;version>4.12&lt;/version>
+        &lt;scope>test&lt;/scope>
+    &lt;/dependency>
+&lt;/dependencies>
+ 
+&lt;build>
+    &lt;plugins>
+        &lt;!-- Maven 编译插件 -->
+        &lt;plugin>
+            &lt;groupId>org.apache.maven.plugins&lt;/groupId>
+            &lt;artifactId>maven-compiler-plugin&lt;/artifactId>
+            &lt;version>3.8.1&lt;/version>
+            &lt;configuration>
+                &lt;source>1.8&lt;/source>
+                &lt;target>1.8&lt;/target>
+            &lt;/configuration>
+        &lt;/plugin>
+        &lt;!-- Maven WAR 插件 -->
+        &lt;plugin>
+            &lt;groupId>org.apache.maven.plugins&lt;/groupId>
+            &lt;artifactId>maven-war-plugin&lt;/artifactId>
+            &lt;version>3.4.0&lt;/version>
+        &lt;/plugin>
+    &lt;/plugins>
+&lt;/build>
+</code>
+
+<h2>web.xml</h2>
+<code xml>
+&lt;?xml version="1.0" encoding="UTF-8"?>
+&lt;web-app xmlns="http://xmlns.jcp.org/xml/ns/javaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee http://xmlns.jcp.org/xml/ns/javaee/web-app_3_1.xsd"
+         version="3.1">
+ 
+    &lt;servlet>
+        &lt;servlet-name>springmvc&lt;/servlet-name>
+        &lt;servlet-class>org.springframework.web.servlet.DispatcherServlet&lt;/servlet-class>
+        &lt;init-param>
+            &lt;param-name>contextConfigLocation&lt;/param-name>
+            &lt;param-value>classpath:applicationContext*.xml&lt;/param-value>
+        &lt;/init-param>
+        &lt;load-on-startup>0&lt;/load-on-startup>
+    &lt;/servlet>
+    &lt;servlet-mapping>
+        &lt;servlet-name>springmvc&lt;/servlet-name>
+        &lt;!-- / 匹配根路径 (/) 和所有没有被其他更具体的 url-pattern 映射的路径, 它不会拦截静态资源的请求 --> 
+        &lt;!-- /* 拦截所有的请求，包括根路径 (/)、所有子路径，以及静态资源的请求-->
+        &lt;!-- 两者的区别在于 /* 还会捕获静态资源，而 / 只捕获动态内容的请求，且不干涉静态资源的处理-->
+        &lt;url-pattern>/&lt;/url-pattern>
+    &lt;/servlet-mapping>
+ 
+    &lt;filter>
+        &lt;filter-name>characterFilter&lt;/filter-name>
+        &lt;filter-class>org.springframework.web.filter.CharacterEncodingFilter&lt;/filter-class>
+        &lt;init-param>
+            &lt;param-name>encoding&lt;/param-name>
+            &lt;param-value>UTF-8&lt;/param-value>
+        &lt;/init-param>
+    &lt;/filter>
+    &lt;filter-mapping>
+        &lt;filter-name>characterFilter&lt;/filter-name>
+        &lt;url-pattern>/*&lt;/url-pattern>
+    &lt;/filter-mapping>
+&lt;/web-app>
+</code>
+<h2>applicationContext.xml</h2>
+<code xml>
+&lt;?xml version="1.0" encoding="UTF-8"?>
+&lt;beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:mvc="http://www.springframework.org/schema/mvc"
+       xmlns:tx="http://www.springframework.org/schema/tx"
+       xmlns:task="http://www.springframework.org/schema/task"
+       xsi:schemaLocation="
+           http://www.springframework.org/schema/beans https://www.springframework.org/schema/beans/spring-beans.xsd
+           http://www.springframework.org/schema/context https://www.springframework.org/schema/context/spring-context.xsd
+           http://www.springframework.org/schema/mvc https://www.springframework.org/schema/mvc/spring-mvc.xsd
+           http://www.springframework.org/schema/tx https://www.springframework.org/schema/tx/spring-tx.xsd
+           http://www.springframework.org/schema/task https://www.springframework.org/schema/task/spring-task.xsd
+">
+ 
+    &lt;context:component-scan base-package="com.ida.demo12"/>&lt;!-- 组件扫描 -->
+    &lt;!-- 确保所有无法匹配到控制器的请求（主要是静态资源）能够正常返回，而不会被 DispatcherServlet 拦截或报错 -->
+    &lt;mvc:default-servlet-handler/>
+    &lt;mvc:annotation-driven>&lt;!-- 启用Spring MVC注解 -->
+        &lt;mvc:message-converters>
+            &lt;bean class="org.springframework.http.converter.StringHttpMessageConverter">&lt;!-- 处理 HTTP 请求和响应的消息体乱码 -->
+                &lt;property name="supportedMediaTypes">
+                    &lt;list>
+                        &lt;value>text/html;charset=utf-8&lt;/value>
+                        &lt;value>application/json;charset=utf-8&lt;/value>
+                    &lt;/list>
+                &lt;/property>
+            &lt;/bean>
+        &lt;/mvc:message-converters>
+    &lt;/mvc:annotation-driven>
+    &lt;task:annotation-driven/>&lt;!-- 启用Spring Task的注解模式 -->
+ 
+ 
+    &lt;!-- 数据源,连接池,事务管理,mybatisplus -->
+    &lt;bean id="dataSource" class="com.alibaba.druid.pool.DruidDataSource">
+        &lt;property name="driverClassName" value="com.mysql.cj.jdbc.Driver"/>
+        &lt;property name="url" value="jdbc:mysql://localhost:3306/reader?useSSL=true&amp;useUnicode=true&amp;characterEncoding=UTF-8&amp;serverTimezone=Asia/Shanghai&amp;allowPublicKeyRetrieval=true"/>
+        &lt;property name="username" value="root"/>
+        &lt;property name="password" value="root"/>
+        &lt;property name="initialSize" value="5"/>
+        &lt;property name="maxActive" value="20"/>
+    &lt;/bean>
+    &lt;!-- &lt;bean id="sessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean"> -->
+    &lt;bean id="sessionFactory" class="com.baomidou.mybatisplus.extension.spring.MybatisSqlSessionFactoryBean">
+        &lt;property name="dataSource" ref="dataSource"/>
+        &lt;property name="mapperLocations" value="classpath:mappers/*.xml"/>&lt;!-- 映射文件地址 -->
+        &lt;property name="plugins">
+            &lt;list>
+                &lt;bean class="com.baomidou.mybatisplus.extension.plugins.PaginationInterceptor"/>&lt;!-- 分页插件 -->
+            &lt;/list>
+        &lt;/property>
+        &lt;property name="configuration">
+            &lt;bean class="com.baomidou.mybatisplus.core.MybatisConfiguration">
+                &lt;property name="mapUnderscoreToCamelCase" value="true"/>&lt;!-- 命名转换 -->
+            &lt;/bean>
+        &lt;/property>
+    &lt;/bean>
+    &lt;bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        &lt;property name="basePackage" value="com.ida.demo12.mapper"/>&lt;!-- mapper接口存放目录 -->
+    &lt;/bean>
+    &lt;bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        &lt;property name="dataSource" ref="dataSource"/>
+    &lt;/bean>
+    &lt;tx:annotation-driven transaction-manager="transactionManager"/>&lt;!-- 启用声明式事务 -->
+ 
+ 
+    &lt;!-- 视图解析器 -->
+    &lt;bean id="freeMarkerViewResolver" class="org.springframework.web.servlet.view.freemarker.FreeMarkerViewResolver">
+        &lt;property name="contentType" value="text/html;charset=utf-8"/>
+        &lt;property name="suffix" value=".ftl"/>
+    &lt;/bean>
+    &lt;bean id="freeMarkerConfigurer" class="org.springframework.web.servlet.view.freemarker.FreeMarkerConfigurer">
+        &lt;property name="templateLoaderPath" value="/WEB-INF/ftl"/>
+        &lt;property name="freemarkerSettings">
+            &lt;props>
+                &lt;prop key="defaultEncoding">UTF-8&lt;/prop>
+            &lt;/props>
+        &lt;/property>
+    &lt;/bean>
+ 
+ 
+    &lt;!-- @Resource注入, private Producer kaptchaProducer; -->
+    &lt;bean id="kaptchaProducer" class="com.google.code.kaptcha.impl.DefaultKaptcha">
+        &lt;property name="config">
+            &lt;bean class="com.google.code.kaptcha.util.Config">
+                &lt;constructor-arg>
+                    &lt;props>
+                        &lt;prop key="kaptcha.border">no&lt;/prop>
+                        &lt;prop key="kaptcha.image.width">120&lt;/prop>
+                        &lt;prop key="kaptcha.textproducer.font.color">blue&lt;/prop>
+                        &lt;prop key="kaptcha.textproducer.font.size">40&lt;/prop>
+                        &lt;prop key="kaptcha.textproducer.char.length">4&lt;/prop>
+                    &lt;/props>
+                &lt;/constructor-arg>
+            &lt;/bean>
+        &lt;/property>
+    &lt;/bean>
+ 
+ 
+    &lt;!-- 配置Spring MVC中如何处理文件上传, 指定Apache Commons FileUpload 实现的 CommonsMultipartResolver 作为文件上传解析器 -->
+    &lt;bean id="multipartResolver" class="org.springframework.web.multipart.commons.CommonsMultipartResolver">
+        &lt;property name="defaultEncoding" value="utf-8"/>&lt;!-- 处理文件名或者表单字段中文乱码 -->
+    &lt;/bean>
+&lt;/beans>
+</code>
+
+<h1>Spring MVC乱码处理</h1>
+StringHttpMessageConverter
+    applicationContext.xml 中配置的 StringHttpMessageConverter 主要负责在请求和响应过程中处理 String 类型的数据转换，并设置字符编码（如 UTF-8）以避免乱码。
+        这个配置主要影响 String 类型数据的转换，不会对所有的请求和响应做全局的字符编码处理。
+
+CharacterEncodingFilter
+    CharacterEncodingFilter 是一个 Servlet 过滤器，用于在请求和响应过程中统一设置字符编码。它处理所有请求和响应, 而不仅仅是 String 类型的数据，确保整个应用中的字符编码一致。
+
+虽然 StringHttpMessageConverter 可以处理 String 类型的数据并设置字符编码，但配置 CharacterEncodingFilter 仍然有其必要性
+
+<h1>mybatis-plus</h1>
+mybatis-plus在mybatis基础上做了非侵入式增强,自动实现Mapper CRUD
+    SqlSessionFactoryBean替换为MybatisSqlSessionFactoryBean
+    mybatis-config中增加PaginationInterceptor
+    使用方法
+        创建与数据表对应的实体类,@TableName(表和实体),@TableId(表的主键),@TableField(表字段和实体字段)
+            @TableField(exist = false) 字段不参与sql自动生成时加此注解
+        创建对应的Mapper接口继承BaseMapper,创建对应的Mapper XML(里面不需要去写典型的curd)
+        注入Mapper对象,通过内置API实现CRUD
+        20240509102535.webp
+
+<h1>Spring Task</h1>
+Cron表达式
+20240804151117.webp
+每分钟的0秒执行一次
+2000年的时候每小时前5分钟内的0秒或30秒的时候执行一次, [-]范围, [,]或
+每周三的9到18时内整点的时候执行一次, 日和星期互斥
+<code>
+@Component
+public class ComputeTask {
+    @Resource
+    private BookService bookService;
+ 
+    @Scheduled(cron = "0 * * * * ?") //需要启用task:annotation-driven
+    public void updateScoreAndQuantity(){
+        bookService.updateScoreAndQuantity();
+ 
+        try {
+            PrintStream printStream = new PrintStream(System.out, true, "UTF-8");
+            System.setOut(printStream);
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+        System.out.println("已更新所有图片评分和评论数量");
+    }
+}
+</code>
+<code xml>
+&lt;update id="updateScoreAndQuantity">
+    update reader.book b
+    set
+        evaluation_quantity=(select ifnull(count(*),0) from reader.evaluation where book_id = b.book_id and state='enable'),
+        evaluation_score=(select ifnull(avg(score),0) from reader.evaluation where book_id = b.book_id and state='enable')
+&lt;/update>
+
+</code>
+
+<h1>kaptcha</h1>
+<code>
+@Controller
+public class KaptchaController {
+    @Resource
+    private Producer kaptchaProducer; //手动放到容器的bean
+ 
+    @GetMapping("/verify_code")
+    public void createVerifyCode(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        String verifyCode = kaptchaProducer.createText();
+        request.getSession().setAttribute("kaptchaVerifyCode",verifyCode);
+        System.out.println(verifyCode);
+        BufferedImage image = kaptchaProducer.createImage(verifyCode);
+ 
+        response.setDateHeader("Expires",0);
+        response.setHeader("Cache-Control","no-store,no-cache,must-revalidate");
+        response.setHeader("Cache-Control","post-check=0,pre-check=0");
+        response.setHeader("Pragma","no-cache");
+        response.setContentType("image/png");
+        ServletOutputStream outputStream = response.getOutputStream();
+        ImageIO.write(image,"png",outputStream);
+        outputStream.flush();
+        outputStream.close();
+    }
+}
+</code>
+
+<h1>wangEditor</h1>
+<code html>
+&lt;script src=&quot;/resources/wangEditor.min.js&quot;&gt;&lt;/script&gt;
+ 
+&lt;button id=&quot;btnRead&quot;&gt;读取&lt;/button&gt;
+&lt;button id=&quot;btnWrite&quot;&gt;写入&lt;/button&gt;
+&lt;div id=&quot;divEditor&quot; style=&quot;width: 800px;height: 600px&quot;&gt;&lt;/div&gt;
+ 
+&lt;script&gt;
+    var E = window.wangEditor;
+    var editor = new E(&quot;#divEditor&quot;);
+    editor.create();
+ 
+    document.getElementById(&quot;btnRead&quot;).onclick = function (){
+        var content = editor.txt.html();
+        alert(content);
+    }
+    document.getElementById(&quot;btnWrite&quot;).onclick = function (){
+        var content = &quot;&lt;li style=&#39;color:red&#39;&gt; a &lt;b&gt;b&lt;/b&gt; c &lt;/li&gt;&quot;
+        editor.txt.html(content);
+    }
+&lt;/script&gt;
+</code>
+</pre>
+</body>
+</html>

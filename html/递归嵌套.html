@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>递归嵌套</title>
+</head>
+<body><span id="anchor">20240618093949-_模式算法</span>
+<pre>
+<h1>10转2进制</h1>
+<code>
+public static void main(String[] args) {
+    StringBuffer result = new StringBuffer();
+    toBinary(11, result);
+    System.out.println(result);//1011
+}
+public static void toBinary(int n, StringBuffer result) {
+    if (n / 2 != 0)
+        toBinary(n / 2, result);
+    result.append(n % 2);
+}
+</code>
+初始调用 toBinary(11, result)：
+    11 / 2 != 0 成立，递归调用 toBinary(5, result)。
+    5 / 2 != 0 成立，递归调用 toBinary(2, result)。
+    2 / 2 != 0 成立，递归调用 toBinary(1, result)。
+    1 / 2 != 0 不成立，递归终止。
+回溯从最深层的递归调用开始
+    回溯到 toBinary(1, result)。执行 result.append(n % 2);将 1 % 2 = 1 添加到 StringBuffer result 中。
+    回溯到 toBinary(2, result)。执行 result.append(n % 2);将 2 % 2 = 0 添加到 StringBuffer result 中。
+    回溯到 toBinary(5, result)。执行 result.append(n % 2);将 5 % 2 = 1 添加到 StringBuffer result 中。
+    回溯到 toBinary(11, result)。执行 result.append(n % 2);将 11 % 2 = 1 添加到 StringBuffer result 中。
+结束回溯,所有递归调用完成，result 中包含的内容即为 11 的二进制表示即 "1011"。
+
+<h1>递归回溯</h1>
+<code>
+//第1个人10岁，第2个比第1个人大2岁，依次递推，请用递归方式计算出第8个人多大
+public void t1() {
+    System.out.println(computeAge(8));
+}
+public static int computeAge(int n) {
+    if (n == 1)
+        return 10;
+    return computeAge(n - 1) + 2;
+}
+</code>
+初始调用 computeAge(8)
+递归调用阶段：
+    computeAge(8) 中 n != 1，因此返回 computeAge(7) + 2。
+    computeAge(7) 中 n != 1，因此返回 computeAge(6) + 2。
+    computeAge(6) 中 n != 1，因此返回 computeAge(5) + 2。
+    computeAge(5) 中 n != 1，因此返回 computeAge(4) + 2。
+    computeAge(4) 中 n != 1，因此返回 computeAge(3) + 2。
+    computeAge(3) 中 n != 1，因此返回 computeAge(2) + 2。
+    computeAge(2) 中 n != 1，因此返回 computeAge(1) + 2。
+递归终止：
+    computeAge(1) 中 n == 1，直接返回 10。
+回溯阶段：
+    开始回溯，从最深层的递归调用开始。
+    computeAge(1) 返回 10。
+    回溯到 computeAge(2)，计算结果为 12，因为 computeAge(1) + 2 = 10 + 2。
+    回溯到 computeAge(3)，计算结果为 14，因为 computeAge(2) + 2 = 12 + 2。
+    回溯到 computeAge(4)，计算结果为 16，因为 computeAge(3) + 2 = 14 + 2。
+    回溯到 computeAge(5)，计算结果为 18，因为 computeAge(4) + 2 = 16 + 2。
+    回溯到 computeAge(6)，计算结果为 20，因为 computeAge(5) + 2 = 18 + 2。
+    回溯到 computeAge(7)，计算结果为 22，因为 computeAge(6) + 2 = 20 + 2。
+    最终回溯到 computeAge(8)，计算结果为 24，因为 computeAge(7) + 2 = 22 + 2。
+
+<h1>跳出多重嵌套</h1>
+<code>
+@Test
+public void 使用标号() {
+    ok:
+    for (int i = 0; i &lt; 10; i++) {
+        for (int j = 0; j &lt; 10; j++) {
+            System.out.println("i="+i+", j="+j);
+            if (j==5)
+                break ok;
+        }
+    }
+    System.out.println("over");
+}
+//推荐
+@Test
+public void 不使用标号() {
+    boolean b = false; //外部定义标志
+    for (int i = 0; i &lt; 10 && !b; i++) { //受外部控制
+        for (int j = 0; j &lt; 10; j++) {
+            System.out.println("i="+i+", j="+j);
+            if (j==5){
+                b = true; //改变外部值
+                break;
+            }
+        }
+    }
+    System.out.println("over");
+}
+</code>
+</pre>
+</body>
+</html>

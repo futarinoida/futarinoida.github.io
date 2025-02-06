@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>JSP</title>
+</head>
+<body><span id="anchor">20240521124656-_视图</span>
+<pre>
+JSP是
+JSP(Java Server Pages),Java服务器页面, J2EE的功能模块, 由Servlet扩展而来, 运行时转换为Servlet
+JSP本质就是Servlet, 当请求一个jsp页面时, jsp引擎首先将jsp文件转译为一个Servlet类, 然后加载它并以html形式响应给浏览器
+    非尖括号百分部分用out.println()包裹,尖括号百分部分原封不动
+<code html>
+&lt;h1&gt;
+&lt;%
+    int a = 2;
+    a = a * 100;
+%&gt;
+&lt;%=a%&gt;
+&lt;/h1&gt;
+</code>
+<code>
+out.write("&lt;h1&gt;")
+int a = 2;
+a = a * 100
+out.println(a);
+out.println("&lt;/h1&gt;")
+</code>
+
+<h1>JSP语法</h1>
+<h2>JSP指令</h2>
+提供了JSP容器所需的信息
+    page 指令：用于定义页面级的属性，如页面编码、错误页面等
+<code>
+&lt;%@ page contentType="text/html; charset=UTF-8" language="java" %>
+&lt;%@ page import="java.util.*" %>
+</code>
+    include 指令：用于在编译时包含另一个文件的内容
+<code>
+&lt;%@ include file="header.jsp" %>
+</code>
+    taglib 指令：用于引用自定义标签库
+<code>
+&lt;%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
+</code>
+<h2>JSP脚本元素</h2>
+脚本元素允许在页面中嵌入Java代码
+    表达式（Expression）：等号, 用于输出Java表达式的结果，输出内容会自动转为字符串
+<code>
+&lt;%= new java.util.Date() %>
+</code>
+    声明（Declaration）：感叹号, 用于声明Java变量和方法
+<code>
+&lt;%! int counter = 0; %>
+&lt;%! public String getGreeting() { return "Hello, world!"; } %>
+</code>
+    脚本片段（Scriptlet）：用于嵌入任意Java代码
+<code>
+&lt;% 
+  counter++;
+  out.println("Counter: " + counter);
+%>
+</code>
+<h2>JSP注释</h2>
+不会被发送到客户端浏览器
+<code>
+&lt;%-- 这是一个JSP注释 --%>
+</code>
+
+<h2>隐式对象</h2>
+九大内置对象
+在jsp文件转译时直接定义好的,在jsp页面内可以直接使用的对象名
+    request
+        请求对象 - HttpServletRequest, 作用范围是一次请求-响应周期
+    response
+        响应对象 - HttpServletResponse
+    session
+        用户会话 - HttpSession
+    application
+        应用全局对象 - ServletContext, 整个 web 应用程序的上下文环境
+    out
+        输出对象 - PrintWriter
+    page
+        当前页面对象 - this, 包含该jsp的servlet实例
+    pageContext
+        页面上下文对象 - PageContext
+            pageContext是 JSP 中一个非常重要的隐式对象，它提供了对 JSP 页面范围内的所有对象和属性的访问
+            生命周期开始于 JSP 页面请求处理的开始，结束于请求处理的完成
+    config
+        应用配置对象 - ServletConfig
+    exception
+        应用异常对象 - Throwable
+            标记 isErrorPage="true" 的页面才可以使用隐式对象 exception，这个标记告诉 JSP 容器这是一个处理异常的页面。
+            在Java程序中，可以使用try…catch关键字来处理异常情况，如果在JSP页面中出现没有捕获到的异常，就会生成exception对象
+                如果页面指定了errorPage属性, 就会转发到转发到属性指定的页面 , 此时web.xml中的配置失效
+            errorPage 和 isErrorPage两者配合使用
+
+<h3>pageContext</h3>
+虽然 pageContext 提供了广泛的功能和访问权限，但它和 request、session、application 等对象有着不同的作用和使用场景
+
+获取和设置属性, 可以用于在不同范围（页面、请求、会话、应用程序）内存储和检索属性
+<code>
+&lt;%-- 设置页面范围内的属性(这些属性并不等同于request中的属性) --%>
+pageContext.setAttribute("pageAttribute", "value");
+&lt;%-- 获取页面范围内的属性 --%>
+String value = (String) pageContext.getAttribute("pageAttribute");
+</code>
+访问其他隐式对象
+<code>
+HttpServletRequest request = (HttpServletRequest) pageContext.getRequest();
+HttpServletResponse response = (HttpServletResponse) pageContext.getResponse();
+HttpSession session = pageContext.getSession();
+ServletContext application = pageContext.getServletContext();
+</code>
+转发和包含
+<code>
+&lt;%-- 请求转发 --%>
+pageContext.forward("otherPage.jsp");
+&lt;%-- 包含其他资源 --%>
+pageContext.include("header.jsp");
+</code>
+获取页面相关信息
+<code>
+ServletConfig config = pageContext.getServletConfig();
+ServletContext context = pageContext.getServletContext();
+</code>
+错误处理
+<code>
+Exception exception = pageContext.getException();
+if (exception != null) {
+    // 处理异常
+}
+</code>
+
+<h3>exception</h3>
+err.jsp
+<code html>
+&lt;%@ page contentType=&quot;text/html;charset=utf-8&quot; isErrorPage=&quot;true&quot; %&gt;
+&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+    &lt;meta charset=&quot;UTF-8&quot;&gt;
+    &lt;title&gt;Error Page&lt;/title&gt;
+    &lt;style&gt;
+        body {
+            font-family: Arial, sans-serif;
+            margin: 50px;
+        }
+        .error-details {
+            color: red;
+        }
+    &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;h1&gt;服务器内部错误&lt;/h1&gt;
+&lt;p&gt;抱歉，服务器遇到了内部错误。请稍后再试。&lt;/p&gt;
+&lt;%
+    if (exception != null) {
+        out.println(&quot;&lt;p class=\&quot;error-details\&quot;&gt;&quot; + exception.getClass().getSimpleName() + &quot;: &quot; + exception.getMessage() + &quot;&lt;/p&gt;&quot;);
+    }
+%&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code>
+err-maker.jsp
+<code html>
+&lt;%@ page contentType=&quot;text/html;charset=utf-8&quot; errorPage=&quot;err.jsp&quot; %&gt;
+&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+    &lt;meta charset=&quot;UTF-8&quot;&gt;
+    &lt;title&gt;Generate Error&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;h1&gt;触发异常&lt;/h1&gt;
+&lt;%
+    int result = 1 / 0;
+%&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code>
+20240702200151.webp
+
+<h2>JSP动作元素</h2>
+    jsp:include：在请求处理时包含另一个资源的内容
+<code>
+&lt;jsp:include page="header.jsp" />
+</code>
+    jsp:forward：将请求转发到另一个资源
+<code>
+&lt;jsp:forward page="anotherPage.jsp" />
+</code>
+    jsp:param：用于传递参数。
+<code>
+&lt;jsp:include page="header.jsp">
+  &lt;jsp:param name="username" value="JohnDoe" />
+&lt;/jsp:include>
+</code>
+<h3>include</h3>
+页面重用
+<code html>
+&lt;!-- index.jsp --&gt;
+&lt;%@ page contentType="text/html;charset=UTF-8" language="java" %>
+&lt;hr>copyright 2024
+ 
+&lt;!-- header.jsp --&gt;
+&lt;%@ page contentType="text/html;charset=UTF-8" language="java" %>
+图片 | 视频 | 文本
+ 
+&lt;!-- footer.jsp --&gt;
+&lt;%@ page contentType="text/html;charset=UTF-8" language="java" %>
+&lt;hr>copyright 2024
+</code>
+20240825181231.webp
+
+<h3>forward, param</h3>
+<code html>
+&lt;!-- main.jsp --&gt;
+&lt;jsp:forward page=&quot;forwarded.jsp&quot;&gt;
+    &lt;jsp:param name=&quot;username&quot; value=&quot;JohnDoe&quot; /&gt;
+    &lt;jsp:param name=&quot;age&quot; value=&quot;30&quot; /&gt;
+&lt;/jsp:forward&gt;
+ 
+&lt;!-- forwarded.jsp --&gt;
+&lt;% 
+String username = request.getParameter(&quot;username&quot;);
+String age = request.getParameter(&quot;age&quot;);
+%&gt;
+&lt;p&gt;Username: &lt;%= username %&gt;&lt;/p&gt;
+&lt;p&gt;Age: &lt;%= age %&gt;&lt;/p&gt;
+</code>
+
+<h1>EL</h1>
+表达式语言（EL，Expression Language）是一种在Java EE中的JSP（JavaServer Pages）和JSF（JavaServer Faces）中内置的表达式语言。
+EL提供了一种简洁的语法来访问Java对象和操作数据，避免了在JSP页面中直接使用Java代码，从而提高了代码的可读性和可维护性
+MyBatis中使用类似EL的OGNL表达式来构建动态SQL语句
+
+在JSP页面中要显示字符串${，则必须写成${'${'}
+
+访问JavaBean属性
+    ${user.name}相当于调用user.getName()
+访问集合中的元素
+    ${map.key}相当于map.get("key")
+    ${list[0]}相当于list.get(0)
+    ${array[0]}
+访问隐式对象
+    ${session.user}, pageContext,request,application
+        ${param.c} 是直接从 HTTP 请求参数中获取名为 c 的参数值。
+        ${requestScope.param.c} 是从请求作用域中获取名为 param 的属性，然后访问这个属性中的 c 值。
+20240705130652.webp
+调用方法(EL 3.0中，支持调用方法)
+    ${user.getName}
+        当你访问对象的属性时，不需要带括号。EL 会自动调用相应的 getter 方法。
+            ${user.fullName} 实际上调用 user.getFullName()
+        当你明确要调用一个无参数的方法时，可以带上括号，以明确表达这是一个方法调用。
+            ${myBean.sayHello()} 调用 myBean.sayHello() 方法
+算术运算和逻辑运算
+    ${1 + 1}  // 结果是2
+    ${3 > 2}  // 结果是true
+    ${not empty list}  // 判断list是否为空, 返回的值是一个布尔值
+    常用运算符
+        算术运算符： +, -, *, /, %
+        比较运算符： ==, !=, &lt;, >, &lt;=, >=
+        逻辑运算符： &&（与）, ||（或）, !（非）
+        条件运算符： ? :（三元运算符）
+        其他： empty（用于判断空）
+
+内置的四种作用域对象
+    忽略书写作用域对象时,el则按照作用域从小到大依次尝试获取,没有则返回空字符串而非null
+        作用域从小到大依次为pageScope, requestScope, sessionScope, applicationScope
+    , 
+<code html>
+&lt;!-- pageScope 数据在这个作用域中只在当前JSP页面内有效，不会在页面之间共享-->
+&lt;%
+pageContext.setAttribute("pageVar", "This is a page scope variable");
+%>
+&lt;p>Page Scope Variable: ${pageScope.pageVar}&lt;/p>
+&lt;!-- requestScope 数据在这个作用域中会在整个请求过程中有效，包括请求转发的目标页面-->
+&lt;%
+request.setAttribute(&quot;requestVar&quot;, &quot;This is a request scope variable&quot;);
+%&gt;
+&lt;p&gt;Request Scope Variable: ${requestScope.requestVar}&lt;/p&gt;
+&lt;!-- sessionScope  数据在这个作用域中会在整个会话过程中有效，直到会话结束或数据被显式移除-->
+&lt;%
+session.setAttribute(&quot;sessionVar&quot;, &quot;This is a session scope variable&quot;);
+%&gt;
+&lt;p&gt;Session Scope Variable: ${sessionScope.sessionVar}&lt;/p&gt;
+&lt;!-- applicationScope 数据在这个作用域中会在整个应用程序的生命周期内有效，直到应用程序停止或数据被显式移除-->
+&lt;%
+application.setAttribute(&quot;appVar&quot;, &quot;This is an application scope variable&quot;);
+%&gt;
+&lt;p&gt;Application Scope Variable: ${applicationScope.appVar}&lt;/p&gt;
+</code>
+
+<h1>JSTL</h1>
+JavaServer Pages Standard Tag Library
+JSTL是一组标准标签库，用于简化JSP页面中的常见任务
+    依赖
+<code xml>
+&lt;dependency&gt;
+    &lt;groupId&gt;javax.servlet&lt;/groupId&gt;
+    &lt;artifactId&gt;jstl&lt;/artifactId&gt;
+    &lt;version&gt;1.2&lt;/version&gt;
+&lt;/dependency&gt;
+</code>
+    导入JSTL核心标签库
+<code>
+&lt;%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
+</code>
+    设置变量
+<code>
+&lt;c:set var="variableName" value="expression" scope="scope" />scope默认为page
+&lt;c:set var="myVar" value="Hello, World!" />
+使用EL表达式输出变量值
+${myVar}
+ 
+使用EL表达式设置变量
+&lt;c:set var="userName" value="${user.name}" />
+Hello, ${userName}!
+</code>
+    c:out 标签：用于输出表达式的值, default escapeXml 
+<code>
+&lt;c:out value="${username}" />
+</code>
+    c:if 标签：用于条件判断。
+<code>
+&lt;c:if test="${user != null}">
+  Welcome, ${user.name}!
+&lt;/c:if>
+</code>
+    c:forEach 标签：用于循环遍历集合。
+<code>
+&lt;c:forEach var="item" items="${itemList}">
+  &lt;c:out value="${item}" />
+&lt;/c:forEach>
+ 
+&lt;c:forEach var="emp" items="${employees}" varStatus="i">
+    &lt;tr>
+        &lt;td>${i.index+1}&lt;/td>
+        &lt;td>${emp.id}&lt;/td>
+        &lt;td>${emp.name}&lt;/td>
+        &lt;td>
+            &lt;c:forEach var="item" items="${emp.skills}" varStatus="status">
+                ${item}&lt;c:if test="${!status.last}">, &lt;/c:if>
+            &lt;/c:forEach>
+        &lt;/td>
+        &lt;td>${emp.department}&lt;/td>
+        &lt;td>&lt;fmt:formatNumber value="${emp.commission}" pattern="￥0,000.00"/>&lt;/td>
+    &lt;/tr>
+&lt;/c:forEach>
+
+</code>
+    c:choose when test otherwise
+<code>
+@WebServlet("/page27")
+public class JstlTest extends HttpServlet {
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        req.setAttribute("score","50");
+        req.setAttribute("star","B+");
+ 
+        List&lt;SearchEngine> list = new ArrayList&lt;>();
+        list.add(new SearchEngine("谷歌","google"));
+        list.add(new SearchEngine("鸭鸭go","duckduckgo"));
+ 
+        req.setAttribute("engines",list);
+        req.getRequestDispatcher("/desktop/jstl-test.jsp").forward(req,resp);
+    }
+}
+</code>
+<code html>
+&lt;%@ page contentType=&quot;text/html;charset=UTF-8&quot; language=&quot;java&quot; %&gt;
+&lt;%@ taglib prefix=&quot;c&quot; uri=&quot;http://java.sun.com/jsp/jstl/core&quot; %&gt;
+&lt;html&gt;
+&lt;head&gt;
+    &lt;title&gt;Title&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;c:if test=&quot;${score&gt;60}&quot;&gt;
+    &lt;h1&gt;greater then 10&lt;/h1&gt;
+&lt;/c:if&gt;
+&lt;c:if test=&quot;${score&lt;=60}&quot;&gt;
+    &lt;h1&gt;less then or equals 60&lt;/h1&gt;
+&lt;/c:if&gt;
+ 
+&lt;c:choose&gt;
+    &lt;c:when test=&quot;${star==&#39;A+&#39;}&quot;&gt;
+        &lt;h1&gt;good&lt;/h1&gt;
+    &lt;/c:when&gt;
+    &lt;c:when test=&quot;${star==&#39;B+&#39;}&quot;&gt;
+        &lt;h1&gt;ok&lt;/h1&gt;
+    &lt;/c:when&gt;
+    &lt;c:otherwise&gt;
+        &lt;h1&gt;bad&lt;/h1&gt;
+    &lt;/c:otherwise&gt;
+&lt;/c:choose&gt;
+ 
+&lt;c:forEach items=&quot;${requestScope.engines}&quot; var=&quot;item&quot; varStatus=&quot;i&quot;&gt;
+    &lt;h1&gt;${i.index+1}: ${item.name}-${item.url}&lt;/h1&gt;
+&lt;/c:forEach&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code>
+    fmt 格式化标签
+<code html>
+&lt;%@ page contentType=&quot;text/html;charset=UTF-8&quot; language=&quot;java&quot; %&gt;
+&lt;%@ taglib prefix=&quot;c&quot; uri=&quot;http://java.sun.com/jsp/jstl/core&quot; %&gt;
+&lt;%@ taglib prefix=&quot;fmt&quot; uri=&quot;http://java.sun.com/jsp/jstl/fmt&quot; %&gt;
+&lt;html&gt;
+&lt;head&gt;
+    &lt;title&gt;Title&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;%
+    request.setAttribute(&quot;now&quot;,new java.util.Date());
+    request.setAttribute(&quot;cost&quot;,&quot;123456.789&quot;);
+    request.setAttribute(&quot;uncertain&quot;,null);
+    request.setAttribute(&quot;html_code&quot;,&quot;&lt;a href=&#39;#&#39;&gt;link&lt;/a&gt;&quot;);
+%&gt;
+&lt;p&gt;
+    ${now}&lt;br&gt;
+    &lt;fmt:formatDate value=&quot;${now}&quot; pattern=&quot;yyyy/MM/dd HH:mm:ss&quot;/&gt;
+&lt;/p&gt;
+&lt;p&gt;
+    ${cost}&lt;br&gt;
+    &lt;fmt:formatNumber value=&quot;${cost}&quot; pattern=&quot;$0,000.00&quot;/&gt;
+&lt;/p&gt;
+&lt;p&gt;
+    ${uncertain}&lt;br&gt;
+    &lt;!--如果value为null,则采用default值--&gt;
+    &lt;c:out value=&quot;${uncertain}&quot; default=&quot;无&quot;/&gt;
+&lt;/p&gt;
+&lt;p&gt;
+    ${html_code}&lt;br&gt;
+    &lt;!--显示源码--&gt;
+    &lt;c:out value=&quot;${html_code}&quot; escapeXml=&quot;true&quot;/&gt;
+&lt;/p&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code>
+
+<h1>EL,JSTL,OGNL,Struts</h1>
+EL (Expression Language)
+    用于在 JSP（JavaServer Pages）页面中简化数据访问和操作的语言。它使得 JSP 页面更简洁和可读。
+特点
+    语法简洁: 使用 ${} 语法来访问和操作对象属性。
+    易于集成: 与 JSP 和 JSTL 无缝集成。
+    数据访问: 能够访问 JSP 范围（page, request, session, application）内的属性和对象。
+
+JSTL (JavaServer Pages Standard Tag Library)
+    提供了一组标准标签库，用于在 JSP 页面中执行常见任务，如条件判断、循环、国际化、XML 处理等
+特点
+    标签库: 包含核心标签库、格式化标签库、SQL 标签库、XML 标签库和函数标签库。
+    简化 JSP 开发: 通过标签简化 JSP 页面中的 Java 代码。
+    国际化支持: 提供国际化和格式化功能。
+
+OGNL (Object-Graph Navigation Language)
+    一种用于访问和操作 Java 对象图的表达式语言，广泛用于 Struts2 框架中
+特点
+    强大的表达式语言: 能够执行复杂的对象图导航和操作。
+    与 Struts2 集成: 作为 Struts2 的默认表达式语言，支持表单数据绑定和表单验证。
+    功能丰富: 支持条件判断、集合操作、方法调用等。
+
+Struts
+    Struts 是一个用于开发基于 MVC（Model-View-Controller）架构的 Java Web 应用程序的框架, 提供标签库和配置驱动的开发模式
+特点
+    MVC 架构: 清晰分离模型、视图和控制器，促进代码组织和维护。
+    配置驱动: 使用 XML 配置文件（struts-config.xml）来定义动作映射、表单 Bean 和视图。
+    丰富的标签库: 提供标签库来简化 JSP 页面中的表单处理和国际化支持
+Struts 和 Struts 2 是两个不同版本的 Java Web 应用框架，虽然它们有共同的目标，即简化基于 MVC（Model-View-Controller）架构的 Web 应用开发，但它们在架构、特性和使用方式上有显著的不同。
+
+<h1>例 表单录入与动态显示</h1>
+<code>
+@WebServlet("/page28")
+public class EmployeeServlet extends HttpServlet {
+    @SuppressWarnings("unchecked")
+    @Override
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        ServletContext context = getServletContext();
+        if (context.getAttribute("employees") == null) {
+            List&lt;Employee> list = new ArrayList&lt;>();
+            context.setAttribute("employees",list);
+        }
+ 
+        String id = req.getParameter("empno");
+        String name = req.getParameter("ename");
+        String[] skills = req.getParameterValues("skills");
+        String department = req.getParameter("dept");
+        String commission = req.getParameter("comm");
+ 
+        Employee employee = new Employee(Integer.parseInt(id),name,department,Float.parseFloat(commission));
+        employee.setSkills(skills);
+        List&lt;Employee> employees = (List&lt;Employee>) context.getAttribute("employees");
+        employees.add(employee);
+        context.setAttribute("employees",employees);
+        req.getRequestDispatcher("/desktop/employee.jsp").forward(req,resp);
+    }
+}
+</code>
+<code html>
+&lt;%@ page contentType=&quot;text/html;charset=UTF-8&quot; language=&quot;java&quot; %&gt;
+&lt;%@ taglib prefix=&quot;c&quot; uri=&quot;http://java.sun.com/jsp/jstl/core&quot; %&gt;
+&lt;%@ taglib prefix=&quot;fmt&quot; uri=&quot;http://java.sun.com/jsp/jstl/fmt&quot; %&gt;
+&lt;html&gt;
+&lt;head&gt;
+    &lt;title&gt;Title&lt;/title&gt;
+    &lt;style&gt;
+        table {
+            border-collapse: collapse;
+        }
+        table, th, td {
+            padding: 5px;
+            border: 1px solid;
+        }
+    &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;form action=&quot;/page28&quot; method=&quot;post&quot;&gt;
+    &lt;input type=&quot;text&quot; name=&quot;empno&quot; placeholder=&quot;请输入编号&quot;&gt;
+    &lt;input type=&quot;text&quot; name=&quot;ename&quot; placeholder=&quot;请输入姓名&quot;&gt;
+    &lt;input type=&quot;checkbox&quot; name=&quot;skills&quot; value=&quot;java&quot;&gt;java
+    &lt;input type=&quot;checkbox&quot; name=&quot;skills&quot; value=&quot;c&quot;&gt;c
+    &lt;input type=&quot;checkbox&quot; name=&quot;skills&quot; value=&quot;c++&quot;&gt;c++
+    &lt;select name=&quot;dept&quot;&gt;
+        &lt;option selected=&quot;selected&quot;&gt;请选择部门&lt;/option&gt;
+        &lt;option value=&quot;市场部&quot;&gt;市场部&lt;/option&gt;
+        &lt;option value=&quot;研发部&quot;&gt;研发部&lt;/option&gt;
+        &lt;option value=&quot;后勤部&quot;&gt;后勤部&lt;/option&gt;
+    &lt;/select&gt;
+    &lt;input type=&quot;text&quot; name=&quot;comm&quot; placeholder=&quot;请输入佣金&quot;&gt;
+    &lt;button type=&quot;submit&quot;&gt;保存&lt;/button&gt;
+&lt;/form&gt;
+&lt;table&gt;
+    &lt;thead&gt;
+    &lt;tr&gt;
+        &lt;th&gt;序号&lt;/th&gt;
+        &lt;th&gt;员工编号&lt;/th&gt;
+        &lt;th&gt;姓名&lt;/th&gt;
+        &lt;th&gt;技能&lt;/th&gt;
+        &lt;th&gt;部门&lt;/th&gt;
+        &lt;th&gt;佣金&lt;/th&gt;
+    &lt;/tr&gt;
+    &lt;/thead&gt;
+    &lt;tbody&gt;
+    &lt;c:forEach var=&quot;emp&quot; items=&quot;${employees}&quot; varStatus=&quot;i&quot;&gt;
+        &lt;tr&gt;
+            &lt;td&gt;${i.index+1}&lt;/td&gt;
+            &lt;td&gt;${emp.id}&lt;/td&gt;
+            &lt;td&gt;${emp.name}&lt;/td&gt;
+            &lt;td&gt;
+                &lt;c:forEach var=&quot;item&quot; items=&quot;${emp.skills}&quot; varStatus=&quot;status&quot;&gt;
+                    ${item}&lt;c:if test=&quot;${!status.last}&quot;&gt;, &lt;/c:if&gt;
+                &lt;/c:forEach&gt;
+            &lt;/td&gt;
+            &lt;td&gt;${emp.department}&lt;/td&gt;
+            &lt;td&gt;&lt;fmt:formatNumber value=&quot;${emp.commission}&quot; pattern=&quot;￥0,000.00&quot;/&gt;&lt;/td&gt;
+        &lt;/tr&gt;
+    &lt;/c:forEach&gt;
+    &lt;/tbody&gt;
+&lt;/table&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code>
+20240703115802.webp
+</pre>
+</body>
+</html>

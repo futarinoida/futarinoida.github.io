@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>异常</title>
+ </head>
+ <body>
+  <span id="anchor">20240307183503-_java</span>
+  <pre>
+当子类重写父类方法(带抛出异常)时,声明的异常必须是父类方法所声明异常其同类或子类
+多个catch块时,异常的父类放在最后一个块中防止无匹配而中断
+自定义异常,定义一个类继承throwable或它的子类
+throw 用于在代码块中手动抛出异常，可以用于自定义异常, 手抛的时候不建议抛出非检查异常,因为编译器不会提醒要求强制处理
+throws 是用于在方法中声明可能会抛出异常，用于向上层的调用者传递异常信息
+
+20240730123260.webp
+20240730123949.webp
+
+
+非检查异常（unckecked exception）：
+    Error 和 RuntimeException 以及他们的子类。
+    javac在编译时，不会提示和发现这样的异常，不要求在程序处理这些异常。所以如果愿意，我们可以编写代码处理（使用try…catch…finally）这样的异常，也可以不处理。对于这些异常，我们应该修正代码，而不是去通过异常处理器处理 。这样的异常发生的原因多半是代码写的有问题。如除0错误ArithmeticException，错误的强制类型转换错误ClassCastException，数组索引越界ArrayIndexOutOfBoundsException，使用了空对象NullPointerException等等。
+
+检查异常（checked exception）：
+    除了Error 和 RuntimeException的其它异常。
+    javac强制要求程序员为这样的异常做预备处理工作（使用try…catch…finally或者throws）。在方法中要么用try-catch语句捕获它并处理，要么用throws子句声明抛出它，否则编译不会通过。这样的异常一般是由程序的运行环境导致的。因为程序可能被运行在各种未知的环境下，而程序员无法干预用户如何使用他编写的程序，于是程序员就应该为这样的异常时刻准备着。如SQLException , IOException,ClassNotFoundException 等。
+
+<h1>异常链</h1>
+<code>
+class CustomException extends Exception {
+    public CustomException() {
+        super("异常本体");
+    }
+}
+public class Demo {
+    public static void main(String[] args) {
+        try {
+            test4();
+        } catch (Exception e) {
+            System.out.println(5);
+            printExceptionChain(e);
+        }
+    }
+    //1
+    //2
+    //临时例.异常_1.CustomException: 异常本体
+    //3
+    //java.lang.Exception: test1中的新异常
+    //4
+    //java.lang.Exception: test2中的新异常
+    //5
+    //Exception: test4中的新异常
+    //Exception: test3中的新异常
+    //Exception: test2中的新异常
+    //Exception: test1中的新异常
+    //Exception: 异常本体
+    
+    public static void test1() throws Exception {
+        System.out.println(1);
+        throw new Exception("test1中的新异常", new CustomException());
+    }
+    public static void test2() throws Exception {
+        try {
+            test1();
+        } catch (Exception e) {
+            System.out.println(2);
+            System.out.println(e.getCause());
+            throw new Exception("test2中的新异常", e);
+        }
+    }
+    public static void test3() throws Exception {
+        try {
+            test2();
+        } catch (Exception e) {
+            System.out.println(3);
+            System.out.println(e.getCause());
+            throw new Exception("test3中的新异常", e);
+        }
+    }
+    public static void test4() throws Exception {
+        try {
+            test3();
+        } catch (Exception e) {
+            System.out.println(4);
+            System.out.println(e.getCause());
+            throw new Exception("test4中的新异常", e);
+        }
+    }
+    // 打印异常链信息的方法
+    public static void printExceptionChain(Throwable throwable) {
+        while (throwable != null) {
+            System.out.println("Exception: " + throwable.getMessage());
+            throwable = throwable.getCause();
+        }
+    }
+}
+</code>
+
+<h1>try-with-resources</h1>
+处理必须关闭的资源时，优先考虑用try-with-resources，而不是用try-finally，这样得到的代码将更加简洁、清晰，产生的异常也更有价值
+try-with-resources是Java 7引入的一种语法结构，用于自动关闭实现了AutoCloseable 接口的资源
+它可以代替传统的try-catch-finally结构来处理资源的释放
+当使用try-with-resources 时，编译器会生成一个隐式的 finally 块来关闭资源
+无论是否发生异常，都会调用资源的 close() 方法进行关闭操作
+如果同时存在多个资源，它们的关闭顺序与声明的顺序相反
+在 try 后面的括号内声明的资源对象必须是 final 或 effectively final(一个非final的局部变量或方法参数，其值在初始化后就从未更改) 的（Java 9+ 不再有此限制）
+如果资源的 close() 方法抛出异常，那么原始异常将被隐藏，只会抛出 close() 方法的异常
+<code>
+try (BufferedWriter writer = new BufferedWriter(new FileWriter(fileName)); 
+      Scanner scanner = new Scanner(System.in)) {
+    if (scanner.hasNextLine())
+        writer.write(scanner.nextLine());
+} catch (IOException e) {
+    // handle the exception  
+}
+//在scanner之前关闭writer
+</code>
+
+<h1>try-catch-finally中的return</h1>
+finally总是在控制转移语句执行之前执行
+return、throw、break 和 continue 都是控制转移语句
+    其中 return 和 throw 把程序控制权转交给它们的调用者（invoker）
+    而 break 和 continue 的控制权是在当前方法内转移。
+try块中有return语句时,会将要return的值先隔离暂存,执行finally之后,再将隔离暂存值返回去,返回值是在finally执行前确定的,不受finally影响
+
+finally中最好不要包含return，否则程序会提前退出，返回值不是try或catch中保存的返回值。
+finally块和try块中都有return语句，函数会通过finally块中的return返回
+<code>
+public class FinallyReturn3 {
+    public static void main(String[] args) {
+        System.out.println(get1());//finally仍然执行 1
+        System.out.println(get2());//2
+    }
+    static int get1(){
+        int x = 1;
+        try {
+            return x;
+        }finally {
+            ++x;
+            System.out.println("finally仍然执行");
+        }
+    }
+    static int get2(){
+        try {
+            return 1;
+        }finally {
+            return 2;
+        }
+    }
+}
+</code>
+
+<h1>finally不会执行</h1>
+只有与 finally 相对应的 try 语句块得到执行的情况下，finally 语句块才会执行。
+    在 try 语句块之前返回（return）或者抛出异常，所以 try 对应的 finally 语句块不会执行。
+    在 try 语句块中执行了 System.exit () 语句，finally 语句块不会执行。
+    当一个线程在执行 try 语句块或者 catch 语句块时被打断（interrupted）或者被终止（killed），与其相对应的 finally 语句块可能不会执行
+</pre>
+ </body>
+</html>

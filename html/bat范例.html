@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>bat范例</title>
+ </head>
+ <body>
+  <span id="anchor">20240307183503-_工具使用</span>
+  <pre>
+batch对空格缩进要求不严格, 可以缩进排版增加易读性
+
+<h1>常用命令</h1>
+<code batch>
+//中止正在执行的命令, 手势右键上滑
+Ctrl+C
+//命令详细参数
+/?
+//补全
+tab
+//清屏
+cls
+//历史
+up/down
+</code>
+
+<h1>xcopy之排除</h1>
+<code null>
+//要排除的文件清单.txt, 含中文以ANSI编码
+.hg\
+css
+.bat
+.hgignore
+exclude.txt
+
+//txt含义如下:
+排除了2个文件夹：
+.hg
+css
+排除了2种类型的文件：
+.bat
+.hgignore
+排除了1个文件：
+exclude.txt
+</code>
+
+<h1>robocopy多线程复制</h1>
+<code null>
+/MAXAGE:n
+              最长的文件存在时间 - 排除早于 n 天/日期的文件。
+/XF 文件[文件]...
+              排除与给定名称/路径/通配符匹配的文件。
+/XD 目录[目录]...
+              排除与给定名称/路径匹配的目录。
+/MIR
+              镜像目录树(等同于 /E 加 /PURGE)。
+/NOCOPY
+              不复制任何文件信息(与 /PURGE 一起使用)。
+/MT[:n]
+              使用 n 个线程进行多线程复制(默认值为 8)。n 必须至少为 1，但不得大于 128。该选项与 /IPG 和 /EFSRAW 选项不兼容。使用 /LOG 选项重定向输出以便获得最佳性能。
+</code>
+将文件或文件夹复制到另一个驱动器时，通常都使用（GUI 中）标准的选择、复制和粘贴操作。虽然默认的批量文件复制和移动功能在 Windows 10 操作系统中已经历经过微软多次优化，已经能够工作得很好，但当尝试传输大批量文件（特别是大量小文件）时，还是需要很长时间，速度就成了一个瓶颈。
+robocopy最为特殊也经常被忽略的是其支持多线程的能力，允许我们同时复制多个文件，而不像在「文件管理器」中复制文件时只能一次一个（移动多个文件时也只是列队之后一个一个移动）。
+
+<h1>镜像</h1>
+<code batch>
+#&amp;@cls&amp;echo off&amp;powershell -c "type %~0|out-string|iex"&amp;pause&amp;exit
+robocopy D:\Dropbox E:\Dropbox_mirror /mir /MT:100
+</code>
+在Windows默认的复制粘贴下，如果已存在一个同名文件夹，系统会进行增量复制，而不会进行文件夹的替换操作。
+"/mir"的作用等同于"/purge /e"，"/purge"表示清理目标文件夹内有而源文件夹里没有的文件和文件夹。通过这个命令，能保证源文件夹和目标文件夹在结构与内容上完全相同。此参数对于创建镜像备份时是非常有用的。
+
+<h1>按文件的修改日期生成日期文件夹,将文件分散其中</h1>
+<code batch>
+@ECHO OFF&amp;setlocal enabledelayedexpansion
+set "SrcDir=C:\Users\ida\Desktop\test"
+cd /d "%SrcDir%"
+for /f "tokens=1-3 delims=" %%a in ('dir /a-d/b') do (
+    set "write_date=%%~ta"
+    set "write_date=!write_date:/=!"
+    set "write_date=!write_date:~0,4!!write_date:~4,4!"
+    if not exist !write_date! md "!write_date!"
+    move /y "%%a" "!write_date!"
+)
+</code>
+
+<h1>批量修改文件/文件夹的创建时间与修改时间</h1>
+<code batch>
+@ECHO OFF
+powershell.exe -command "Get-Childitem -path 'C:\Users\ida\Desktop\test' -Recurse | foreach-object { 
+$_.LastWriteTime = '02/12/2023 22:13:36'; $_.CreationTime = '02/12/2023 22:13:36' }" 
+PAUSE
+</code> 
+
+<h1>查看wifi密码</h1>
+<code batch>
+netsh wlan show profiles
+netsh wlan show profiles name="WiFi_NAME" key=clear
+</code> 
+
+<h1>按名称升序合并txt章节小说</h1>
+<code batch>
+type *.txt&gt;&gt;all.txt
+</code>
+</pre>
+ </body>
+</html>

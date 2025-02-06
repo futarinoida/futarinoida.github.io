@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>IDEA</title>
+ </head>
+ <body>
+  <span id="anchor">20240322141708-_工具使用</span>
+  <pre>
+<h1>简中乱码</h1>
+appearence 字体改支持中文的ms yahei ui
+setting, editor, file encodings
+    global encoding utf8 
+    project encoding utf8 
+    defaupt encoding for properties files utf8
+    transparent native-to-ascli conversion
+    tomcat目录下/conf/logging.properties中的日志编码改UTF-8
+
+    实现了多个监听器接口，可能在Tomcat启动过程中执行的时机不同，导致编码环境不同
+        尝试在println之前手动设置编码
+            System.setProperty("file.encoding", "UTF-8");
+        Tomcat的启动参数中包含以下设置
+            -Dfile.encoding=UTF-8 
+
+集成的powershell终端输出乱码, 就地输入
+    $OutputEncoding = [Console]::OutputEncoding = [Text.UTF8Encoding]::new()
+
+
+<h1>全局修改</h1>
+System Settings取消Reopen关闭再次打开
+    customize,all settings
+    maven的config目录下setting.xml中localRepository中指定新的本地仓库路径
+    idea构建工具maven设置中指定maven的安装目录,应用setting.xml文件地址和仓库新地址
+    修改默认工程目录apperance system settings
+    use complier eclipse 
+    build project automatically(停止状态或debug状态)
+    compile independent modules inparallel
+    share build process heap size 8192
+    Edit Custom VM Options…
+        -Xms8192m
+        -Xmx8192m
+        -XX:ReservedCodeCacheSize=2048m
+        -Dfile.encoding=UTF-8
+        -Deditable.java.test.console=true
+    标签页设双层, editor,general,editor tabs multple rows
+
+    集成终端首选bash
+        tools, terminal, shell path选择bash.exe路径例如E:\Git\bin\bash.exe, 命名为bash
+<h1>重装</h1>
+导出设置,关闭
+删除C:\Users\ida\AppData\Roaming\JetBrains
+删除\HKEY_CURRENT_USER\Software\JavaSoft
+卸载,重启,重装
+
+<h1>运行选项</h1>
+1. Update Resources
+    资源文件（如 HTML、CSS、JS 文件）直接更新到服务器, 不包括 JSP 文件，因为它们需要编译为 Servlet 类
+    不重新编译 Java 类
+2. Update Classes and Resources
+    更新或增加了Java 类jsp文件和资源文件
+3. Redeploy
+    当进行了较大改动或需要重新部署整个应用时
+4. Restart Server
+    进行了一些需要服务器重启才能生效的配置更改时使用此选项
+
+在运行模式和调试模式下，各种操作的行为基本相同，主要是更新的内容和是否导致中断。调试模式下，通常会尽量避免中断，以便继续调试工作。
+
+<h1>同时运行多个类实例</h1>
+Allow multiple instances
+
+<h1>重置</h1>
+双shift搜索Reset all settings
+
+<h1>Live Temmpates</h1>
+<h2>预设</h2> 
+<p>
+表达式.if:生成if块
+fori:
+inn:如果不为null
+iter:增强for
+itit:for list.size()
+itm:遍历map kv
+thr:throw new
+</p>
+
+<h2>自定义</h2>
+20240629043009.webp
+<code xml>
+---------------------------------------------------------------
+xml
+---------------------------------------------------------------
+cm 
+&lt;!-- $END$ --&gt;
+ 
+---------------------------------------------------------------
+java 
+---------------------------------------------------------------
+lb
+private static final Logger logger = LoggerFactory.getLogger($CLASS_NAME$.class);
+ 
+lbp
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+ 
+lj
+private static final Logger logger = LogManager.getLogger($CLASS_NAME$.class);
+ 
+ljp 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+ 
+tc
+"text/html;charset=UTF-8"
+ 
+sa 
+System.out.println(Arrays.toString(new Object[]{$END$}));
+</code>
+
+<h1>手动加包</h1>
+通常创建一个与src同级的lib,本地包放进lib,模块f4,依赖,指定jar包
+
+<h1>服务分组</h1>
+services, add Service, Run Configuration Type, SPring Boot
+
+<h1>快捷键</h1>
+ctrl + alt + N : 变量内联
+ctrl + alt + C : 引入常量, F字段, P方法形参
+ctrl + N : 搜索类
+ctrl + shift + space : 再次显示提示, 各种补全
+ctrl + p : 形参提示
+ctrl + W : 渐扩选区
+ctrl + alt + T : 包围
+ctrl + shift + del : 解包
+.if 
+键入if, 按自动补全, 输入条件, 按自动补全, 输入动作, 按自动补全
+修改历史, 可以保留一些现状,同时恢复之前的片断
+ctrl + Q : 泡窗文档
+ctrl + shift + i : 泡窗方法定义速览
+F2定位到警告, Ctrl + F1 展开警告说明
+ctrl + shift + f7 : 高亮笔刷
+ctrl + shift + f/r : 文件查替窗口, 输入apple, 会找到app的字符串, 但也包含了一些类似apple的字符串, 按alt + m将范围缩小到一个完整的单词, 可以选择替换作用域
+<h1>光标</h1>
+<p>
+    多行末尾放置光标：Alt + Shift + G：先选后按
+    多处光标：Alt + Shift + 左击：复点取消所置光标
+    多处光标：按Ctrl键两次不松开的情况下按向上下左右
+    同名处放置光标：Ctrl + Alt + Shift + J：同时擦写所有同名位置
+    同名渐选：Alt + J：Alt + Shift + J取消末次选择
+    同名词间切换：Ctrl + F3
+    词间定位：Ctrl + 左右
+    定位行号：Ctrl + G
+    定位到最近的编辑位置：Ctrl + Shift + Backspace
+    定位到前后方法名处：Alt + 上下
+    定位到所属大括号外侧首尾：Ctrl + Shift +M
+    定位到所属大括号内侧首尾：Ctrl + 中括号  复按扩区
+</p>
+<h1>行</h1>
+<p>
+    移动行：Alt + Shift + 上下
+    左右移动元素：Ctrl + Alt + Shift + 左右：比如对调比较符两边的元素,对调形参
+    规范缩进行：Ctrl + Alt + I：光标置于缩进不规范的行后按此
+    向上新行：Ctrl + Alt + Enter
+    向下新行：Shift + Enter
+    向下克隆行：Ctrl + D
+    删除行：Ctrl + Y
+</p>
+<h1>折叠</h1>
+<p>
+    移动块方法：Ctrl + Shift + 上下
+    折叠/展开：Ctrl + 减/加
+    全折叠/展开：Ctrl + Shift + 减/加
+</p>
+<h1>选取</h1>
+<p>
+    矩形选区：Alt + 框选：垂直移动等同于多处光标
+    多个矩形选区：Ctrl + Alt + Shift + 多处框选
+    选取整词：Ctrl + Shift + 左右
+    选取块内容：先Ctrl+[定位到所属大括号内侧首,然后Ctrl+Shift+[选取块内容
+    渐扩选区：Ctrl + W：渐缩Ctrl + Shift + W
+</p>
+<h1>辅助</h1>
+<p>
+    建议：Alt + Enter
+    形参提示：Ctrl + P
+    方法文档泡窗：Ctrl + Q
+    语句补全：Ctrl + Shift + Enter
+    基本补全：Ctrl +Space：输入字母列出匹配的词组
+    智能补全：Ctrl + Shift + Space：列出与预期类型一致的方法或变量
+    补全类名：Ctrl + Alt + Space
+    生成语句：Alt + Insert：比如构造,getter,toString等
+    包裹标签：Ctrl + Alt + T
+    重写：Ctrl + O
+    显示错误描述：Ctrl + F1
+    下一处错误：F2
+    当前文件的问题栏嵌：Alt + 6
+    查找用法弹窗：Ctrl + Alt + F7：Alt + F7 栏嵌
+    跳转到父类：Ctrl + U
+    跳转到声明处：Ctrl + B
+    跳转到声明类处：Ctrl + Shift + B
+</p>
+<h1>视图</h1>
+<p>
+    方法列表: Alt + 7
+    只读：右下锁
+    切窗：Ctrl + Tab：按所选
+    切窗：Alt + 左右：按标签栏顺序
+    切窗：Ctrl + Alt + 左右：按文件打开历史
+    最近文件：Ctrl + E：弹窗
+    文件结构：Ctrl + F12：弹窗
+    在新窗口打开当前文件：Shift + F4
+    窗口高度调整：Ctrl + Alt + Shift + 上下：比如调整debug栏窗高度
+    隐藏活动的工具窗口：Shift + Escape
+    隐藏所有工具窗口：Ctrl + Shift + F12
+    匿名书签：F11
+    数字标签：Ctrl + Shift + 数字
+    数字标签跳转：Ctrl + 数字
+    助词书签：Ctrl + F11
+    显示所有书签：Shift + F11
+</p>
+<h1>查替</h1>
+<p>
+    任意查找：双击Shift
+    当前文件内查找：Ctrl + F：F3 下一处  Shift + F3上一处
+    所有文件内查找：Ctrl + Shift + F
+    当前文件内替换：Ctrl + R
+    所有文件内替换：Ctrl + Shift + R
+</p>
+<h1>重构</h1>
+<p>
+    重构列表：Ctrl + Alt + Shift + T
+    修改名称：Shift + F6
+    修改签名：Ctrl + F6
+    内联：Ctrl + Alt + N
+    移动：F6
+    提取方法：Ctrl + Alt + M
+    引入域：Ctrl + Alt + F
+    引入参数：Ctrl + Alt + P
+    引入变量：Ctrl + Alt + V
+    安全删除：Alt + Delete
+</p>
+<h1>其它</h1>
+<p>
+    复制文件路径：Ctrl + Shift + C
+    复制包路径或者类名称：Ctrl + Alt + Shift + C：在项目列表中选中某中后按此
+    大小写转换：Ctrl + Shift + U：仅光标未选中字符时对整词进行转换
+    格式化代码：Ctrl + Alt + L
+    行注释：Ctrl + /：//
+    块注释：Ctrl + Shift + /：/**/
+    创建临时文件：Ctrl + Alt + Shift + Insert：可跨项目访问,不会保存到项目中,可在Scratches中新建
+    控制台停止：Ctrl + F2
+    重做：Ctrl + Shift + Z
+    从历史选择粘贴：Ctrl + Shift + V
+    基本补全：ctrl + space：与语言快捷键的冲突, win系统语言添加英语首选, 徵标 + space 切换语言
+    任意查找：双shift：与语言快捷键的冲突, win系统语言添加英语首选, 徵标 + space 切换语言
+</p>
+</pre>
+ </body>
+</html>

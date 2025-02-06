@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>JSON</title>
+</head>
+<body><span id="anchor">20240616183123-_数据交换格式</span>
+<pre>
+JSON
+JavaScript Object Notation
+JS对象简谱
+
+20240625140456.webp
+<h1>Gson</h1>
+依赖
+<code xml>
+&lt;!-- JSON 数据的序列化和反序列化 --&gt;
+&lt;dependency&gt;
+    &lt;groupId&gt;com.google.code.gson&lt;/groupId&gt;
+    &lt;artifactId&gt;gson&lt;/artifactId&gt;
+    &lt;version&gt;2.10.1&lt;/version&gt;
+&lt;/dependency&gt;
+</code>
+序列化：将对象转换为 JSON 字符串
+<code>
+Gson gson = new Gson();
+String json = gson.toJson(object);
+</code>
+反序列化：将 JSON 字符串转换为对象
+<code>
+Gson gson = new Gson();
+MyClass obj = gson.fromJson(jsonString, MyClass.class);
+</code>
+泛型支持：使用 TypeToken 来处理泛型
+<code>
+Type type = new TypeToken&lt;List<MyClass>>(){}.getType();
+List&lt;MyClass> list = gson.fromJson(jsonString, type);
+</code>
+自定义序列化/反序列化：使用 JsonSerializer 和 JsonDeserializer
+<code>
+GsonBuilder builder = new GsonBuilder();
+builder.registerTypeAdapter(MyClass.class, new MyClassSerializer());
+builder.registerTypeAdapter(MyClass.class, new MyClassDeserializer());
+Gson gson = builder.create();
+</code>
+Gson 不会序列化 transient 和 static 字段，默认不序列化 null 值
+<code>
+class Person {
+    String name;
+    String email;
+}
+ 
+Person person = new Person();
+person.name = "John";
+ 
+//使用 serializeNulls()将值为 null 的字段也包含在生成的 JSON 字符串中
+Gson gson = new GsonBuilder().serializeNulls().create();
+String json = gson.toJson(person);
+System.out.println(json); // 输出：{"name":"John","email":null}
+</code>
+<h2>命名策略</h2>
+IDENTITY: 保持原字段名不变
+UPPER_CAMEL_CASE: 使用首字母大写的驼峰命名法
+LOWER_CASE_WITH_UNDERSCORES: 使用小写并用下划线分隔单词
+LOWER_CASE_WITH_DASHES: 使用小写并用连字符分隔单词
+LOWER_CASE_WITH_DOTS: 使用小写并用点号分隔单词
+<code>
+class Person {
+    String firstName;
+    String lastName;
+}
+ 
+Person person = new Person();
+person.firstName = "John";
+person.lastName = "Doe";
+ 
+// 使用 UPPER_CAMEL_CASE 策略
+Gson gson = new GsonBuilder().setFieldNamingPolicy(FieldNamingPolicy.UPPER_CAMEL_CASE).create();
+String json = gson.toJson(person);
+System.out.println(json); // 输出：{"FirstName":"John","LastName":"Doe"}
+ 
+// 使用 LOWER_CASE_WITH_UNDERSCORES 策略
+Gson gson2 = new GsonBuilder().setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES).create();
+String json2 = gson2.toJson(person);
+System.out.println(json2); // 输出：{"first_name":"John","last_name":"Doe"}
+</code>
+<h2>日期格式</h2>
+默认情况下，Gson 使用的是 Date 类的默认格式
+<code>
+class Event {
+    Date date;
+}
+ 
+public class Main {
+    public static void main(String[] args) {
+        DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+ 
+        Gson gson = new GsonBuilder().setDateFormat("yyyy-MM-dd HH:mm:ss").create();
+ 
+        Event event = new Event();
+        event.date = new Date();
+ 
+        String json = gson.toJson(event);
+        System.out.println(json);//{"date":"2024-06-25 10:31:55"}
+ 
+        Event eventFromJson = gson.fromJson(json, Event.class);
+        System.out.println(eventFromJson.date);//Tue Jun 25 10:33:00 CST 2024
+        System.out.println(df.format(eventFromJson.date));
+    }
+}
+</code>
+<h2>注解</h2>
+<code>
+class Person {
+    //将类中的name字段映射到JSON中的full_name字段
+    @SerializedName("full_name")
+    //选择性地包括字段,如果使用GsonBuilder().excludeFieldsWithoutExposeAnnotation()，未标记的字段将被忽略
+    @Expose
+    private String name;
+ 
+    @Expose(serialize = false, deserialize = false) //serialize 和 deserialize，它们分别表示序列化和反序列化时是否应该处理该字段
+    private int age;
+    //@Since和@Until注解用于根据版本控制字段的序列化和反序列化
+    @Since(1.0)
+    private String address;
+ 
+    @Until(2.0)
+    private String phone;
+ 
+    @JsonAdapter(PersonTypeAdapter.class) //指定一个自定义的TypeAdapter来处理该字段的序列化和反序列化
+    private String customField;
+ 
+    // 构造函数，getter 和 setter 方法
+}
+ 
+Gson gson = new GsonBuilder()
+        .excludeFieldsWithoutExposeAnnotation()
+        .setVersion(1.5)
+        .create();
+</code>
+    @JsonAdapter例子
+        在这个例子中，PersonTypeAdapter 类实现了 JsonSerializer 和 JsonDeserializer 接口
+        分别定义了在序列化和反序列化时对 Date 类型的 birthday 字段执行的逻辑
+        在 serialize 方法中，将 Date 对象转换为指定格式的字符串；
+        在 deserialize 方法中，将字符串转换为 Date 对象。
+<code>
+public class Person {
+    private String name;
+    private int age;
+    @JsonAdapter(PersonTypeAdapter.class)
+    private Date birthday;
+    // 省略构造函数和其他方法
+}
+ 
+public class PersonTypeAdapter extends JsonSerializer&lt;Date> implements JsonDeserializer&lt;Date> {
+    private static final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+ 
+    @Override
+    public JsonElement serialize(Date date, Type type, JsonSerializationContext jsonSerializationContext) {
+        return new JsonPrimitive(dateFormat.format(date));
+    }
+ 
+    @Override
+    public Date deserialize(JsonElement jsonElement, Type type, JsonDeserializationContext jsonDeserializationContext) throws JsonParseException {
+        try {
+            return dateFormat.parse(jsonElement.getAsString());
+        } catch (ParseException e) {
+            throw new JsonParseException(e);
+        }
+    }
+}
+
+</code>
+
+<h2>处理循环引用</h2>
+    方式一, setExclusionStrategies, 在序列化和反序列化时排除可能引起循环引用的字段。避免了循环引用带来的无限递归, 但会丢失该字段
+<code>
+class Person {
+    String name;
+    Person friend;
+    Person(String name) {
+        this.name = name;
+    }
+}
+ 
+class FriendExclusionStrategy implements ExclusionStrategy {
+    @Override
+    public boolean shouldSkipField(FieldAttributes f) {
+        return f.getName().equals("friend");
+    }
+    @Override
+    public boolean shouldSkipClass(Class&lt;?> clazz) {
+        return false;
+    }
+}
+ 
+public class Main {
+    public static void main(String[] args) {
+        Person person1 = new Person("Alice");
+        Person person2 = new Person("Bob");
+ 
+        // 创建循环引用
+        person1.friend = person2;
+        person2.friend = person1;
+ 
+        Gson gson = new GsonBuilder()
+                .setExclusionStrategies(new FriendExclusionStrategy())
+                .serializeNulls()
+                .setPrettyPrinting()
+                .create();
+        // 序列化
+        String json = gson.toJson(person1);
+        System.out.println(json);
+        // 反序列化
+        Person deserializedPerson = gson.fromJson(json, Person.class);
+        System.out.println(deserializedPerson.name);
+        System.out.println(deserializedPerson.friend); // should be null
+    }
+}
+</code>
+    方式二, JsonSerializer 和 JsonDeserializer 自定义序列化和反序列化逻辑来处理循环引用
+<code>
+class Person {
+    String name;
+    Person friend;
+ 
+    public Person(String name) {
+        this.name = name;
+    }
+ 
+    public String getName() {
+        return name;
+    }
+ 
+    public void setName(String name) {
+        this.name = name;
+    }
+ 
+    public Person getFriend() {
+        return friend;
+    }
+ 
+    public void setFriend(Person friend) {
+        this.friend = friend;
+    }
+}
+ 
+class PersonSerializer implements JsonSerializer&lt;Person> {
+    @Override
+    public JsonElement serialize(Person person, Type typeOfSrc, JsonSerializationContext context) {
+        JsonObject jsonObject = new JsonObject();
+        jsonObject.addProperty("name", person.getName());
+ 
+        if (person.getFriend() != null) {
+            JsonObject friendObject = new JsonObject();
+            friendObject.addProperty("name", person.getFriend().getName());
+            jsonObject.add("friend", friendObject);
+        }
+        return jsonObject;
+    }
+} 
+ 
+class PersonDeserializer implements JsonDeserializer&lt;Person> {
+    @Override
+    public Person deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
+        JsonObject jsonObject = json.getAsJsonObject();
+        Person person = new Person(jsonObject.get("name").getAsString());
+ 
+        if (jsonObject.has("friend")) {
+            JsonObject friendObject = jsonObject.get("friend").getAsJsonObject();
+            Person friend = new Person(friendObject.get("name").getAsString());
+            person.setFriend(friend);
+        }
+        return person;
+    }
+}
+public class Main {
+    public static void main(String[] args) {
+        Person john = new Person("John");
+        Person jane = new Person("Jane");
+        john.setFriend(jane);
+        jane.setFriend(john); // Circular reference
+ 
+        Gson gson = new GsonBuilder()
+                .registerTypeAdapter(Person.class, new PersonSerializer())
+                .registerTypeAdapter(Person.class, new PersonDeserializer())
+                .create();
+ 
+        String json = gson.toJson(john);
+        System.out.println(json);
+ 
+        Person deserializedJohn = gson.fromJson(json, Person.class);
+        System.out.println(deserializedJohn.getName());
+        System.out.println(deserializedJohn.getFriend().getName());
+    }
+}
+/*
+{"name":"John","friend":{"name":"Jane"}}
+John
+Jane
+*/
+</code>
+<h2>例1</h2>
+<code>
+class User {
+    String name;
+    int age;
+ 
+    User(String name, int age) {
+        this.name = name;
+        this.age = age;
+    }
+}
+ 
+public class Main {
+    public static void main(String[] args) {
+        User user = new User("Alice", 30);
+        Gson gson = new Gson();
+        String json = gson.toJson(user);
+        System.out.println(json);//{"name":"Alice","age":30}
+ 
+        User _user = gson.fromJson(json, User.class);
+        System.out.println("Name: " + _user.name);
+        System.out.println("Age: " + _user.age);
+    }
+}
+</code>
+<h2>例2</h2>
+<code>
+class Animal {
+    private String className;
+    //getter,setter
+}
+class Cat extends Animal {
+    private int age;
+    public Cat(int age) {
+        this.age = age;
+    }
+    //getter,setter,toString
+}
+class Dog extends Animal {
+    private String color;
+    public Dog(String color) {
+        this.color = color;
+    }
+    //getter,setter,toString
+}
+</code>
+<code>
+class AnimalDeserializer implements JsonDeserializer&lt;Animal> {
+    @Override
+    public Animal deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
+        JsonObject jsonObject = json.getAsJsonObject();
+        String className = jsonObject.get("className").getAsString();
+        switch (className) {
+            case "Cat":
+                return context.deserialize(jsonObject, Cat.class);
+            case "Dog":
+                return context.deserialize(jsonObject, Dog.class);
+            default:
+                throw new JsonParseException("Unknown element type: " + className);
+        }
+    }
+}
+</code>
+<code>
+public class Main {
+    private static Map&lt;String, List&lt;? extends Animal>> createAnimalMap() {
+        List&lt;Animal> cats = new ArrayList&lt;>();
+        Cat c1 = new Cat(3);
+        Cat c2 = new Cat(5);
+        c1.setClassName("Cat");//设置类型字段用于区分
+        c2.setClassName("Cat");
+        cats.add(c1);
+        cats.add(c2);
+ 
+        List&lt;Animal> dogs = new ArrayList&lt;>();
+        Dog d1 = new Dog("yellow");
+        Dog d2 = new Dog("gray");
+        d1.setClassName("Dog");
+        d2.setClassName("Dog");
+        dogs.add(d1);
+        dogs.add(d2);
+ 
+        Map&lt;String, List&lt;? extends Animal>> animalMap = new HashMap&lt;>();
+        animalMap.put("cats", cats);
+        animalMap.put("dogs", dogs);
+ 
+        return animalMap;
+    }
+ 
+    public static void main(String[] args) {
+        Map&lt;String, List&lt;? extends Animal>> animalMap = createAnimalMap();
+ 
+        Gson gson = new GsonBuilder()
+                //AnimalDeserializer 将根据 className 字段正确地将 JSON 反序列化为 Cat 或 Dog 对象。
+                .registerTypeAdapter(Animal.class, new AnimalDeserializer())
+                .setPrettyPrinting()
+                .create();
+ 
+        String json = gson.toJson(animalMap);
+        System.out.println(json);
+ 
+        TypeToken&lt;Map&lt;String, List&lt;Animal>>> typeToken = new TypeToken&lt;Map&lt;String, List&lt;Animal>>>() {};
+        Type mapType = typeToken.getType();
+ 
+        Map&lt;String, List&lt;Animal>> map = gson.fromJson(json, mapType);
+
+        List&lt;Animal> cats = map.get("cats");
+        for (Animal cat : cats) {
+            if (cat instanceof Cat) {
+                System.out.println(cat);
+            }
+        }
+ 
+        List&lt;Animal> dogs = map.get("dogs");
+        for (Animal dog : dogs) {
+            if (dog instanceof Dog) {
+                System.out.println(dog);
+            }
+        }
+    }
+}
+</code>
+
+<h1>Jackson</h1>
+Spring Framework 默认使用 Jackson 作为 JSON 数据的序列化和反序列化工具
+<code xml>
+&lt;dependency&gt;
+    &lt;groupId&gt;com.fasterxml.jackson.core&lt;/groupId&gt;
+    &lt;artifactId&gt;jackson-databind&lt;/artifactId&gt;
+    &lt;version&gt;2.13.4.1&lt;/version&gt;
+&lt;/dependency&gt;
+&lt;dependency&gt;
+    &lt;groupId&gt;com.fasterxml.jackson.core&lt;/groupId&gt;
+    &lt;artifactId&gt;jackson-core&lt;/artifactId&gt;
+    &lt;version&gt;2.13.3&lt;/version&gt;
+&lt;/dependency&gt;
+&lt;dependency&gt;
+    &lt;groupId&gt;com.fasterxml.jackson.core&lt;/groupId&gt;
+    &lt;artifactId&gt;jackson-annotations&lt;/artifactId&gt;
+    &lt;version&gt;2.13.3&lt;/version&gt;
+&lt;/dependency&gt;
+</code>
+<code>
+//注解在类上
+// NON_NULL表示在序列化时忽略值为 null 的字段
+// NON_EMPTY在序列化时忽略空集合、空数组、空 Map 等字段
+// NON_DEFAULT,假设默认情况下，age 字段的默认值为 0，active 字段的默认值为 false。如果现在创建一个 Person 对象并将 age 设置为 0，active 设置为 false，则在序列化时，这两个字段将被忽略，因为它们的值与默认值相同
+//@JsonInclude(JsonInclude.Include.NON_NULL)
+class Person {
+    @JsonProperty("full_name")
+    private String name;
+ 
+    //JsonFormat.Shape.STRING：将日期格式化为字符串
+    //JsonFormat.Shape.NUMBER将日期格式化为时间戳（毫秒数）
+    //JsonFormat.Shape.ARRAY格式为 [year, month, day, hour, minute, second, millisecond]
+    //JsonFormat.Shape.OBJECT对象的格式为 {year: 2022, month: 6, dayOfMonth: 25, hourOfDay: 15, minuteOfHour: 30, secondOfMinute: 0, nanoOfSecond: 0}
+    //JsonFormat.Shape.BOOLEAN：将日期格式化为布尔值。该格式通常用于表示日期是否存在，而不是实际的日期值
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd", timezone ="GMT+8")
+    private Date birthday;
+ 
+    private transient String x;
+ 
+    @JsonIgnore //忽略字段
+    private String y="y";
+ 
+    private String z;//null值也会序列化
+ 
+    //可以在类级别和字段级别都使用 @JsonInclude(JsonInclude.Include.NON_NULL) 注解，它们的效果会叠加。
+    //换句话说，如果类级别和字段级别都指定了 @JsonInclude(JsonInclude.Include.NON_NULL)，那么字段为 null 时仍会包含在输出的 JSON 中
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private int w;
+ 
+    @JsonSerialize(using = CustomDateSerializer.class)
+    @JsonDeserialize(using = CustomDateDeserializer.class)
+    private Date birthday2;
+ 
+    //必须提供无参和getset
+    public Person() {
+        // 无参构造函数
+    }
+ 
+    public Person(String name, Date birthday) {
+        this.name = name;
+        this.birthday = birthday;
+    }
+ 
+    public static class CustomDateSerializer extends JsonSerializer&lt;Date> {
+        @Override
+        public void serialize(Date value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
+            gen.writeString(new SimpleDateFormat("yyyy-MM-dd'T'").format(value));
+        }
+    }
+ 
+    public static class CustomDateDeserializer extends JsonDeserializer&lt;Date> {
+        @Override
+        public Date deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
+            try {
+                return new SimpleDateFormat("yyyy-MM-dd'T'").parse(p.getText());
+            } catch (ParseException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+}
+ 
+public class Demo {
+    public static void main(String[] args) {
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            Person person = new Person("Alice", new Date());
+            person.setBirthday2(new Date());
+            String jsonString = objectMapper.writeValueAsString(person);
+            System.out.println(jsonString);
+ 
+            Person _person = objectMapper.readValue(jsonString, Person.class);
+            System.out.println(_person.getName());
+            System.out.println(_person.getBirthday());
+            System.out.println(_person.getBirthday2());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+ 
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+ 
+            List&lt;Person> people = new ArrayList&lt;>();
+            people.add(new Person("Alice", new Date()));
+            people.add(new Person("Bob", new Date()));
+            String jsonString = objectMapper.writeValueAsString(people);
+            System.out.println(jsonString);
+ 
+            List&lt;Person> people2 = objectMapper.readValue(jsonString, objectMapper.getTypeFactory().constructCollectionType(List.class, Person.class));
+            System.out.println(people2.size());
+            for (Person p : people2) {
+                System.out.println(p.getName() + ": " + p.getBirthday());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+</code>
+
+<h1>Fastjson</h1>
+依赖 
+<code xml>
+&lt;dependency&gt;
+    &lt;groupId&gt;com.alibaba&lt;/groupId&gt;
+    &lt;artifactId&gt;fastjson&lt;/artifactId&gt;
+    &lt;version&gt;1.2.78&lt;/version&gt;
+&lt;/dependency&gt;
+</code>
+<code>
+class Person {
+    //Fastjson 需要一个无参构造函数来创建对象，然后再通过反射设置字段值, 没写时报错
+    public Person() {}
+
+    @JSONField(name = "full_name")
+    private String name;
+    @JSONField(format = "yyyy-MM-dd")
+    private Date birthday;
+    @JSONField(serialize = false)
+    private String x;
+
+    public Person(String name, Date birthday) {
+        this.name = name;
+        this.birthday = birthday;
+    }
+    //gs
+}
+public class Demo {
+    public static void main(String[] args) {
+        Person person = new Person("Alice", new Date());
+        String jsonString = JSON.toJSONString(person);
+        System.out.println(jsonString);
+ 
+        Person person2 = JSON.parseObject(jsonString, Person.class);
+        System.out.println(person2.getBirthday());
+ 
+        // 序列化和反序列化列表
+        List&lt;Person> people = new ArrayList&lt;>();
+        people.add(new Person("Alice", new Date()));
+        people.add(new Person("Bob", new Date()));
+        String jsonString2 = JSON.toJSONString(people);
+        System.out.println(jsonString2);
+ 
+        List&lt;Person> people2 = JSON.parseArray(jsonString2, Person.class);
+        System.out.println(people2.size());
+        for (Person p : people2) {
+            System.out.println(p.getName() + ": " + p.getBirthday());
+        }
+    }
+}
+</code>
+自定义序列化和反序列化逻辑 SerializeFilter 和 ObjectDeserializer 接口来自定义序列化和反序列化过程中的逻辑
+
+对于复杂类型，比如原子类例如AtomicLong属性，fastjson会按照基本类型解析，而不是对象
+</pre>
+</body>
+</html>

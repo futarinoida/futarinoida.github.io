@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>abstract</title>
+</head>
+<body><span id="anchor">20240616183123-_java</span>
+<pre>
+抽象类不能被实例化
+抽象类可以没有抽象方法
+抽象类可以包含构造方法,但不能被声明为抽象,在子类中通过super调用
+
+抽象方法不包含方法体
+包含抽象方法的类一定是抽象类
+
+抽象类实现接口,接口中的方法在抽象类中可以不实现
+继承抽象类的非抽象类,需要将抽象类中的抽象方法和接口中的方法全部实现,否则子类也应设为抽象类
+
+调用抽象类中的静态方法,抽象类名.方法
+调用抽象类中的非静态方法,需要一个继承该抽象类的非抽象类实例来调用该方法
+
+static与abstract：
+    abstract关键字用于定义抽象类和抽象方法。抽象方法是没有实现的方法，必须在子类中实现。
+    static关键字用于定义类级别的变量和方法。static方法是属于类本身的方法，而不是某个具体对象的方法。
+    由于abstract方法需要在子类中实现，而static方法不能被子类重写，因此abstract和static是相互冲突的，不能同时使用。
+final与abstract：
+    final关键字用于定义不可更改的类、方法和变量。final方法不能被子类重写。
+    abstract方法需要在子类中实现，因此abstract方法不能是final的，因为这会阻止子类提供实现。
+private与abstract：
+    private关键字用于定义私有成员，私有成员只能在它们所属的类中访问。
+    abstract方法必须由子类实现，因此abstract方法不能是private的，因为这会阻止子类访问和实现该方法。
+</pre>
+</body>
+</html>

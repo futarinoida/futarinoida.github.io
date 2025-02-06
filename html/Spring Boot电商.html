@@ -1,0 +1,1599 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>Spring Boot电商</title>
+</head>
+<body><span id="anchor">20240508101739-_项目例</span>
+<pre>
+<h1>表</h1>
+20240809174836.webp
+<code sql>
+`create_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+`update_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
+</code>
+
+<h1>pom</h1>
+<code xml>
+&lt;properties>
+    &lt;java.version>1.8&lt;/java.version>
+    &lt;project.build.sourceEncoding>UTF-8&lt;/project.build.sourceEncoding>
+    &lt;project.reporting.outputEncoding>UTF-8&lt;/project.reporting.outputEncoding>
+    &lt;spring-boot.version>2.3.12.RELEASE&lt;/spring-boot.version>
+&lt;/properties>
+ 
+&lt;dependencyManagement>
+    &lt;dependencies>
+        &lt;dependency>
+            &lt;groupId>org.springframework.boot&lt;/groupId>
+            &lt;artifactId>spring-boot-dependencies&lt;/artifactId>
+            &lt;version>${spring-boot.version}&lt;/version>
+            &lt;type>pom&lt;/type>
+            &lt;scope>import&lt;/scope>
+        &lt;/dependency>
+    &lt;/dependencies>
+&lt;/dependencyManagement>
+ 
+&lt;dependencies>
+    &lt;!-- boot web, 排除logback改用log4j2 -->
+    &lt;dependency>
+        &lt;groupId>org.springframework.boot&lt;/groupId>
+        &lt;artifactId>spring-boot-starter-web&lt;/artifactId>
+        &lt;exclusions>
+            &lt;exclusion>
+                &lt;groupId>org.springframework.boot&lt;/groupId>
+                &lt;artifactId>spring-boot-starter-logging&lt;/artifactId>
+            &lt;/exclusion>
+        &lt;/exclusions>
+    &lt;/dependency>
+    &lt;dependency>
+        &lt;groupId>org.springframework.boot&lt;/groupId>
+        &lt;artifactId>spring-boot-starter-log4j2&lt;/artifactId>
+    &lt;/dependency>
+    &lt;!-- aop 自动配置模块 -->
+    &lt;dependency>
+        &lt;groupId>org.springframework.boot&lt;/groupId>
+        &lt;artifactId>spring-boot-starter-aop&lt;/artifactId>
+    &lt;/dependency>
+    &lt;!-- SpringBoot2.3.0以后版本没有引入javax.validation，需要手动引入 -->
+    &lt;dependency>
+        &lt;groupId>org.springframework.boot&lt;/groupId>
+        &lt;artifactId>spring-boot-starter-validation&lt;/artifactId>
+    &lt;/dependency>
+    &lt;!-- boot test, 支持JUnit 5，但也兼容JUnit 4 -->
+    &lt;dependency>
+        &lt;groupId>org.springframework.boot&lt;/groupId>
+        &lt;artifactId>spring-boot-starter-test&lt;/artifactId>
+        &lt;scope>test&lt;/scope>
+        &lt;exclusions>&lt;!-- 排除junit-vintage-engine有助于确保所有测试都使用JUnit 5，避免混淆 -->
+            &lt;exclusion>
+                &lt;groupId>org.junit.vintage&lt;/groupId>
+                &lt;artifactId>junit-vintage-engine&lt;/artifactId>&lt;!-- junit-vintage-engine 是JUnit 5的一个组件，用于运行基于JUnit 4的测试 -->
+            &lt;/exclusion>
+        &lt;/exclusions>
+    &lt;/dependency>
+    &lt;!-- mysql驱动, mybatis, pagehelper -->
+    &lt;dependency>
+        &lt;groupId>mysql&lt;/groupId>
+        &lt;artifactId>mysql-connector-java&lt;/artifactId>
+    &lt;/dependency>
+    &lt;dependency>
+        &lt;groupId>org.mybatis.spring.boot&lt;/groupId>
+        &lt;artifactId>mybatis-spring-boot-starter&lt;/artifactId>
+        &lt;version>1.3.2&lt;/version>
+    &lt;/dependency>
+    &lt;dependency>
+        &lt;groupId>com.github.pagehelper&lt;/groupId>
+        &lt;artifactId>pagehelper-spring-boot-starter&lt;/artifactId>
+        &lt;version>1.2.13&lt;/version>
+    &lt;/dependency>
+    &lt;!-- boot cache, redis -->
+    &lt;dependency>
+        &lt;groupId>org.springframework.boot&lt;/groupId>
+        &lt;artifactId>spring-boot-starter-cache&lt;/artifactId>
+    &lt;/dependency>
+    &lt;dependency>
+        &lt;groupId>org.springframework.boot&lt;/groupId>
+        &lt;artifactId>spring-boot-starter-data-redis&lt;/artifactId>
+    &lt;/dependency>
+    &lt;!-- swagger2 -->
+    &lt;dependency>
+        &lt;groupId>io.springfox&lt;/groupId>
+        &lt;artifactId>springfox-swagger2&lt;/artifactId>
+        &lt;version>2.9.2&lt;/version>
+    &lt;/dependency>
+    &lt;dependency>
+        &lt;groupId>io.springfox&lt;/groupId>
+        &lt;artifactId>springfox-swagger-ui&lt;/artifactId>
+        &lt;version>2.9.2&lt;/version>
+    &lt;/dependency>
+    &lt;!-- 二维码 -->
+    &lt;dependency>
+        &lt;groupId>com.google.zxing&lt;/groupId>
+        &lt;artifactId>javase&lt;/artifactId>
+        &lt;version>3.3.0&lt;/version>
+    &lt;/dependency>
+&lt;/dependencies>
+ 
+&lt;build>
+    &lt;plugins>
+        &lt;!-- boot的maven插件 -->
+        &lt;plugin>
+            &lt;groupId>org.springframework.boot&lt;/groupId>
+            &lt;artifactId>spring-boot-maven-plugin&lt;/artifactId>
+        &lt;/plugin>
+        &lt;!-- mybatis代码生成插件 -->
+        &lt;plugin>
+            &lt;groupId>org.mybatis.generator&lt;/groupId>
+            &lt;artifactId>mybatis-generator-maven-plugin&lt;/artifactId>
+            &lt;version>1.3.7&lt;/version>
+            &lt;configuration>
+                &lt;verbose>true&lt;/verbose>
+                &lt;overwrite>false&lt;/overwrite>
+            &lt;/configuration>
+        &lt;/plugin>
+    &lt;/plugins>
+&lt;/build>
+</code>
+
+<h1>用户模块</h1>
+<h2>统一返回对象</h2>
+<code>
+public class RestResponse&lt;T&gt; {
+    private Integer status;
+    private String msg;
+    private T data;
+    //getter,setter
+ 
+    private static final int OK_CODE = 10000;
+    private static final String OK_MSG = "SUCCESS";
+    
+    //不同的私有构造
+    private RestResponse(Integer status, String msg, T data) {
+        this.status = status;
+        this.msg = msg;
+        this.data = data;
+    }
+    private RestResponse(Integer status, String msg) {
+        this.status = status;
+        this.msg = msg;
+    }
+    private RestResponse() {
+        this(OK_CODE, OK_MSG);
+    }
+    //成功不带data
+    public static &lt;T> RestResponse&lt;T> success() {
+        return new RestResponse&lt;>();
+    }
+    //成功并带有data
+    public static &lt;T> RestResponse&lt;T> success(T result) {
+        RestResponse&lt;T> restResponse = new RestResponse&lt;>();
+        restResponse.setData(result);
+        return restResponse;
+    }
+    //失败时自定义消息
+    public static &lt;T> RestResponse&lt;T> error(Integer code, String msg) {
+        return new RestResponse&lt;>(code, msg);
+    }
+    //失败时填充异常枚举
+    public static &lt;T> RestResponse&lt;T> error(MallExceptionEnum exceptionEnum) {
+        return new RestResponse&lt;>(exceptionEnum.getCode(), exceptionEnum.getMsg());
+    }
+}
+</code>
+<code>
+public enum MallExceptionEnum {
+    NOT_NULL(10001,"内容不能为空");
+ 
+    Integer code;
+    String msg;
+    //getter,setter
+ 
+    MallExceptionEnum(Integer code, String msg) {
+        this.code = code;
+        this.msg = msg;
+    }
+}
+</code>
+<code>
+public class MallException extends RuntimeException {
+    private final Integer code;
+    private final String msg;
+    //getter
+ 
+    public MallException(Integer code, String msg) {
+        this.code = code;
+        this.msg = msg;
+    }
+ 
+    public MallException(MallExceptionEnum exceptionEnum) {
+        this(exceptionEnum.getCode(), exceptionEnum.getMsg());
+    }
+}
+</code>
+
+<h2>统一异常处理</h2>
+@ResponseBodyAdvice 是一种允许在响应体返回之前对其进行修改的机制, 可以用于全局异常处理、全局数据绑定和全局数据预处理。
+@ResponseBodyAdvice是 @ControllerAdvice 和 @ResponseBody 的组合，自动将结果转化为 JSON 格式响应。
+定义一个方法，并用 @ExceptionHandler 注解标注它，以处理控制器中抛出的特定异常
+<code>
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+    private final Logger logger = LogManager.getLogger(GlobalExceptionHandler.class);
+ 
+    @ExceptionHandler(Exception.class)
+    public Object handleDefaultException(Exception e) {
+        logger.error("Default Exception: ", e);
+        return RestResponse.error(MallExceptionEnum.SYSTEM_ERROR);
+    }
+ 
+    @ExceptionHandler(MallException.class)
+    public Object handleMallException(MallException e) {
+        //记录异常的堆栈跟踪信息，并且同时输出异常的自定义消息
+        //"MallException: {}" 是日志消息模板。e.getMsg() 会替换 {}。e 会附加在日志消息的末尾，作为异常对象，日志框架会处理它，并记录堆栈跟踪信息。
+        logger.error("MallException: {}", e.getMsg(), e);
+        return RestResponse.error(e.getCode(),e.getMsg());
+    }
+ 
+    //处理参数检验注解 @Valid @Size @NotNull..
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public Object handleValidException(MethodArgumentNotValidException e) {
+        BindingResult bindingResult = e.getBindingResult();
+        List&lt;String> list = new ArrayList&lt;>();
+        if (bindingResult.hasErrors()) {
+            bindingResult.getAllErrors().forEach(o -> list.add(o.getDefaultMessage()));
+        }
+        if (list.isEmpty()) {
+            return RestResponse.error(MallExceptionEnum.PARAM_VALID_ERROR);
+        }
+        logger.error("MethodArgumentNotValidException: {}", list.toString(), e);
+        return RestResponse.error(MallExceptionEnum.PARAM_VALID_ERROR.getCode(), list.toString());
+    }
+}
+</code>
+
+<h1>商品分类模块</h1>
+多个请求参数用一个实体承载, 防止构造出其它字段(如createTime)并通过*Selective执行非null修改
+
+<h2>swagger接口文档</h2>
+</code>
+<h3>配置类</h3>
+<code>
+@Configuration
+@EnableSwagger2
+public class SwaggerConfig {
+  
+    @Bean
+    public Docket group1() {
+        return new Docket(DocumentationType.SWAGGER_2)
+                .groupName("组1")
+                .apiInfo(apiInfo1())
+                .host("localhost:9014") // 测试执行接口时使用的IP或域名
+                .select()
+                //.apis(RequestHandlerSelectors.any())
+                .apis(RequestHandlerSelectors.basePackage("com.ida.boot_mall.controller")) //只扫描特定包
+                //.paths(PathSelectors.ant("/excluded/**").negate()) // 排除路径
+                .paths(PathSelectors.any())
+                .build()
+                //忽略指定类
+                .ignoredParameterTypes(HttpSession.class, HttpServletRequest.class, HttpServletResponse.class);
+    }
+ 
+    @Bean
+    public Docket group2() {
+        return new Docket(DocumentationType.SWAGGER_2)
+                .groupName("组2")
+                .apiInfo(apiInfo2())
+                .host("http://xx.com")
+                .select()
+                .apis(RequestHandlerSelectors.any())
+                .paths(PathSelectors.any())
+                .build();
+    }
+ 
+    private ApiInfo apiInfo1() {
+        return new ApiInfoBuilder()
+                //..
+                .title("API Documentation - 简化版")
+                .build();
+    }
+ 
+    private ApiInfo apiInfo2() {
+        Contact contact = new Contact("阿虫", "http://xx.om", "email@example.com");
+        return new ApiInfoBuilder()
+                .title("API Documentation - 完整版")
+                .description("API documentation for my application")
+                .version("1.0.0")
+                .termsOfServiceUrl("https://example.com/terms")
+                .contact(contact)
+                .build();
+    }
+}
+</code>
+<h3>注解使用</h3>
+控制器中
+    @ApiOperation("方法注释")
+    @ApiIgnore 忽略, 可以作用在类,方法,参数上
+模型中
+    @ApiModelProperty(hidden = true) 字段上,排除该属性
+
+<h3>页面</h3>
+http://localhost:9014/swagger-ui.html
+
+<h2>统一校验管理员身份</h2>
+<h3>原来的校验步骤</h3>
+<code>
+@RestController
+public class CategoryController {
+    //..
+    @PostMapping("/admin/category/add")
+    @ApiOperation("添加目录")
+    public RestResponse addCategory(@Valid @RequestBody AddCategoryReq addCategoryReq) {
+        userService.checkPermission();
+        categoryService.add(addCategoryReq);
+        return RestResponse.success();
+    }
+}
+ 
+@Service("userService")
+public class UserServiceImpl implements UserService {
+    //..
+    @Override
+    public void checkPermission() {
+        ServletRequestAttributes requestAttributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        HttpServletRequest request = requestAttributes.getRequest();
+        HttpSession session = request.getSession();
+        User user = (User) session.getAttribute(Constant.LOGIN_USER);
+        if (user == null) {
+            throw new MallException((MallExceptionEnum.NEED_LOGIN));
+        }
+        if (!checkAdminRole(user)) {
+            throw new MallException((MallExceptionEnum.NEED_ADMIN));
+        }
+    }
+}
+</code>
+
+<h3>使用过滤器 vs 使用切面</h3>
+过滤器适用于与框架无关的通用权限检查, 易于实现，并且能够在非常早期的阶段拦截请求
+过滤器通常用于全局拦截，在请求最早阶段执行，无法直接访问控制器方法或其注解上的信息, 难以实现基于方法级别的精细化权限控制
+    @ControllerAdvice 发生在控制器逻辑之后, 因此在过滤器中无法利用通过@ControllerAdvice实现的异常处理逻辑
+Spring Boot 默认不扫描和注册使用 @WebFilter 注解的过滤器。而是在配置类中通过 FilterRegistrationBean 注册 Filter
+
+切面可以精确地应用到特定的方法上，适合进行方法级别的权限校验, 能够访问方法的元数据和返回值。
+可以使权限逻辑与业务逻辑完全分离
+实现切面相对复杂，尤其是对项目中所有权限校验点的统一管理和配置
+切面可能会增加方法调用的开销，特别是在应用大量切面时
+
+如果权限校验是全局性的，例如对所有 API 统一的认证或简单的角色检查，那么使用过滤器更为合适。它可以在请求链的早期就拦截无权限的请求，减少后续的处理开销。
+如果权限校验需要基于具体的方法或注解，例如只有某些用户可以访问特定的 API，并且你希望把权限校验逻辑与业务逻辑完全解耦，切面则是更好的选择。
+
+在 Spring Boot 项目中，你也可以结合使用这两者：过滤器进行全局的认证检查，而切面用于更精细化的权限控制。
+
+<h4>过滤器类</h4>
+<code>
+@Component //组件标记
+public class AdminFilter implements Filter {
+    @Resource
+    private UserService userService;
+ 
+    @Override
+    public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws ServletException, IOException {
+        HttpServletRequest request = (HttpServletRequest) servletRequest;
+        HttpSession session = request.getSession();
+        User user = (User) session.getAttribute(Constant.LOGIN_USER);
+        if (user == null) {
+            HttpServletResponse response = (HttpServletResponse) servletResponse;
+            response.setContentType("application/json;charset=utf-8");
+            try(PrintWriter out = response.getWriter()){
+                out.write("{\n" +
+                        "  \"data\": null,\n" +
+                        "  \"msg\": \"NEED_LOGIN\",\n" +
+                        "  \"status\": 10006\n" +
+                        "}");
+                out.flush();
+            }
+            return; //中断
+        }
+        if (!userService.checkAdminRole(user)) {
+            HttpServletResponse response = (HttpServletResponse) servletResponse;
+            response.setContentType("application/json;charset=utf-8");
+            try(PrintWriter out = response.getWriter()){
+                out.write("{\n" +
+                        "  \"data\": null,\n" +
+                        "  \"msg\": \"NEED_ADMIN\",\n" +
+                        "  \"status\": 10008\n" +
+                        "}");
+                out.flush();
+            }
+            return; //中断
+        }
+ 
+        filterChain.doFilter(servletRequest, servletResponse); //放行
+    }
+}
+</code>
+<h4>配置类</h4>
+<code>
+@Configuration
+public class AdminFilterConfig {
+ 
+    //当 Spring 解析 adminFilterRegistration 方法时，它会尝试在容器中找到一个 AdminFilter 类型的 Bean，并将这个 Bean 注入到方法参数 adminFilter 中。
+    //这是通过类型匹配来完成的，而不是通过名称
+    @Bean
+    public FilterRegistrationBean&lt;AdminFilter> adminFilterRegistration(AdminFilter adminFilter) {
+        FilterRegistrationBean&lt;AdminFilter> registrationBean = new FilterRegistrationBean&lt;>();
+        registrationBean.setFilter(adminFilter);
+        registrationBean.addUrlPatterns("/admin/category/*");
+        registrationBean.addUrlPatterns("/admin/product/*");
+        registrationBean.addUrlPatterns("/admin/order/*");
+        return registrationBean;
+    }
+}
+</code>
+
+<h2>VO, DTO</h2>
+DTO（Data Transfer Object）在不同层之间传输数据的对象
+    无业务逻辑: DTO 通常只包含数据字段和简单的 getter/setter 方法，不包含业务逻辑。
+    序列化: DTO 通常用于序列化和反序列化，尤其是在跨网络传输数据时（例如，通过 REST API 或 RPC 调用）。
+    设计目标: 简化数据传输，减少数据冗余，提高性能，适合在应用的不同层（如 Web 层和服务层）之间传输数据。
+
+VO（Value Object）不变的业务实体的对象, 用于封装一组相关的值，作为业务逻辑的一部分
+    不变性: VO 对象通常是不可变的，一旦创建后，内部状态不应该被修改。
+    业务逻辑: VO 可以包含一些业务逻辑或计算方法，用于操作和处理其封装的值。
+    设计目标: 表示业务模型中的概念，提供丰富的语义和行为。
+
+<h2>pagehelper</h2>
+PageHelper 是一个用于 MyBatis 的分页插件，提供了对 MyBatis 的分页支持
+
+<code json>
+{
+    "total": 19,
+    "list": [
+        {
+            "id": 9,
+            "name": "冷饮冻食",
+            "type": 1,
+            "parentId": 0,
+            "orderNum": 4,
+            "createTime": "2019-12-20 13:45:28",
+            "updateTime": "2019-12-28 16:25:22"
+        },
+        {
+            "id": 10,
+            "name": "蔬菜蛋品",
+            "type": 1,
+            "parentId": 0,
+            "orderNum": 5,
+            "createTime": "2019-12-20 13:45:28",
+            "updateTime": "2019-12-28 16:25:23"
+        },
+        {
+            "id": 27,
+            "name": "美味菌菇",
+            "type": 1,
+            "parentId": 0,
+            "orderNum": 7,
+            "createTime": "2019-12-20 13:45:28",
+            "updateTime": "2020-02-10 23:20:36"
+        }
+    ],
+    "pageNum": 2,
+    "pageSize": 3,
+    "size": 3,
+    "startRow": 4,
+    "endRow": 6,
+    "pages": 7,
+    "prePage": 1,
+    "nextPage": 3,
+    "isFirstPage": false,
+    "isLastPage": false,
+    "hasPreviousPage": true,
+    "hasNextPage": true,
+    "navigatePages": 8,
+    "navigatepageNums": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+    ],
+    "navigateFirstPage": 1,
+    "navigateLastPage": 7
+}
+</code>
+navigatePages 意味着分页导航将显示当前页码前后各 8 个页码（如果有那么多页码的话）
+<h3>依赖</h3>
+<code xml>
+&lt;dependency&gt;
+    &lt;groupId&gt;com.github.pagehelper&lt;/groupId&gt;
+    &lt;artifactId&gt;pagehelper-spring-boot-starter&lt;/artifactId&gt;
+    &lt;version&gt;1.2.13&lt;/version&gt;
+&lt;/dependency&gt;
+</code>
+<code>
+public PageInfo listForAdmin(Integer pageNum, Integer pageSize) {
+    //PageHelper.startPage 是通过拦截器机制实现的，它会在接下来的查询方法执行时自动修改生成的 SQL 语句，添加适当的分页参数
+    //因此，必须在执行查询方法之前调用 PageHelper.startPage
+    //如果一个方法中需要处理两个分页结果集，每个结果集都对应一个 PageInfo 对象，那么您可以分别调用 PageHelper.startPage 两次，每次设置不同的分页参数并执行相应的查询
+    PageHelper.startPage(pageNum,pageSize,"type,order_num");
+    List&lt;Category&gt; list = categoryMapper.selectList();
+    PageInfo pageInfo = new PageInfo(list);
+    return pageInfo;
+}
+</code>
+
+<h2>递归构建分类的树形结构</h2>
+<code>
+@Override
+public List&lt;CategoryVO&gt; list() {
+    List&lt;CategoryVO&gt; categoryVOList = new ArrayList&lt;&gt;();
+    recursiveCategory(categoryVOList, 0); //0是根分类的父id
+    return categoryVOList;
+}
+ 
+private void recursiveCategory(List&lt;CategoryVO&gt; categoryVOList, Integer parentId) {
+    List&lt;Category&gt; categories = categoryMapper.selectListByParentId(parentId);
+    if (categories != null) {
+        for (Category category : categories) {
+            CategoryVO categoryVO = new CategoryVO();
+            BeanUtils.copyProperties(category, categoryVO);
+            categoryVO.setChildCategory(new ArrayList&lt;&gt;()); //初始化子列表
+            //递归调用时传递当前category的子列表和当前category的id
+            recursiveCategory(categoryVO.getChildCategory(), categoryVO.getId());
+            categoryVOList.add(categoryVO);
+        }
+    }
+}
+</code>
+
+<h2>利用redis缓存目录树</h2>
+Spring 的缓存机制是基于代理的。被缓存的方法是通过 Spring 容器管理的 Bean 调用的，而不是直接在类内部调用
+    这意味着，当在同一个类中调用被 @Cacheable 注解修饰的方法时，缓存是不起作用的。这是因为 Spring 无法通过代理拦截内部方法调用
+Jedis：用于直接与 Redis 进行低级别交互，适合需要完全控制 Redis 操作的场景。
+RedisTemplate：Spring 提供的高级别模板类，简化 Redis 操作，适合频繁与 Redis 交互的 Spring 应用。
+@EnableCaching：启用声明性缓存管理，适合需要缓存方法结果以提高性能的应用。
+<h3>依赖</h3>
+<code xml>
+&lt;dependency&gt;
+    &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+    &lt;artifactId&gt;spring-boot-starter-data-redis&lt;/artifactId&gt;
+&lt;/dependency&gt;
+&lt;dependency&gt;
+    &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+    &lt;artifactId&gt;spring-boot-starter-cache&lt;/artifactId&gt;
+&lt;/dependency&gt;
+</code>
+<h3>redis连接信息</h3>
+<code properties>
+spring.redis.host=192.168.149.130
+spring.redis.port=6380
+spring.redis.password=12345
+spring.redis.database=1
+</code>
+<h3>配置类</h3>
+<code>
+@Configuration
+@EnableCaching
+public class CacheConfig {
+    @Bean
+    public RedisCacheManager redisCacheManager(RedisConnectionFactory connectionFactory) {
+ 
+        /*
+        RedisCacheWriter redisCacheWriter = RedisCacheWriter.lockingRedisCacheWriter(connectionFactory);
+        RedisCacheConfiguration cacheConfiguration = RedisCacheConfiguration.defaultCacheConfig();
+        cacheConfiguration = cacheConfiguration.entryTtl(Duration.ofSeconds(30));
+        RedisCacheManager redisCacheManager = new RedisCacheManager(redisCacheWriter,cacheConfiguration);
+        return redisCacheManager;
+         */
+ 
+        // 创建 RedisCacheWriter
+        // 使用 nonLockingRedisCacheWriter 代替 lockingRedisCacheWriter 可以提高性能，减少在并发访问时可能的锁竞争。
+        // lockingRedisCacheWriter 适用于需要分布式锁的场景，但通常情况下，非锁定版本已经足够。
+        RedisCacheWriter redisCacheWriter = RedisCacheWriter.nonLockingRedisCacheWriter(connectionFactory);
+ 
+        // 创建默认缓存配置
+        RedisCacheConfiguration cacheConfiguration = RedisCacheConfiguration.defaultCacheConfig()
+                .entryTtl(Duration.ofSeconds(30)) // 设置缓存过期时间
+                // 未设置键值序列化方式时,需要使VO类继承Serialize
+                // 为了使缓存键和值的序列化方式更加明确和标准化，使用 StringRedisSerializer 作为键的序列化器，GenericJackson2JsonRedisSerializer 作为值的序列化器。
+                .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer())) // 设置 Key 的序列化方式
+                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(new GenericJackson2JsonRedisSerializer())); // 设置 Value 的序列化方式
+ 
+        // 创建 RedisCacheManager
+        return new RedisCacheManager(redisCacheWriter, cacheConfiguration);
+    }
+}
+</code>
+
+<h3>使用</h3>
+在配置类或启动类上加@EnableCaching注解(只出现一次就行了)
+    启用 Spring 框架的声明性缓存管理功能。它允许开发者使用缓存注解（如 @Cacheable、@CachePut 和 @CacheEvict）来管理方法的缓存逻辑
+<code>
+@Override
+@Cacheable(value = "listCategoryForCustomer") //注意不要误导了swagger的springfox包中同名注解
+public List&lt;CategoryVO> list() {
+    List&lt;CategoryVO> categoryVOList = new ArrayList&lt;>();
+    recursiveCategory(categoryVOList, 0); //0是根分类的父id
+    return categoryVOList;
+}
+</code>
+
+<h3>确认</h3>
+在方法内部打断点, 方法返回值被缓存后, 下次不会进入方法内部
+
+服务器验证
+    Spring Cache 默认使用的是 SimpleKey 类型的缓存键，这种键一般用于没有指定具体键值的缓存方法。实际的List缓存值通常是序列化的字符串
+<code xml>
+./src/redis-cli -p 6380 -a 12345 --raw
+select 1
+keys *
+get "listCategoryForCustomer::SimpleKey []" 
+</code>
+
+<h3>进阶使用</h3>
+@Cacheable 注解的方法。在这个方法中，如果缓存中存在相应的数据，它将直接从缓存中获取，而不是重新执行方法逻辑
+@CachePut: 用于更新缓存中的数据，每次调用方法后，缓存中的对应条目都会被更新为方法的返回值。
+@CacheEvict: 用于删除缓存中的数据，可以选择性删除单个条目或清空整个缓存
+
+@Cacheable
+    value / cacheNames 缓存的名称（或缓存空间）。这用于区分不同的缓存区域
+    key: 缓存键的 SpEL 表达式。默认使用方法参数的值作为键。如果不指定，则使用默认键生成器生成键。
+    condition: 这是一个 SpEL (Spring Expression Language) 表达式，用于决定是否执行缓存操作。如果 condition 表达式的结果为 true，缓存操作将会执行
+    unless: unless: 这是一个 SpEL 表达式，用于决定是否将结果存入缓存。如果 unless 表达式的结果为 true，缓存操作将会被跳过（即结果不会被缓存）
+        result(方法执行后的返回值) 只能在 unless 属性中使用，用于决定是否将结果存入缓存
+    ..
+# 符号: 在 SpEL 表达式中，# 用于引用方法的参数、类属性、或者其他上下文变量。例如，#isbn 表示方法参数 isbn 的值。
+无 # 符号: 如果不使用 #，SpEL 表达式将被视为一个字符串字面量。例如，key = "isbn" 将字面量字符串 "isbn" 作为缓存键，而不是实际的 isbn 参数值
+<code>
+@Cacheable(
+    value = "books",
+    key = "#isbn",
+    condition = "#isbn.length() > 5",
+    unless = "#result == null"
+)
+public Book findBook(String isbn) {
+    // 方法体
+}
+</code>
+
+假设你已经有一个 updateBook 方法用 @CachePut 更新缓存，我们可以使用 @Cacheable 注解的 findBook 方法来获取缓存中的内容
+@Cacheable 和 @CachePut 使用相同的 value 和 key，updateBook 方法会更新缓存中的相应条目，findBook 方法会从缓存中获取最新的数据。这确保了缓存的有效性和一致性。
+<code>
+@Service
+public class BookService {
+ 
+    @Cacheable(
+        value = "books", 
+        key = "#isbn"
+    )
+    public Book findBook(String isbn) {
+        // 如果缓存中没有这个书籍信息，这里的逻辑会被执行
+        // 例如从数据库中查询书籍信息
+        return bookRepository.findByIsbn(isbn);
+    }
+ 
+    @CachePut(
+        value = "books",
+        key = "#isbn"
+    )
+    public Book updateBook(String isbn, Book book) {
+        // 更新书籍信息到数据库
+        // 返回更新后的书籍对象
+        book.setName("Updated Name");
+        return book;
+    }
+}
+</code>
+
+<h1>商品模块</h1>
+/admin/product/add 
+name, categoryId, price stock detail image
+body-json
+
+/admin/product/upload 上传图片
+body form-data 
+
+/admin/product/update  
+id, name, categoryId, price stock detail image
+body-json
+
+/admin/product/delete 
+id
+
+/admin/product/batchUpdateSellStatus
+ids sellStatus 
+
+/admin/product/list 
+pageNum pageSize 
+
+/product/list 
+orderBy categoryId keyword pageNum pageSize 
+
+/product/detail
+id
+
+<h2>文件上传和资源映射</h2>
+<h3>上传目录地址</h3>
+<code>
+@Component
+public class Constant {
+    public static final String SALT = "fsjir4jf&(*HIU$#jh34345";
+    public static final String LOGIN_USER = "login_user";
+ 
+    public static String FILE_UPLOAD_DIR; //静态成员通过setter注入
+ 
+    //属性文件中 file.upload.dir=D:\\mess
+    @Value("${file.upload.dir}") //别忘了@Component标记
+    public void setFileUploadDir(String fileUploadDir) {
+        FILE_UPLOAD_DIR = fileUploadDir;
+    }
+}
+</code>
+<h3>上传图片返回url</h3>
+<code>
+@Override
+public String upload(MultipartFile file, HttpServletRequest request){
+    String suffix = file.getOriginalFilename().substring(file.getOriginalFilename().lastIndexOf("."));
+    String fileName = UUID.randomUUID() + suffix;
+ 
+    //在生产环境中，通常将文件存储在应用的工作目录或专门的文件存储目录, 使用绝对路径或环境变量指定的目录，例如 /var/uploads/images/
+    File uploadDir = new File(Constant.FILE_UPLOAD_DIR);
+    File destFile = new File(uploadDir + File.separator + fileName);
+ 
+    if (!uploadDir.exists()) {
+        if (!(uploadDir.mkdirs())) {
+            throw new MallException(MallExceptionEnum.MKDIRS_FAILED);
+        }
+    }
+    try {
+        file.transferTo(destFile);
+    } catch (IOException e) {
+        e.printStackTrace();
+    }
+ 
+    // getRequestURL() http://example.com:8080/app/context/path?query=param
+    // getRequestURI() /app/context/path?query=param
+    // baseUrl http://example.com:8080
+    String baseUrl = request.getRequestURL().toString().replace(request.getRequestURI(), "");
+    return baseUrl + "/images/" + fileName;
+}
+</code>
+<h3>资源地址映射配置类</h3>
+<code>
+// http://localhost:9014/images/1f569050-6e2f-417a-8c89-68ad422cdc25.jpg
+// D:\mess\1f569050-6e2f-417a-8c89-68ad422cdc25.jpg
+ 
+@Configuration
+public class MallWebMvcConfig implements WebMvcConfigurer {
+    @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {  //资源地址映射
+        registry.addResourceHandler("/images/**").addResourceLocations("file:" + Constant.FILE_UPLOAD_DIR + File.separator);
+    }
+}
+</code>
+
+<h2>批量上下架</h2>
+参见mybatis批处理
+<code>
+// http://localhost:9014/admin/product/batchUpdateSellStatus?ids=2,3,14&status=1
+// URL 查询字符串, Spring MVC 将 ids=2,3,14 解析为一个字符串，并自动将逗号分隔的部分转换为 Integer[] 数组
+// 表单提交, ids=2&ids=3&ids=14 表示多个参数名相同，Spring MVC 会将所有这些参数值收集到一个数组中
+@PostMapping("/product/batchUpdateSellStatus")
+public RestResponse batchUpdateSellStatus(Integer[] ids, Integer status) {//..}
+ 
+int batchUpdateStatusByIds(@Param("ids") Integer[] ids, @Param("status") Integer status);
+</code>
+<code xml>
+&lt;!--
+    在 MyBatis 中，如果没有显式地指定 parameterType 属性
+        如果方法只有一个参数，MyBatis 会使用该参数的类型作为 parameterType
+        如果方法有多个参数，MyBatis 会将所有参数封装到一个 Map 中
+            如果没有使用 @Param 注解，MyBatis 会将方法参数封装到一个 Map 中，参数名称默认为 param1, param2, 等
+--&gt;
+&lt;update id=&quot;batchUpdateStatusByIds&quot; parameterType=&quot;Map&quot;&gt;
+  update mall.mall_product set status=#{status}
+  where id in
+  &lt;foreach collection=&quot;ids&quot; item=&quot;id&quot; open=&quot;(&quot; close=&quot;)&quot; separator=&quot;,&quot;&gt;
+    #{id}
+  &lt;/foreach&gt;
+&lt;/update&gt;
+</code>
+
+<h2>前台商品列表</h2>
+<h3>model</h3>
+<code>
+public class ProductListReq {
+    private String keyword;
+    private Integer categoryId;
+    private String orderBy;
+    private Integer pageNum=1;
+    private Integer pageSize=10;
+    //getter,setter
+}
+ 
+public class ProductListQuery {
+    private String keyword;
+    private List&lt;Integer> categoryIds; //子分类id
+}
+</code>
+<h3>列表方法</h3>
+<code>
+@Override
+public PageInfo list(ProductListReq productListReq) {
+    ProductListQuery productListQuery = new ProductListQuery();
+ 
+    //搜索处理
+    // str == null || "".equals(str);
+    if (!StringUtils.isEmpty(productListReq.getKeyword())) {
+        productListQuery.setKeyword("%" + productListReq.getKeyword() + "%");
+    }
+ 
+    //分类处理
+    if (productListReq.getCategoryId() != null) {
+        List&lt;Integer> categoryIds = new ArrayList&lt;>();
+        categoryIds.add(productListReq.getCategoryId());
+        categoryService.recursiveCategoryIds(categoryIds, productListReq.getCategoryId());
+        productListQuery.setCategoryIds(categoryIds);
+    }
+ 
+    //排序处理, 由后台定义前台选择,防止意外构造
+    if (productListReq.getOrderBy() !=null && Constant.OrderBy.PRICE_ASC_DESC.contains(productListReq.getOrderBy().toLowerCase())) {
+        PageHelper.startPage(
+                productListReq.getPageNum() == null ? 1 : productListReq.getPageNum(),
+                productListReq.getPageSize() == null ? 10 : productListReq.getPageSize(),
+                productListReq.getOrderBy());
+    } else {
+        PageHelper.startPage(
+                productListReq.getPageNum() == null ? 1 : productListReq.getPageNum(),
+                productListReq.getPageSize() == null ? 10 : productListReq.getPageSize());
+    }
+ 
+    List&lt;Product> productList = productMapper.listForCustomer(productListQuery);
+    PageInfo pageInfo = new PageInfo(productList);
+    return pageInfo;
+}
+</code>
+<h3>递归子目录id</h3>
+<code>
+@Override
+public void recursiveCategoryIds(List&lt;Integer> categoryIds, Integer parentId) {
+    List&lt;Category> categories = categoryMapper.selectListByParentId(parentId);
+    if (categories != null) {
+        for (Category category : categories) {
+            recursiveCategoryIds(categoryIds, category.getId());
+            categoryIds.add(category.getId());
+        }
+    }
+}
+</code>
+<h3>后台预定义排序属性</h3>
+<code>
+@Component
+public class Constant {
+    public static final String SALT = "fsjir4jf&(*HIU$#jh34345";
+    public static final String LOGIN_USER = "login_user";
+ 
+    public static String FILE_UPLOAD_DIR;
+ 
+    @Value("${file.upload.dir}")
+    public void setFileUploadDir(String fileUploadDir) {
+        FILE_UPLOAD_DIR = fileUploadDir;
+    }
+  
+    //接口中的变量会被隐式的指定为 public static final
+    public interface OrderBy{
+        Set&lt;String> PRICE_ASC_DESC = Stream.of("price desc", "price asc").collect(Collectors.toSet());
+    }
+}
+</code>
+
+<h3>动态SQL</h3>
+<code>
+List&lt;Product> listForCustomer(ProductListQuery productListQuery);
+</code>
+<code xml>
+&lt;select id=&quot;listForCustomer&quot; parameterType=&quot;com.ida.boot_mall.model.query.ProductListQuery&quot; resultType=&quot;com.ida.boot_mall.model.pojo.Product&quot;&gt;
+  select * from mall.mall_product
+  &lt;where&gt;
+      &lt;if test=&quot;keyword != null&quot;&gt;
+        and name like #{keyword}
+      &lt;/if&gt;
+      &lt;if test=&quot;categoryIds != null&quot;&gt;
+        and category_id in
+        &lt;foreach collection=&quot;categoryIds&quot; item=&quot;item&quot; open=&quot;(&quot; close=&quot;)&quot; separator=&quot;,&quot;&gt;
+          #{item}
+        &lt;/foreach&gt;
+      &lt;/if&gt;
+      and status = 1
+  &lt;/where&gt;
+&lt;/select&gt;
+</code>
+
+<h1>购物车模块</h1>
+/cart/list
+
+/cart/add 
+productId count 
+post
+添加商品到购物车, 是否在售是否有库存是否存在于购物车
+
+
+/cart/update 
+productId count
+post 
+
+/cart/delete 
+productId 
+post 
+
+/cart/select 
+productId selected 
+post
+
+/cart/selectAll 
+selected
+
+
+<h2>过滤器和拦截器</h2>
+过滤器：更低层次的处理，适用于对所有请求和响应进行处理，不依赖于 Spring MVC。
+    过滤器是 Java Servlet API 的一部分，用于在请求到达 Servlet 或 JSP 之前，对请求进行处理，或在响应返回客户端之前对响应进行处理
+    适用于对所有请求和响应进行统一的处理，比如日志记录、输入验证、字符编码设置等。
+拦截器：更高层次的处理，专注于 Spring MVC 的请求处理链，适用于与业务逻辑相关的处理
+    拦截器是 Spring Framework 的一部分，用于在处理请求之前和之后进行处理。通常用于 Spring MVC 的请求处理链中
+    适用于与业务逻辑相关的处理，比如权限验证、用户登录检查、日志记录等。
+<h2>统一校验用户操作权限</h2>
+<h3>过滤器类</h3>
+<code>
+@Component //需要组件标记, 配置类中此Filter会作为参数注入
+public class UserFilter implements Filter {
+ 
+    @Override
+    public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws ServletException, IOException {
+        HttpServletRequest request = (HttpServletRequest) servletRequest;
+        HttpSession session = request.getSession();
+        User user = (User) session.getAttribute(Constant.LOGIN_USER);
+        if (user == null) {
+            HttpServletResponse response = (HttpServletResponse) servletResponse;
+            response.setContentType("application/json;charset=utf-8");
+            try(PrintWriter out = response.getWriter()){
+                out.write("{\n" +
+                        "  \"data\": null,\n" +
+                        "  \"msg\": \"NEED_LOGIN\",\n" +
+                        "  \"status\": 10006\n" +
+                        "}");
+                out.flush();
+            }
+            return;
+        }
+        filterChain.doFilter(servletRequest, servletResponse);
+    }
+}
+</code>
+<h3>过滤器配置类</h3>
+<code>
+@Configuration
+public class UserFilterConfig {
+ 
+    @Bean
+    public FilterRegistrationBean&lt;UserFilter> userFilterRegistration(UserFilter userFilter) {
+        FilterRegistrationBean&lt;UserFilter> registrationBean = new FilterRegistrationBean&lt;>();
+        registrationBean.setFilter(userFilter);
+        registrationBean.addUrlPatterns("/cart/*");
+        registrationBean.addUrlPatterns("/order/*");
+        return registrationBean;
+    }
+}
+</code>
+<h3>拦截器类</h3>
+<code>
+public class UserInterceptor implements HandlerInterceptor {
+    @Override
+    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
+        HttpSession session = request.getSession();
+        User user = (User) session.getAttribute(Constant.LOGIN_USER);
+        RequestContextHolder.getRequestAttributes().setAttribute("loginUser", user, RequestAttributes.SCOPE_REQUEST);
+        return true;
+    }
+}
+</code>
+<h3>拦截器配置类</h3>
+<code>
+@Configuration
+public class MallWebMvcConfig implements WebMvcConfigurer {
+    @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) { //资源地址映射
+        registry.addResourceHandler("/images/**").addResourceLocations("file:" + Constant.FILE_UPLOAD_DIR + File.separator);
+    }
+ 
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) { //拦截器注册
+        registry.addInterceptor(new UserInterceptor()).addPathPatterns("/cart/**", "/order/**");// /**：匹配任意数量的路径层级, /*：匹配当前目录下的一个路径层级
+    }
+}
+</code>
+<h3>参数注入</h3>
+<code>
+@PostMapping("/add")
+public RestResponse add(Integer productId, Integer count, @RequestAttribute("loginUser") User user) {
+    List&lt;CartVO> cartVOList = cartService.add(productId, count, user.getId());
+    return RestResponse.success(cartVOList);
+}
+</code>
+
+<h2>购物车列表</h2>
+<h3>model类</h3>
+<code>
+public class CartVO {
+    private Integer id;
+    private Integer productId;
+    private Integer userId;
+    private Integer quantity;
+    private Integer selected;
+    //快照, 防止加入购物车后的商品信息变动
+    private Integer price;
+    private Integer totalPrice;
+    private String productName;
+    private String productImage;
+    //getter,setter
+}
+</code>
+<h3>常量</h3>
+<code>
+@Component
+public class Constant {
+    //..
+    public interface SaleStatus{
+        int NOT_SALE = 0;
+    }
+}
+</code>
+<h3>controller</h3>
+<code>
+@PostMapping("/list")
+public RestResponse list(@RequestAttribute("loginUser") User user) {
+    List&lt;CartVO> cartVOList = cartService.list(user.getId()); //userId由后台提供,而不是来自前台
+    return RestResponse.success(cartVOList);
+}
+ 
+@PostMapping("/add")
+public RestResponse add(Integer productId, Integer count, @RequestAttribute("loginUser") User user) {
+    List&lt;CartVO> cartVOList = cartService.add(productId, count, user.getId());
+    return RestResponse.success(cartVOList);
+}
+</code>
+<h3>service</h3>
+<code>
+@Override
+public List&lt;CartVO> list(Integer userId) {
+    return cartMapper.selectList(userId);
+}
+ 
+@Override
+@Transactional
+//此处返回list因为每次添加商品后购物车列表要刷新
+public List&lt;CartVO> add(Integer productId, Integer count, Integer userId) {
+    Product product = productMapper.selectByPrimaryKey(productId);
+    //此处使用常量名表示状态方便后期维护修改时的精准搜索
+    if (product == null || product.getStatus() == Constant.SaleStatus.NOT_SALE) {
+        throw new MallException(MallExceptionEnum.PRODUCT_NOT_SALE);
+    }
+    if (product.getStock() &lt; count) {
+        throw new MallException(MallExceptionEnum.STOCK_NOT_ENOUGH);
+    }
+ 
+    Cart cart = cartMapper.selectByUserIdAndProductId(userId, productId);
+    if (cart == null) {
+        cart = new Cart();
+        cart.setProductId(productId);
+        cart.setUserId(userId);
+        cart.setQuantity(count);
+        int cnt = cartMapper.insertSelective(cart);
+        if (cnt != 1) {
+            throw new MallException(MallExceptionEnum.INSERT_FAILED);
+        }
+    } else {
+        Cart newCart = new Cart();
+        newCart.setId(cart.getId());
+        newCart.setQuantity(cart.getQuantity() + count);
+        int cnt = cartMapper.updateByPrimaryKeySelective(newCart);
+        if (cnt != 1) {
+            throw new MallException(MallExceptionEnum.UPDATE_FAILED);
+        }
+    }
+    return list(userId);
+}
+</code>
+<h3>sql</h3>
+<code>
+List&lt;CartVO> selectList(Integer userId);
+</code>
+<code xml>
+&lt;resultMap id=&quot;rmCartVO&quot; type=&quot;com.ida.boot_mall.model.vo.CartVO&quot;&gt;
+  &lt;id column=&quot;id&quot; property=&quot;id&quot;/&gt;
+  &lt;result column=&quot;product_id&quot; property=&quot;productId&quot;/&gt;
+  &lt;result column=&quot;user_id&quot; property=&quot;userId&quot;/&gt;
+  &lt;result column=&quot;quantity&quot; property=&quot;quantity&quot;/&gt;
+  &lt;result column=&quot;selected&quot; property=&quot;selected&quot;/&gt;
+  &lt;result column=&quot;price&quot; property=&quot;price&quot;/&gt;
+  &lt;result column=&quot;total_price&quot; property=&quot;totalPrice&quot;/&gt;
+  &lt;result column=&quot;name&quot; property=&quot;productName&quot;/&gt;
+  &lt;result column=&quot;image&quot; property=&quot;productImage&quot;/&gt;
+&lt;/resultMap&gt;
+&lt;select id=&quot;_selectList&quot; parameterType=&quot;Integer&quot; resultMap=&quot;rmCartVO&quot;&gt;
+  select
+      c.id,
+      c.product_id,
+      c.user_id,
+      c.quantity,
+      c.selected,
+      p.price,
+      p.price*c.quantity total_price,
+      p.name,p.image
+  from mall.mall_cart c left join mall.mall_product p on c.product_id=p.id
+  where c.user_id=#{value} and p.status =1
+&lt;/select&gt;
+ 
+&lt;select id=&quot;selectList&quot; parameterType=&quot;Integer&quot; resultType=&quot;com.ida.boot_mall.model.vo.CartVO&quot;&gt;
+  select
+      c.id,
+      c.product_id productId,
+      c.user_id userId,
+      c.quantity,
+      c.selected ,
+      p.price,
+      p.price*c.quantity totalPrice,
+      p.name productName,
+      p.image productImage
+  from mall.mall_cart c left join mall.mall_product p on c.product_id=p.id
+  where c.user_id=#{value} and p.status =1
+&lt;/select&gt;
+</code>
+
+<h1>订单模块</h1>
+/order/create
+receiverName receiverMobile receiverAddr
+post
+返回orderNo
+
+/order/detail
+get
+orderNo
+
+/order/list 
+get
+pageNum pageSize 
+
+/order/cancel 
+post
+orderNo 
+
+/order/qrcode
+post
+orderNo
+
+/pay 
+get
+orderNo
+
+/admin/order/list 
+get 
+pageNum pageSize
+
+/admin/order/delivered
+post 
+orderNo
+
+/order/finish
+post
+orderNo
+
+20240809181345.webp
+
+<h2>生成订单</h2>
+<code>
+@Override
+@Transactional
+//高并发访问时可以使用乐观锁,在中添加版本字段,在更新时检查版本号
+public String create(CreateOrderReq createOrderReq, Integer userId) {
+    //从购物车中查找已勾选商品,为空报错
+    List&lt;CartVO> cartVOList = cartService.list(userId);
+    List&lt;CartVO> checkedCartVOList = cartVOList.stream()
+            .filter(o -> o.getSelected().equals(Constant.Selected.CHECKED))
+            .collect(Collectors.toList());
+    if (checkedCartVOList.isEmpty()) {
+        throw new MallException(MallExceptionEnum.CART_IS_EMPTY);
+    }
+ 
+    //在循环中进行数据库操作可能会导致性能问题。改在循环外集中批量处理
+    List&lt;Product> products = productMapper.selectByIds(
+            checkedCartVOList.stream()
+                    .map(CartVO::getProductId)
+                    .collect(Collectors.toList())
+    );
+    Map&lt;Integer, Product> productMap = products.stream()
+            .collect(Collectors.toMap(Product::getId, product -> product));
+ 
+    //循环外收集数据库操作目标
+    List&lt;Integer> cartsToDelete = new ArrayList&lt;>();
+ 
+    //购物车对象转order_item
+    List&lt;OrderItem> orderItemList = new ArrayList&lt;>();
+    checkedCartVOList.forEach(o -> {
+        //判断商品存在,上下架状态,库存
+        //Product product = productMapper.selectByPrimaryKey(o.getProductId());
+        Product rawProduct = productMap.get(o.getProductId());
+        if (rawProduct == null) {
+            throw new MallException(MallExceptionEnum.PRODUCT_NOT_EXISTED);
+        } else if (rawProduct.getStatus().equals(Constant.SaleStatus.NOT_SALE)) {
+            throw new MallException(MallExceptionEnum.PRODUCT_NOT_SALE);
+        } else if (rawProduct.getStock() &lt; o.getQuantity()) {
+            throw new MallException(MallExceptionEnum.STOCK_NOT_ENOUGH);
+        }
+        OrderItem orderItem = new OrderItem();
+        orderItem.setProductId(o.getProductId());
+        orderItem.setProductName(o.getProductName());
+        orderItem.setProductImg(o.getProductImage());
+        orderItem.setUnitPrice(o.getPrice());
+        orderItem.setQuantity(o.getQuantity());
+        orderItem.setTotalPrice(o.getTotalPrice());
+        orderItemList.add(orderItem);
+ 
+        //扣库存
+        Product product = new Product();
+        product.setId(o.getProductId());
+        product.setStock(o.getQuantity());
+        //MyBatis 不支持批量 UPDATE 语句的原生支持，需要对每个 update 语句进行单独处理
+        if (productMapper.updateByPrimaryKeySelective(product) != 1) {
+            throw new MallException(MallExceptionEnum.UPDATE_FAILED);
+        }
+ 
+        //删除购物车中对应商品
+        //cartService.delete(o.getProductId(),userId);
+        cartsToDelete.add(o.getProductId());
+    });
+ 
+    //批量删除购物车商品
+    int deleteCnt = cartMapper.deleteByByUserIdAndProductIds(userId, cartsToDelete);
+    if (deleteCnt != cartsToDelete.size()) {
+        throw new MallException(MallExceptionEnum.DELETE_FAILED);
+    }
+ 
+    //生成订单
+    Order order = new Order();
+    String orderNo = OrderCodeFactory.getOrderCode(Long.valueOf(userId));
+    order.setOrderNo(orderNo);
+    order.setUserId(userId);
+    //int totalPrice = orderItemList.stream().mapToInt(o -> o.getTotalPrice()).reduce(0,(o1,o2) -> o1+o2);
+    int totalPrice = orderItemList.stream().mapToInt(OrderItem::getTotalPrice).sum();
+    order.setTotalPrice(totalPrice);
+    order.setReceiverName(createOrderReq.getReceiverName());
+    order.setReceiverMobile(createOrderReq.getReceiverMobile());
+    order.setReceiverAddress(createOrderReq.getReceiverAddress());
+    if (orderMapper.insertSelective(order) != 1) {
+        throw new MallException(MallExceptionEnum.INSERT_FAILED);
+    }
+ 
+    //插入订单Item
+    orderItemList.forEach(o -> o.setOrderNo(orderNo));
+    if (orderItemMapper.batchInsertSelective(orderItemList) != orderItemList.size()) {
+        throw new MallException(MallExceptionEnum.INSERT_FAILED);
+    }
+ 
+    return orderNo;
+}
+</code>
+<code xml>
+&lt;!-- List&lt;Product&gt; selectByIds(@Param(&quot;ids&quot;) List&lt;Integer&gt; ids); --&gt;
+&lt;select id=&quot;selectByIds&quot; parameterType=&quot;List&quot; resultType=&quot;com.ida.boot_mall.model.pojo.Product&quot;&gt;
+  select * from mall.mall_product
+  where id in
+  &lt;foreach collection=&quot;ids&quot; item=&quot;id&quot; open=&quot;(&quot; close=&quot;)&quot; separator=&quot;,&quot;&gt;
+    #{id}
+  &lt;/foreach&gt;
+&lt;/select&gt;
+ 
+&lt;!-- int deleteByByUserIdAndProductIds(@Param(&quot;userId&quot;) Integer userId, @Param(&quot;ids&quot;) List&lt;Integer&gt; ids); --&gt;
+&lt;delete id=&quot;deleteByByUserIdAndProductIds&quot; parameterType=&quot;Map&quot;&gt;
+  delete from mall.mall_cart
+  where user_id = #{userId} and product_id in
+  &lt;foreach collection=&quot;ids&quot; item=&quot;item&quot; open=&quot;(&quot; close=&quot;)&quot; separator=&quot;,&quot;&gt;
+    #{item}
+  &lt;/foreach&gt;
+&lt;/delete&gt;
+ 
+&lt;!-- int batchInsertSelective(@Param(&quot;orderItems&quot;) List&lt;OrderItem&gt; orderItems); --&gt;
+&lt;!-- trim,去除多余的逗号来保持SQL语法正确 --&gt;
+&lt;insert id=&quot;batchInsertSelective&quot; parameterType=&quot;List&quot;&gt;
+  insert into mall_order_item
+  &lt;trim prefix=&quot;(&quot; suffix=&quot;)&quot; suffixOverrides=&quot;,&quot;&gt;
+    &lt;if test=&quot;orderItems[0].id != null&quot;&gt;
+      id,
+    &lt;/if&gt;
+    &lt;if test=&quot;orderItems[0].orderNo != null&quot;&gt;
+      order_no,
+    &lt;/if&gt;
+    &lt;if test=&quot;orderItems[0].productId != null&quot;&gt;
+      product_id,
+    &lt;/if&gt;
+    &lt;if test=&quot;orderItems[0].productName != null&quot;&gt;
+      product_name,
+    &lt;/if&gt;
+    &lt;if test=&quot;orderItems[0].productImg != null&quot;&gt;
+      product_img,
+    &lt;/if&gt;
+    &lt;if test=&quot;orderItems[0].unitPrice != null&quot;&gt;
+      unit_price,
+    &lt;/if&gt;
+    &lt;if test=&quot;orderItems[0].quantity != null&quot;&gt;
+      quantity,
+    &lt;/if&gt;
+    &lt;if test=&quot;orderItems[0].totalPrice != null&quot;&gt;
+      total_price,
+    &lt;/if&gt;
+    &lt;if test=&quot;orderItems[0].createTime != null&quot;&gt;
+      create_time,
+    &lt;/if&gt;
+    &lt;if test=&quot;orderItems[0].updateTime != null&quot;&gt;
+      update_time,
+    &lt;/if&gt;
+  &lt;/trim&gt;
+  &lt;foreach collection=&quot;orderItems&quot; item=&quot;orderItem&quot; separator=&quot;,&quot; open=&quot;values&quot;&gt;
+    &lt;trim prefix=&quot;(&quot; suffix=&quot;)&quot; suffixOverrides=&quot;,&quot;&gt;
+      &lt;if test=&quot;orderItem.id != null&quot;&gt;
+        #{orderItem.id,jdbcType=INTEGER},
+      &lt;/if&gt;
+      &lt;if test=&quot;orderItem.orderNo != null&quot;&gt;
+        #{orderItem.orderNo,jdbcType=VARCHAR},
+      &lt;/if&gt;
+      &lt;if test=&quot;orderItem.productId != null&quot;&gt;
+        #{orderItem.productId,jdbcType=INTEGER},
+      &lt;/if&gt;
+      &lt;if test=&quot;orderItem.productName != null&quot;&gt;
+        #{orderItem.productName,jdbcType=VARCHAR},
+      &lt;/if&gt;
+      &lt;if test=&quot;orderItem.productImg != null&quot;&gt;
+        #{orderItem.productImg,jdbcType=VARCHAR},
+      &lt;/if&gt;
+      &lt;if test=&quot;orderItem.unitPrice != null&quot;&gt;
+        #{orderItem.unitPrice,jdbcType=INTEGER},
+      &lt;/if&gt;
+      &lt;if test=&quot;orderItem.quantity != null&quot;&gt;
+        #{orderItem.quantity,jdbcType=INTEGER},
+      &lt;/if&gt;
+      &lt;if test=&quot;orderItem.totalPrice != null&quot;&gt;
+        #{orderItem.totalPrice,jdbcType=INTEGER},
+      &lt;/if&gt;
+      &lt;if test=&quot;orderItem.createTime != null&quot;&gt;
+        #{orderItem.createTime,jdbcType=TIMESTAMP},
+      &lt;/if&gt;
+      &lt;if test=&quot;orderItem.updateTime != null&quot;&gt;
+        #{orderItem.updateTime,jdbcType=TIMESTAMP},
+      &lt;/if&gt;
+    &lt;/trim&gt;
+  &lt;/foreach&gt;
+&lt;/insert&gt;
+</code>
+
+<h2>订单详情</h2>
+20240810123125.webp
+
+<code>
+@Override
+public OrderVO detail(String orderNo, Integer userId) {
+    OrderVO orderVO = orderMapper.selectByOrderNoAndUserId(orderNo,userId);
+    if (orderVO == null) {
+        throw new MallException(MallExceptionEnum.ORDER_NOT_EXISTED);
+    }
+    orderVO.setOrderStatusName(Constant.OrderStatus.codeOf(orderVO.getOrderStatus()).getValue());
+    return orderVO;
+}
+</code>
+<code>
+@Component
+public class Constant {
+    //..
+    public enum OrderStatus{
+        CANCELED(0,"用户已取消付款"),
+        NOT_PAID(10,"未付款"),
+        PAID(20,"已付款"),
+        DELIVERED(30,"已发货"),
+        FINISHED(40,"交易完成")
+        ;
+        private int code;
+        private String value;
+        //getter,setter
+ 
+        OrderStatus(int code, String value) {
+            this.code = code;
+            this.value = value;
+        }
+ 
+        public static OrderStatus codeOf(int code) {
+            for (OrderStatus orderStatus : values()) {
+                if (orderStatus.getCode() == code) {
+                    return orderStatus;
+                }
+            }
+            throw new MallException(MallExceptionEnum.NO_ENUM);
+        }
+    }
+}
+</code>
+<code xml>
+&lt;select id=&quot;selectByOrderNo&quot; parameterType=&quot;String&quot; resultType=&quot;com.ida.boot_mall.model.vo.OrderItemVO&quot;&gt;
+  select order_no,product_name,product_img,unit_price,quantity,total_price from mall.mall_order_item where order_no=#{orderNo}
+&lt;/select&gt;
+</code>
+<code xml>
+&lt;resultMap id=&quot;rmOrderVO&quot; type=&quot;com.ida.boot_mall.model.vo.OrderVO&quot;&gt;
+  &lt;result column=&quot;order_no&quot; property=&quot;orderNo&quot;/&gt;
+  &lt;result column=&quot;user_id&quot; property=&quot;userId&quot;/&gt;
+  &lt;result column=&quot;total_price&quot; property=&quot;totalPrice&quot;/&gt;
+  &lt;result column=&quot;receiver_name&quot; property=&quot;receiverName&quot;/&gt;
+  &lt;result column=&quot;receiver_mobile&quot; property=&quot;receiverMobile&quot;/&gt;
+  &lt;result column=&quot;receiver_address&quot; property=&quot;receiverAddress&quot;/&gt;
+  &lt;result column=&quot;order_status&quot; property=&quot;orderStatus&quot;/&gt;
+  &lt;result column=&quot;postage&quot; property=&quot;postage&quot;/&gt;
+  &lt;result column=&quot;payment_type&quot; property=&quot;paymentType&quot;/&gt;
+  &lt;result column=&quot;delivery_time&quot; property=&quot;deliveryTime&quot;/&gt;
+  &lt;result column=&quot;pay_time&quot; property=&quot;payTime&quot;/&gt;
+  &lt;result column=&quot;end_time&quot; property=&quot;endTime&quot;/&gt;
+  &lt;result column=&quot;create_time&quot; property=&quot;createTime&quot;/&gt;
+  &lt;collection select=&quot;com.ida.boot_mall.model.dao.OrderItemMapper.selectByOrderNo&quot; column=&quot;order_no&quot; property=&quot;orderItemList&quot;/&gt;
+&lt;/resultMap&gt;
+&lt;select id=&quot;selectByOrderNoAndUserId&quot; parameterType=&quot;Map&quot; resultMap=&quot;rmOrderVO&quot;&gt;
+  select * from mall.mall_order where order_no=#{orderNo} and user_id=#{userId}
+&lt;/select&gt;
+</code>
+
+<h2>订单列表</h2>
+<code>
+@Override
+public PageInfo list(Integer pageNum, Integer pageSize, Integer userId) {
+    PageHelper.startPage(pageNum == null ? 1 : pageNum, pageSize == null ? 10 : pageSize, "create_time desc");
+    List&lt;OrderVO> orderVOList = orderMapper.selectByUserId(userId);
+    orderVOList.forEach(o -> o.setOrderStatusName(Constant.OrderStatus.codeOf(o.getOrderStatus()).getValue()));
+    PageInfo pageInfo = new PageInfo&lt;>(orderVOList);
+    return pageInfo;
+}
+</code>
+<code xml>
+&lt;select id=&quot;selectByUserId&quot; parameterType=&quot;Map&quot; resultMap=&quot;rmOrderVO&quot;&gt;
+  select * from mall.mall_order where user_id=#{userId}
+&lt;/select&gt;
+</code>
+
+<h2>取消订单</h2>
+<code>
+@Override
+@Transactional
+public void cancel(String orderNo, Integer userId) {
+    Order order = orderMapper.selectByOrderNo(orderNo);
+    if (order == null || !Objects.equals(order.getUserId(), userId)) {
+        throw new MallException(MallExceptionEnum.ORDER_NOT_EXISTED);
+    }
+    //只有未付款时可以取消
+    if (!order.getOrderStatus().equals(Constant.OrderStatus.NOT_PAID.getCode())) {
+        throw new MallException(MallExceptionEnum.WRONG_ODERE_STAUTS);
+    }
+    //更新订单状态
+    order.setOrderStatus(Constant.OrderStatus.CANCELED.getCode());
+    order.setEndTime(new Date());
+    if (orderMapper.updateByPrimaryKeySelective(order) != 1) {
+        throw new MallException(MallExceptionEnum.UPDATE_FAILED);
+    }
+    //库存返还
+    List&lt;OrderItem> orderItemList = orderItemMapper.selectStockInfo(orderNo);
+ 
+    List&lt;Product> products = productMapper.selectByIds(
+            orderItemList.stream()
+                    .map(OrderItem::getProductId)
+                    .collect(Collectors.toList())
+    );
+    Map&lt;Integer, Product> productMap = products.stream()
+            .collect(Collectors.toMap(Product::getId, p -> p));
+ 
+    Product product = new Product();
+    orderItemList.forEach(o -> {
+        product.setId(o.getProductId());
+        product.setStock(productMap.get(o.getProductId()).getStock()+o.getQuantity());
+        if (productMapper.updateByPrimaryKeySelective(product) != 1) {
+            throw new MallException(MallExceptionEnum.UPDATE_FAILED);
+        }
+    });
+}
+</code>
+
+<h2>二维码</h2>
+<h3>依赖</h3>
+<code xml>
+&lt;dependency>
+    &lt;groupId>com.google.zxing&lt;/groupId>
+    &lt;artifactId>javase&lt;/artifactId>
+    &lt;version>3.3.0&lt;/version>
+&lt;/dependency>
+</code>
+<h3>工具类</h3>
+<code>
+public class QRCodeGenerator {
+    public static void genQRCodeImage(String text, int width, int height, String filePath, String... etc) throws Exception {
+        Path path = FileSystems.getDefault().getPath(filePath, etc);
+ 
+        QRCodeWriter qrCodeWriter = new QRCodeWriter();
+        text = new String(text.getBytes("UTF-8"), "ISO-8859-1"); //字符串转ISO-8859-1编码
+        BitMatrix bitMatrix = qrCodeWriter.encode(text, BarcodeFormat.QR_CODE, width, height);
+        MatrixToImageWriter.writeToPath(bitMatrix, "PNG", path);
+    }
+ 
+    public static String readQRCodeImage(String filePath) throws Exception {
+        BufferedImage bufferedImage = ImageIO.read(new File(filePath));
+ 
+        QRCodeReader qrCodeReader = new QRCodeReader();
+        LuminanceSource source = new BufferedImageLuminanceSource(bufferedImage);
+        BinaryBitmap bitmap = new BinaryBitmap(new HybridBinarizer(source));
+ 
+        Result result = qrCodeReader.decode(bitmap);
+        return result.getText();
+    }
+ 
+    public static void main(String[] args) throws Exception {
+        genQRCodeImage("你好abc啊", 200, 200, "d:","mess","地1a.png");
+        System.out.println(readQRCodeImage("D:\\mess\\地1a.png"));
+ 
+    }
+}
+</code>
+<h3>service</h3>
+<code>
+@Override
+public String qrcode(String orderNo, Integer userId, HttpServletRequest request) {
+    Order order = orderMapper.selectByOrderNo(orderNo);
+    String baseUrl = request.getRequestURL().toString().replace(request.getRequestURI(), "");
+ 
+    //判断存在,归属和订单状态
+    if (order == null || !Objects.equals(order.getUserId(), userId) || !order.getOrderStatus().equals(Constant.OrderStatus.NOT_PAID.getCode())) {
+        throw new MallException(MallExceptionEnum.ORDER_NOT_EXISTED);
+    }
+    //二维码文本
+    String text = baseUrl + "/pay?orderNo=" + orderNo;
+    try {
+        QRCodeGenerator.genQRCodeImage(text, 300, 300, Constant.FILE_UPLOAD_DIR, orderNo + ".png");
+    } catch (Exception e) {
+        throw new MallException(MallExceptionEnum.QRCODE_GEN_ERROR);
+    }
+    //图片url
+    return baseUrl + "/images/" + orderNo + ".png";
+}
+</code>
+
+<h1>上线前</h1>
+将model中的request类加上toString方但切面日志看出具体值
+规范请求方式,只要对后台表数据有影响的全部post
+图片基础url抽出到配置文件
+<code>
+//base-url=http://localhost:9014
+@Value("${app.base-url}")
+private String baseUrl;
+ 
+//String baseUrl = request.getRequestURL().toString().replace(request.getRequestURI(), "");
+String baseUrl = this.baseUrl;
+</code>
+文件上传路径,日志文件输出地址调整
+webmvcconfig静态文件地址路由
+<code>
+@Override
+public void addResourceHandlers(ResourceHandlerRegistry registry) { //资源地址映射
+    registry.addResourceHandler("/images/**").addResourceLocations("file:" + Constant.FILE_UPLOAD_DIR + File.separator);
+    registry.addResourceHandler("/admin/**").addResourceLocations("classpath:/static/admin/");
+}
+</code>
+多环境配置文件
+</pre>
+</body>
+</html>

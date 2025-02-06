@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>Struts2</title>
+</head>
+<body><span id="anchor">20240830175625-_java web</span>
+<pre>
+Struts 2 是一个基于拦截器的框架，每个请求都会经过一系列的拦截器，然后交由 Action 类处理。拦截器负责处理常见任务，如输入验证、文件上传等
+    Action 类不是强制性地依赖于框架特定的 API，开发者可以将普通的 Java 类作为 Action
+    主要依赖于 XML 配置（如 struts.xml）来定义 Action、拦截器、结果视图等。虽然 Struts 2 也支持注解配置，但 XML 仍然是主要的配置方式。
+    Struts 2 提供了一套自定义拦截器机制，允许开发者在请求处理前后插入自定义逻辑。
+        它支持与其他框架集成（如 Hibernate、Spring），但需要额外配置和手动管理
+    Struts 2 支持多种视图技术，如 JSP、FreeMarker、Velocity 等。视图层通过 Action 返回的结果来决定。
+        truts 2 提供了标签库（Taglib），简化了 JSP 页面开发
+    相对较旧，使用者较少。对于新手来说，学习曲线较陡峭，特别是在配置和拦截器机制上。社区支持较少，更新频率相对低
+    在处理每个请求时都会创建新的 Action 对象，这在一定程度上影响了性能，尤其是在高并发情况下。
+    Struts 2 适合那些已有的老项目或特定需要使用 Struts 技术栈的项目，但新项目一般不建议使用 Struts 2。
+    Struts 2 的主要优点在于它的灵活性、强大的拦截器机制、丰富的视图支持以及简化的 Action 类设计。尽管在现代开发中被 Spring MVC 等框架所超越，但对于特定项目或已有的 Struts 2 应用，它仍然是一个强大且可靠的选择
+
+
+Spring MVC 是 Spring 框架的一部分，完全基于 DispatcherServlet 的中央控制器设计模式。它将所有请求分派给具体的控制器（Controller）。
+    Spring MVC 强调使用注解（如 @Controller, @RequestMapping 等）来简化配置和代码开发。
+    Spring MVC 自然集成在 Spring 生态系统中，可以轻松与 Spring 的其他模块（如 Spring Data, Spring Security）无缝协作
+    Spring MVC 也支持多种视图技术，包括 JSP、Thymeleaf、Freemarker 等。开发者可以灵活选择和配置
+        通过 ModelAndView 或 @ResponseBody 等机制，开发者可以灵活地控制视图的生成和响应
+    拥有广泛的社区支持和文档资源。由于 Spring MVC 是 Spring 框架的一部分，许多开发者已经熟悉 Spring 的核心概念，因此学习曲线相对较平缓
+    Spring MVC 的 Controller 是单例的（默认情况下），因此性能相对较好，特别是在高并发环境中表现更为稳定
+    Spring MVC 更适合现代 Web 开发，特别是如果你已经在使用 Spring 框架或者打算使用 Spring 的生态系统，Spring MVC 是一个更好的选择。
+</pre>
+</body>
+</html>

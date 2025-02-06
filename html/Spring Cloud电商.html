@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>Spring Cloud电商</title>
+</head>
+<body><span id="anchor">20240814232713-_项目例</span>
+<pre>
+<h1>common模块的拆分</h1>
+    常量,异常,工具类,可复用类,它的主要功能不是对外提供接口而是类的复用,不需要启动类
+
+<h1>Session共享处理</h1>
+    共享对象需要标记serializable
+    使用启动类加@EnableRedisHttpSession注解时将采用以下默认属性
+        maxInactiveIntervalInSeconds = 1800 秒
+        redisNamespace = "spring:session"
+        flushMode = FlushMode.ON_SAVE
+            ON_SAVE：在会话保存时，将会话数据写入 Redis（这是默认值）。这种模式适合在性能和数据一致性之间寻找平衡。如果会话中的数据不经常发生变化，或者你不介意在用户会话过程中数据在Redis中的状态稍有滞后
+            IMMEDIATE：在会话属性变更时，立即将变更写入 Redis。这种模式适合对数据一致性要求较高的场景
+        cleanupCron = ""（使用 Redis 的 TTL 机制）
+            spring.session.redis.cleanup-cron=0 * * * * *  # 每分钟执行一次清理
+    使用配置文件时
+        未显式设置 spring.session.store-type，如果你引入了spring-session-data-redis依赖，并且配置了Redis相关的属性（如spring.redis.host），Spring Boot会自动将会话存储方式设置为Redis
+            虽然Spring Boot能够自动选择适合的存储类型，但显式设置可以让配置更加明确, 避免版本差异导致的意外情况
+        未设置 spring.session.timeout 时，默认会话超时时间为 1800 秒
+        未设置 spring.session.redis.namespace 时，默认命名空间为 spring:session。
+        未设置 spring.session.redis.flush-mode 时，默认刷新模式为 on-save
+
+     模块直接从 Redis 中获取 session 与通过 Feign 调用时使用 RequestInterceptor 从网关传递 session，这两种方法各有优缺点
+        前者适合小型系统或性能敏感的系统
+            减少了通过网关进行额外的 HTTP 请求，降低了网络延迟, 避免了复杂的 session 传递逻辑
+            需要依赖Redis并配置连接信息且所有模块访问的 Redis 实例一致
+            如果没有正确地管理和隔离 Redis 数据库，不同模块可能会意外地访问到其他模块的数据
+        后者适合大型系统或需要统一管理和安全控制的系统
+            通过网关传递 session，可以将会话管理和验证集中化到一个位置，便于统一的安全策略和日志管理
+            网关可以动态调整传递的 session 信息或对请求进行预处理
+            模块之间不需要知道会话存储的细节，通过网关统一接口来实现模块间的解耦
+            增加了额外的网络开销和处理时间
+            模块需要额外配置 RequestInterceptor 来处理 session 的传递逻辑
+
+RequestInterceptor是feign包下的类
+<code>
+@Component
+public class FeignRequestInterceptor implements RequestInterceptor {
+    @Override
+    public void apply(RequestTemplate requestTemplate) {
+        RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
+        if (requestAttributes == null) {
+            return;
+        }
+        HttpServletRequest request = ((ServletRequestAttributes) requestAttributes).getRequest();
+        Enumeration&lt;String> headerNames = request.getHeaderNames();
+        if ((headerNames != null)) {
+            while (headerNames.hasMoreElements()) {
+                String name = headerNames.nextElement();
+                Enumeration&lt;String> values = request.getHeaders(name);
+                while (values.hasMoreElements()) {
+                    String value = values.nextElement();
+                    requestTemplate.header(name, value); //使 Feign 携带所有请求头信息, 转发到被调用的模块
+                }
+            }
+        }
+    }
+}
+</code>
+网关模块
+    线上环境时仅暴露网关
+
+<h1>结构</h1>
+demo19
+    cart-order 
+    category-product 
+    common
+    mall-eureka-server 
+    user 
+    zuul
+
+<h1>pom properties 说明</h1>
+<h2>demo19</h2>
+<code xml>
+&lt;groupId>com.ida&lt;/groupId>
+&lt;artifactId>demo19&lt;/artifactId>
+&lt;version>1.0-SNAPSHOT&lt;/version>
+&lt;packaging>pom&lt;/packaging>
+&lt;modules>
+    &lt;module>mall-eureka-server&lt;/module>
+    &lt;module>user&lt;/module>
+    &lt;module>common&lt;/module>
+    &lt;module>zuul&lt;/module>
+    &lt;module>category-product&lt;/module>
+    &lt;module>cart-order&lt;/module>
+&lt;/modules>
+ 
+&lt;dependencyManagement>
+    &lt;dependencies>
+        &lt;!-- boot版本管理 -->
+        &lt;dependency>
+            &lt;groupId>org.springframework.cloud&lt;/groupId>
+            &lt;artifactId>spring-cloud-dependencies&lt;/artifactId>
+            &lt;version>${spring-cloud.version}&lt;/version>
+            &lt;type>pom&lt;/type>
+            &lt;scope>import&lt;/scope>
+        &lt;/dependency>
+        &lt;!-- cloud版本管理 -->
+        &lt;dependency>
+            &lt;groupId>org.springframework.boot&lt;/groupId>
+            &lt;artifactId>spring-boot-dependencies&lt;/artifactId>
+            &lt;version>${spring-boot.version}&lt;/version>
+            &lt;type>pom&lt;/type>
+            &lt;scope>import&lt;/scope>
+        &lt;/dependency>
+    &lt;/dependencies>
+&lt;/dependencyManagement>
+ 
+&lt;properties>
+    &lt;maven.compiler.source>8&lt;/maven.compiler.source>
+    &lt;maven.compiler.target>8&lt;/maven.compiler.target>
+    &lt;project.build.sourceEncoding>UTF-8&lt;/project.build.sourceEncoding>
+    &lt;!-- 版本定义 -->
+    &lt;spring-cloud.version>Hoxton.SR12&lt;/spring-cloud.version>
+    &lt;spring-boot.version>2.3.12.RELEASE&lt;/spring-boot.version>
+&lt;/properties>
+</code>
+<h2>cart-order</h2>
+<code xml>
+&lt;!-- 父模块 -->
+demo19
+ 
+&lt;artifactId>cart-order&lt;/artifactId>
+&lt;dependencies>
+    &lt;!-- web依赖 -->
+    spring-boot-starter-web
+    &lt;!-- 数据库驱动,mybatis,mybatis分页 -->
+    mysql-connector-java
+    mybatis-spring-boot-starter
+    2.1.1
+    pagehelper-spring-boot-starter
+    1.2.13
+    &lt;!-- 接口文档 -->
+    springfox-swagger2
+    2.9.2
+    springfox-swagger-ui
+    2.9.2
+    &lt;!-- eureka客户端 -->
+    spring-cloud-starter-netflix-eureka-client
+    &lt;!-- feign远程调用 -->
+    spring-cloud-starter-openfeign
+    &lt;!-- redis读写session -->
+    spring-boot-starter-data-redis
+    spring-session-data-redis
+    &lt;!-- 模块引用 -->
+    common
+&lt;/dependencies>
+ 
+&lt;build>
+    &lt;plugins>
+        &lt;!-- boot的maven插件 -->
+        spring-boot-maven-plugin
+    &lt;/plugins>
+&lt;/build>
+</code>
+<code properties>
+# 模块信息
+server.port=9319
+spring.application.name=cart-order
+ 
+# mysql连接信息
+ 
+# mybatis字段转换,xml文件扫描
+ 
+# eureka注册地址
+eureka.client.service-url.defaultZone=http://localhost:9019/eureka/
+ 
+# session存储方式
+spring.session.store-type=redis
+# session命名空间
+spring.session.redis.namespace=user
+# redis连接信息
+ 
+# 模块内常量
+app.base-url=http://localhost:${server.port}
+file.upload.dir=D:\\mess
+zuul.base-url=http://localhost:9919
+</code>
+WebLogAspect 统一请求响应日志
+ProductClient 调用category-product模块接口
+UserClient 调用user模块接口
+OrderConstant 
+JacksonConfig 时区及日期格式
+MallWebMvcConfig 资源地址映射, 拦截器注册
+SwaggerConfig
+GlobalExceptionHandler 统一控制器异常包装
+UserInterceptor / FeignRequestInterceptor 向请求注入session中的user对象
+OrderCodeFactory 
+
+
+<h2>category-product</h2>
+<code xml>
+&lt;!-- 父模块 -->
+demo19
+ 
+&lt;artifactId>category-product&lt;/artifactId>
+&lt;dependencies>
+    &lt;!-- web依赖 -->
+    spring-boot-starter-web
+    &lt;!-- 数据库驱动,mybatis,mybatis分页 -->
+    mysql-connector-java
+    mybatis-spring-boot-starter
+    2.1.1
+    pagehelper-spring-boot-starter
+    1.2.13
+    &lt;!-- 接口文档 -->
+    springfox-swagger2
+    2.9.2
+    springfox-swagger-ui
+    2.9.2
+    &lt;!-- eureka客户端 -->
+    spring-cloud-starter-netflix-eureka-client
+    &lt;!-- redis缓存 -->
+    spring-boot-starter-data-redis
+    spring-boot-starter-cache
+    &lt;!-- 模块引用 -->
+    common
+&lt;/dependencies>
+ 
+&lt;build>
+    &lt;plugins>
+        &lt;!-- boot的maven插件 -->
+        spring-boot-maven-plugin
+    &lt;/plugins>
+&lt;/build>
+</code>
+<code properties>
+# 模块信息
+server.port=9219
+spring.application.name=category-product
+ 
+# mysql连接信息
+ 
+# mybatis字段转换,xml文件扫描
+ 
+# eureka注册地址
+ 
+# redis连接信息
+ 
+# 模块内常量
+</code>
+WebLogAspect 统一请求响应日志
+ProductConstant 
+CacheConfig 配置redis缓存过期时间,序列化方式
+JacksonConfig 时区及日期格式
+MallWebMvcConfig 资源地址映射, 拦截器注册
+SwaggerConfig
+GlobalExceptionHandler 统一控制器异常包装
+
+<h2>common</h2>
+<code xml>
+&lt;!-- 父模块 -->
+demo19
+ 
+&lt;artifactId>common&lt;/artifactId>
+&lt;dependencies>
+    &lt;!-- web依赖 -->
+    spring-boot-starter-web
+    &lt;!-- 二维码生成 -->
+    &lt;dependency>
+        &lt;groupId>com.google.zxing&lt;/groupId>
+        &lt;artifactId>javase&lt;/artifactId>
+        &lt;version>3.3.0&lt;/version>
+    &lt;/dependency>
+&lt;/dependencies>
+ 
+&lt;build>
+    &lt;plugins>
+        &lt;!-- boot的maven插件 -->
+        spring-boot-maven-plugin
+    &lt;/plugins>
+&lt;/build>
+</code>
+Constant
+RestResponse 统一响应对象包装
+MallException
+MallExceptionEnum 异常枚举
+product
+User 复用pojo
+MD5Utils
+QRCodeGenerator
+
+<h2>mall-eureka-server</h2>
+<code xml>
+&lt;!-- 父模块 -->
+demo19
+ 
+&lt;artifactId>mall-eureka-server&lt;/artifactId>
+&lt;dependencies>
+    &lt;!-- eureka服务端 -->
+    spring-cloud-starter-netflix-eureka-server
+&lt;/dependencies>
+ 
+&lt;build>
+    &lt;plugins>
+        &lt;!-- boot的maven插件 -->
+        spring-boot-maven-plugin
+    &lt;/plugins>
+&lt;/build>
+</code>
+<code properties>
+# 模块信息
+server.port=9019
+spring.application.name=eureka-server
+ 
+# eureka实例名,注册表拉取,自身注册,注册地址
+eureka.instance.hostname=localhost
+eureka.client.fetch-registry=false
+eureka.client.register-with-eureka=false
+eureka.client.service-url.defaultZone=http://${eureka.instance.hostname}:${server.port}/eureka/
+</code>
+
+<h2>user</h2>
+<code xml>
+&lt;!-- 父模块 -->
+demo19
+ 
+&lt;artifactId>user&lt;/artifactId>
+&lt;dependencies>
+    &lt;!-- web依赖 -->
+    spring-boot-starter-web
+    &lt;!-- 数据库驱动,mybatis -->
+    mysql-connector-java
+    mybatis-spring-boot-starter
+    2.1.1
+    &lt;!-- 接口文档 -->
+    springfox-swagger2
+    2.9.2
+    springfox-swagger-ui
+    2.9.2
+    &lt;!-- eureka客户端 -->
+    spring-cloud-starter-netflix-eureka-client
+    &lt;!-- feign远程调用 -->
+    spring-cloud-starter-openfeign
+    &lt;!-- redis读写session -->
+    spring-boot-starter-data-redis
+    spring-session-data-redis
+    &lt;!-- 模块引用 -->
+    common
+&lt;/dependencies>
+ 
+&lt;build>
+    &lt;plugins>
+        &lt;!-- boot的maven插件 -->
+        spring-boot-maven-plugin
+    &lt;/plugins>
+&lt;/build>
+</code>
+<code properties>
+# 模块信息
+server.port=9119
+spring.application.name=user
+ 
+# mysql连接信息
+ 
+# mybatis字段转换,xml文件扫描
+ 
+# eureka注册地址
+eureka.client.service-url.defaultZone=http://localhost:9019/eureka/
+ 
+# session存储方式
+spring.session.store-type=redis
+# session命名空间
+spring.session.redis.namespace=user
+# redis连接信息
+ 
+# 模块内常量
+</code>
+WebLogAspect 统一请求响应日志
+JacksonConfig 时区及日期格式
+SwaggerConfig
+GlobalExceptionHandler 统一控制器异常包装
+
+<h2>zuul</h2>
+像 Zuul、Spring Cloud Gateway 这样的网关服务通常不需要直接引入 spring-boot-starter-web，因为它们自己的依赖已经包含了所需的 Web 功能
+这意味着当你引入 spring-cloud-starter-netflix-zuul 时，Spring Boot 会自动包含 Web 相关的基础依赖，如 Spring MVC 和嵌入式的 Tomcat 服务器
+<code xml>
+&lt;!-- 父模块 -->
+demo19
+ 
+&lt;artifactId>user&lt;/artifactId>
+&lt;dependencies>
+    &lt;!-- zuul -->
+    spring-cloud-starter-netflix-zuul
+    &lt;!-- eureka客户端 -->
+    spring-cloud-starter-netflix-eureka-client
+    &lt;!-- feign远程调用 -->
+    spring-cloud-starter-openfeign
+    &lt;!-- redis读写session -->
+    spring-boot-starter-data-redis
+    spring-session-data-redis
+    &lt;!-- 模块引用 -->
+    common
+&lt;/dependencies>
+ 
+&lt;build>
+    &lt;plugins>
+        &lt;!-- boot的maven插件 -->
+        spring-boot-maven-plugin
+    &lt;/plugins>
+&lt;/build>
+</code>
+<code properties>
+# 模块信息
+server.port=9919
+spring.application.name=zuul
+ 
+# eureka注册地址
+eureka.client.service-url.defaultZone=http://localhost:9019/eureka/
+ 
+# session存储方式
+spring.session.store-type=redis
+# session命名空间
+spring.session.redis.namespace=user
+# redis连接信息
+ 
+# 默认情况下，Zuul 会过滤掉一些敏感的头信息, 设置为空值禁用过滤
+zuul.sensitive-headers=
+# 连接到下游服务时的超时时间(毫秒)
+zuul.host.connect-timeout-millis=15000
+# 自定义路径映射
+zuul.routes.category-product.path=/cp/**
+zuul.category-product.server-id=category-product
+zuul.routes.cart-order.path=/co/**
+zuul.cart-order.server-id=cart-order
+</code>
+UserClient 调用user模块接口
+JacksonConfig 时区及日期格式
+UserFilter 网关过滤器
+AdminFilter
+
+<h1>项目的调试</h1>
+统一请求响应日志中参数对象重写toString方便查看属性
+
+调整日志级别
+    logging.level.om.yourpackage.ProductClient: DEBUG
+    logging.level.feign=DEBUG
+    logging.level.org.springframework.http.converter.json=DEBUG
+    logging.level.org.mybatis=DEBUG
+    logging.level.org.apache.ibatis.logging=DEBUG
+
+在构造器中写信息检查类有没有没触发加载
+
+redis共享session时一定要确认是否使用的是同一个命名空间
+    spring.session.redis.namespace=user
+
+网关在发现新注册的服务实例或移除失效服务实例时，存在一定的延迟。这种延迟可能导致请求路由到已经不可用的服务，或者新上线的服务实例不能立即被访问
+    对于 Eureka，可以配置 eureka.client.fetchRegistryIntervalSeconds 参数来减小服务实例信息的拉取间隔
+
+<h2>Spring Boot DevTools</h2>
+<code xml>
+&lt;dependency>
+    &lt;groupId>org.springframework.boot&lt;/groupId>
+    &lt;artifactId>spring-boot-devtools&lt;/artifactId>
+&lt;/dependency>
+</code>
+DevTools 主要设计用于开发环境，生产环境中移除 DevTools 依赖
+当类路径下的文件发生更改时，Spring Boot DevTools 会自动重启应用程序。
+    这种重启比完全的 JVM 重启要快得多，因为它只重新加载更改的类
+    禁用自动重启功能，可以在 application.properties 中设置
+        spring.devtools.restart.enabled=false
+        spring.devtools.restart.exclude=static/**,public/**   # 排除特定的类或包
+与 IDE（如 IntelliJ IDEA 或 Eclipse）集成后，Spring Boot DevTools 支持实时加载资源（如 Thymeleaf 模板和 CSS 文件），无需重启应用程序即可看到更改效果
+开发模式下，Spring Boot DevTools 自动禁用模板引擎（如 Thymeleaf、Freemarker）的缓存，这样你可以实时看到模板的更改
+    DevTools 会自动为应用程序添加一些开发时的默认属性，例如，它会在开发环境中设置 spring.thymeleaf.cache=false 来禁用模板缓存
+全局属性文件
+    当全局属性文件和模块属性文件都包含例如 spring.devtools.restart.enabled 配置时，模块属性文件的配置优先级更高。
+    ~/.spring-boot-devtools.properties 是一个固定的文件名。Spring Boot DevTools 会自动检测并读取用户主目录中的这个文件，以应用全局配置
+
+</pre>
+</body>
+</html>

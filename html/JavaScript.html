@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>JavaScript</title>
+ </head>
+ <body>
+  <span id="anchor">20240328220321-_前端</span>
+  <pre>
+
+在JavaScript中，如果一个函数定义了参数但在调用时没有传递参数，通常不会导致错误。相反，未传递的参数会被视为undefined。
+
+<h1>js</h1>
+弱数据类型,变量在创建的时候不区分类型,而在赋值的时候区分,赋了什么类型的值即为什么类型的变量
+<h2>方法的声明方式</h2>
+<code js>
+//1
+function fun1(){}
+//2,函数表达式,先定义后使用
+var fun1=function(){}
+</code>
+<h2>数据类型</h2>
+<p>
+number: 数字类型,整浮都包括
+string: 字符串
+boolean: 布尔类型
+undefined: 已声明未赋值
+null: 空对象
+object: 对象类型
+NaN: 是Number的一种特殊类型,isNaN(str)数字返回false,非数字返回true
+</p>
+<h2>字符和数值的转换</h2>
+<code js>
+//隐式自动转换
+var str="123";
+console.log(str*1+1); //124
+//字母结尾,parseInt和parseFloat忽略字母后缀
+str="123a";
+console.log(parseInt(str)); //123
+console.log(parseFloat(str)); //123
+console.log(Number(str)); //NaN
+//0开头时
+str="0123.456";
+console.log(parseInt(str)); //123
+console.log(parseFloat(str)); //123.456
+console.log(Number(str)); //123.456
+//null或空双引号时情况一致
+str=null;
+console.log(parseInt(str)); //NaN
+console.log(parseFloat(str)); //NaN
+console.log(Number(str)); //0
+</code>
+<h2>布尔值的转换</h2>
+<code js>
+//为字符串时空双引为false
+//为对象时null为false
+//为数值时0为false,也即布尔值false可简写为!1,true简写为!0
+var str;
+console.log(Boolean(str));
+</code>
+<h2>运算符优先级</h2>
+没有小括号加持的情况下先与后或
+<p>
+名称:排名
+小括号:1
+自增自减:2
+乘除取模:3
+加减:4
+大于,小于,大于等于,小于等于:5
+等于不等于:6
+与:7
+或:8
+三目运算符:9
+赋值:10
+</p>
+<h2>内置函数</h2>
+substr(startIndex, length) 
+    返回从起始索引开始的指定长度的子字符串。
+    如果 startIndex 是负数，则它将从字符串的末尾倒数计算。例如，substr(-3, 2) 表示从倒数第三个字符开始，截取长度为 2 的子字符串。
+substring(startIndex, endIndex) 
+    返回从起始索引到结束索引之间的子字符串，不包括结束索引位置的字符。
+    如果传入的 startIndex 大于 endIndex，则自动交换这两个参数的值。此外，如果 startIndex 或 endIndex 是负数，则这两个参数将被视为0。
+<code js>
+var str = "abcd";
+console.log(str.substr(-3,4)); //bcd
+console.log(str.substring(3,0)); //abc
+</code>
+indexOf(target)
+    返回从索引0开始第一次出现目标时的索引位置,-1为不存在
+indexOf(target,n)
+    返回从索引n开始第一次出现目标时的索引位置,-1为不存在
+<code js>
+var str = "abcdabcd";
+console.log(str.indexOf("bc"));//1
+console.log(str.indexOf("bc",2));//5
+</code>
+concat()可以连接字符串也可以连接数组
+<code js>
+var d1 = new Date();
+var d2 = new Date("2024-5-5 19:10:01");
+console.log(d1.getMonth()+1);//月份从0开始,0-11
+var diff = d2.getTime()-d1.getTime();
+console.log(parseInt(diff/(24*3600*1000)));
+ 
+function fmtDate(){
+    var now = new Date();
+    var year = now.getFullYear();
+    var mon = now.getMonth()+1;
+    var day = now.getDate();
+    var hour = now.getHours();
+    var min = now.getMinutes();
+    var sec = now.getSeconds();
+    return year+"-"+mon+"-"+day+" "+hour+":"+min+":"+sec;
+}
+console.log(fmtDate());
+ 
+var n=3.456;
+console.log(Math.round(n));//3
+console.log(n.toFixed(0));//3
+console.log(n.toFixed(1));//3.5
+console.log(Math.min(1,2,3));//1
+console.log(Math.max(1,2,3));//3
+console.log(Math.abs(-1));//1
+</code>
+
+<h2>数组</h2>
+用于遍历数组元素使用：for()，forEach()，map()，for...of 。
+用于循环对象属性使用：for...in。for....in 是es5标准， 此方法遍历数组效率低，主要是用来循环遍历对象的属性, 不能保证以任何特定的顺序返回索引
+在 forEach、map、filter、reduce、every、some 函数中 break 和 continue 关键词都会不生效，因为是在function中，但function解决了闭包陷阱的问题。要想使用 break、continue 可以使用 for、for...in、for...of、while。
+forEach：用来遍历数组中的每一项，这个方法执行没有返回值，不影响原数组
+map：支持return，相当与原数组克隆了一份，把克隆的每项改变了，也不影响原数组
+
+遍历方式一
+<code js>
+let arr = ['a','b','c','d','e'];
+for (let i = 0, len = arr.length; i &lt; len; i++) {
+  console.log(i);    // 0 1 2 3 4
+  console.log(arr[i]); //a b c d e
+}
+</code>
+遍历方式二
+    1st：数组元素(必选)
+    2nd：数组元素索引值(可选)
+    3rd：数组本身(可选)
+<code js>
+let arr = ['a','b','c','d','e'];
+arr.forEach((item,index,arr)=&gt; {
+  console.log(item);  // a b c d e 
+  console.log(index); // 0 1 2 3 4
+  console.log(arr);  // ['a','b','c','d','e']
+})
+</code>
+遍历方式三
+<code js>
+var arr = [
+  {name:'a',age:'18'},
+  {name:'b',age:'19'},
+  {name:'c',age:'20'}
+];
+arr.map(function(item,index) {
+  if(item.name == 'b') {
+    console.log(index) // 1
+  }
+})
+</code>
+遍历方式四,推荐用于循环对象,也可以用来遍历json
+<code js>
+let obj = {
+  name: '王大锤',
+  age: '18',
+  weight: '70kg'
+}
+for(var key in obj) {
+  console.log(key);    // name age weight
+  console.log(obj[key]); // 王大锤 18 70kg
+}
+----------------------------
+let arr = ['a','b','c','d','e'];
+for(var key in arr) {
+  console.log(key); // 0 1 2 3 4 返回数组索引
+  console.log(arr[key]) // a b c d e
+}
+</code>
+遍历方式五,可循环数组和对象，推荐用于遍历数组。
+for…of提供了三个新方法：
+    key()是对键名的遍历；
+    value()是对键值的遍历；
+    entries()是对键值对的遍历；
+<code js>
+let arr = ['科大讯飞', '政法BG', '前端开发'];
+for (let item of arr) { 
+ console.log(item); // 科大讯飞 政法BG 前端开发
+}
+// 输出数组索引
+for (let item of arr.keys()) { 
+ console.log(item); // 0 1 2
+}
+// 输出内容和索引
+for (let [item, val] of arr.entries()) { 
+ console.log(item + ':' + val); // 0:科大讯飞 1：政法BG 2：前端开发
+}
+</code>
+<h2>let和var</h2>
+https://www.jb51.net/article/231406.htm
+<code js>
+for(var i=0;i&lt;5;i++){
+    setTimeout(function(){
+        console.log(i)
+    },1000)
+}
+for(let i=0;i&lt;5;i++){
+  setTimeout(function(){
+     console.log(i)          
+  },1000)  
+}
+//第一处代码运行完毕的结果是1s后顺序打印5个5；第二处代码运行完毕的结果是1s后顺序打印0,1,2,3,4。
+//因为第一处代码的变量i由var关键字声明，不存在关键性死区，即你在1s后setTimeout中访问到的变量i是全局上下文中for循环运行完毕之后的i,所以打印的结果全是5；
+//而第二处代码的变量i由let关键字声明，产生了关键性死区，存在setTimeout中的i变量是你当时存储时的i的值，这个存储区间的i不会因为外面有相同的i变量且赋了不同的值而改变，他依旧是之前存储进去的值，这就是暂时性死区的表现，也是为什么第二处代码运行完毕是顺序打印0,1,2,3,4的原因。
+</code>
+var是ES5标准中声明变量的方式，而let是ES6标准中新增的声明变量的方式。
+var声明的变量是函数作用域或全局作用域，而let声明的变量是块级作用域。
+var声明的变量在变量声明之前就可以使用，而let声明的变量只有在变量声明之后才能使用。
+如果在同一个作用域内，使用var关键字声明一个已经存在的变量，那么会覆盖之前的变量；但如果使用let声明已存在的变量，则会抛出一个错误。
+在for循环中使用var声明的循环计数器变量存在变量提升，可能会导致意外的行为，而使用let声明的循环计数器变量则不存在这个问题。
+因此，一般来说，建议使用let来声明变量，因为它可以避免一些常见的错误和块级作用域更符合人们的直觉。但在一些特定的情况下，如在全局作用域中声明变量，或者需要在多个函数中共享变量时，可以使用var声明变量。
+<h2>radio选择</h2>
+<code html>
+&lt;form&gt;
+    &lt;input type="radio" name="sex" value="1" checked="checked"&gt;男
+    &lt;input type="radio" name="sex" value="0"&gt;女&lt;br&gt;
+    &lt;input type="button" value="btn" onclick="fun1()"&gt;
+&lt;/form&gt;
+</code>
+<code js>
+function fun1() {
+    var sex = document.getElementsByName('sex');
+    var result;
+    if (sex[0].checked) {
+        result=sex[0].value;
+    }else{
+        result=sex[1].value;
+    }
+    console.log(result);
+}
+</code>
+<h2>select赋值</h2>
+select移除连续元素options.length=0或者倒序遍历remove
+<code html>
+&lt;form&gt;
+    &lt;select id="year"&gt;&lt;/select&gt;年
+    &lt;select id="month"&gt;&lt;/select&gt;月
+    &lt;select id="day"&gt;&lt;/select&gt;日
+&lt;/form&gt;
+</code>
+<code js>
+function initSelect() {
+    var nowYear=parseInt(new Date().getFullYear());
+    var year=document.getElementById("year");
+    year.onchange=changeDays;
+    var month=document.getElementById("month");
+    month.onchange=changeDays;
+    var day=document.getElementById("day");
+    fillOption(year,1990,nowYear);
+    fillOption(month,1,12);
+    fillOption(day,1,31);
+}
+ 
+function fillOption(o,s,e){
+    for (var i=s; i &lt;=e; i++) {
+        o.options.add(new Option(i,i))
+    }
+}
+ 
+function changeDays(){
+    var year=parseInt(document.getElementById("year").value);
+    var month=parseInt(document.getElementById("month").value);
+    var day=document.getElementById("day");
+    var e;
+    if(month==4 || month==6 || month==9 || month==11){
+        e=30
+    }else if(month==2){
+        if(year%4==0 &amp;&amp; year%100!=0 || year%400==0)
+            e=29
+        else
+            e=28
+    }else{
+        e=31
+    }
+    day.options.length=0;
+    fillOption(day,1,e);
+}
+ 
+window.onload=function(){
+    initSelect();
+}
+</code>
+<h2>checkbox</h2>
+<code html>
+&lt;form&gt;
+    &lt;input type="checkbox" name="interest" value="1"&gt;&lt;label&gt;游泳&lt;/label&gt;
+    &lt;input type="checkbox" name="interest" value="2"&gt;&lt;label&gt;爬山&lt;/label&gt;
+    &lt;input type="checkbox" name="interest" value="3"&gt;&lt;label&gt;看书&lt;/label&gt;
+    &lt;input type="checkbox" name="interest" value="4"&gt;&lt;label&gt;听歌&lt;/label&gt;
+    &lt;input type="button" name="" id="btn1" value="全选"&gt;
+    &lt;input type="button" name="" id="btn2" value="反选"&gt;
+&lt;/form&gt;
+</code>
+<code js>
+flag=false;
+ 
+function selectAll() {
+    var btn1=document.getElementById("btn1");
+    var interest=document.getElementsByName("interest");
+    for (var i = interest.length - 1; i &gt;= 0; i--) {
+        interest[i].checked=flag;
+        console.log(interest[i].value)
+    }
+    if (flag)
+        btn1.value="全不选";
+    else
+        btn1.value="全选";
+    flag=!flag;
+}
+ 
+function reverseSelect() {
+    var interest=document.getElementsByName("interest");
+    for (var i = interest.length - 1; i &gt;= 0; i--) {
+        interest[i].checked=!interest[i].checked;
+        console.log(interest[i].value);
+    }
+
+}
+ 
+window.onload=function(){
+    var btn1=document.getElementById("btn1");
+    var btn2=document.getElementById("btn2");
+    btn1.onclick=selectAll;
+    btn2.onclick=reverseSelect;
+}
+</code>
+<h2>计算器例</h2>
+<code html>
+&lt;div id="calc"&gt;
+    &lt;div id="screen"&gt;
+        &lt;input type="text" name="" id="input_screen" disabled="disabled"&gt;
+    &lt;/div&gt;
+    &lt;div id="button"&gt;
+        &lt;input type="button" name="btn" value="c"&gt;
+        &lt;input type="button" name="btn" value="del"&gt;
+        &lt;input type="button" name="btn" value="+/-"&gt;
+        &lt;input type="button" name="btn" value="/"&gt;
+        &lt;input type="button" name="btn" value="7"&gt;
+        &lt;input type="button" name="btn" value="8"&gt;
+        &lt;input type="button" name="btn" value="9"&gt;
+        &lt;input type="button" name="btn" value="*"&gt;
+        &lt;input type="button" name="btn" value="4"&gt;
+        &lt;input type="button" name="btn" value="5"&gt;
+        &lt;input type="button" name="btn" value="6"&gt;
+        &lt;input type="button" name="btn" value="-"&gt;
+        &lt;input type="button" name="btn" value="1"&gt;
+        &lt;input type="button" name="btn" value="2"&gt;
+        &lt;input type="button" name="btn" value="3"&gt;
+        &lt;input type="button" name="btn" value="+" id="plus"&gt;
+        &lt;input type="button" name="btn" value="0"&gt;
+        &lt;input type="button" name="btn" value="."&gt;
+        &lt;input type="button" name="btn" value="="&gt;
+    &lt;/div&gt;
+&lt;/div&gt;
+</code>
+<code css>
+#calc {
+    background: blanchedalmond;
+    padding: 5px;
+    width: 150px;
+    top: 200px;
+    left: 400px;
+    position: absolute;
+}
+input[type="text"]{
+    width: 125px;
+    background: #fff;
+    text-align: right;
+}
+input[type="button"]{
+    width: 30px;
+}
+input[type="button"]:hover{
+    background: yellow;
+    border: #000 solid 1px;
+}
+#plus {
+    margin: 2px 16px 0 0;
+    float: right;
+    position: relative;
+    padding: 12px 0px 13px 0px;
+}
+</code>
+<code js>
+function init(){
+    var screen= document.getElementById("input_screen");
+    screen.value="0";
+    var buttons=document.getElementsByName("btn");
+    var temp;
+    var method;
+    var error=false;
+    for (var i = buttons.length - 1; i &gt;= 0; i--) {
+        buttons[i].onclick=function(){
+            if(!isNaN(Number(this.value))){
+                error=false;
+                if(screen.value=="0")
+                    screen.value=this.value;
+                else if(screen.value=="Error")
+                    screen.value=this.value;
+                else
+                    screen.value+=this.value;
+            }else{
+                if(!error){
+                    switch(this.value){
+                    case "c":
+                        screen.value="0";
+                        temp=0;
+                        method="";
+                        break;
+                    case "del":
+                        if (screen.value.length&gt;1)
+                            screen.value=screen.value.substring(0,screen.value.length-1);
+                        else
+                            screen.value="0";
+                        break;
+                    case "+/-":
+                        screen.value*=-1;
+                        break;
+                    case "/":
+                    case "*":
+                    case "-":
+                    case "+":
+                        temp=screen.value;
+                        method=this.value;
+                        screen.value="0";
+                        break;
+                    case ".":
+                        if (screen.value.indexOf(".")==-1)
+                            screen.value+=".";
+                        break;
+                    case "=":
+                        switch(method){
+                        case "/":
+                            if(screen.value!="0")
+                                screen.value=(temp*1)/(screen.value*1);
+                            else{
+                                screen.value="Error";
+                                error=true;
+                                temp=0;
+                                method="";
+                            }
+                            break;
+                        case "*":
+                            screen.value=(temp*1)*(screen.value*1);
+                            break;
+                        case "-":
+                            screen.value=temp*1-screen.value*1;
+                            break;
+                        case "+":
+                            screen.value=temp*1+screen.value*1;
+                            break;
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+}
+ 
+window.onload=function(){
+    init();
+}
+</code>
+ </pre>
+ </body>
+</html>

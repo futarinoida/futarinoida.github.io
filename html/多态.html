@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>多态</title>
+ </head>
+ <body>
+  <span id="anchor">20240307183503-_java</span>
+  <pre>
+允许不同类的对象对同一消息做出不同的响应
+编译时多态,方法重载
+运行时多态,程序运行时动态决定调用哪个方法,满足继承关系,父类引用指向子类对象
+
+<code>
+public class Master {
+  public void feed(Animal animal) {
+      if (animal instanceof Cat) {
+          animal.eat();
+          ((Cat) animal).playball();
+      } else if (animal instanceof Dog) {
+          animal.eat();
+          ((Dog) animal).sleep();
+      }
+  }
+  public static void main(String[] args) {
+      Master master= new Master();
+      Cat cat = new Cat();
+      Dog dog = new Dog();
+      master.feed(cat);
+      master.feed(dog);
+  }
+}
+</code>
+</pre>
+ </body>
+</html>

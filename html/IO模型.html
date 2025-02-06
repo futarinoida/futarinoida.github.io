@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>IO模型</title>
+ </head>
+ <body>
+  <span id="anchor">20240307183503-_java</span>
+  <pre>
+java.io包基于流模型实现，提供File抽象、输入输出流等IO的功能。
+    交互方式是同步、阻塞的方式，在读取输入流或者写入输出流时，在读、写动作完成之前，线程会一直阻塞。
+    好处是代码比较简单、直观
+    缺点则是IO效率和扩展性存在局限性，容易成为应用性能的瓶颈。
+    java.net下面提供的部分网络API，比如Socket、ServerSocket、HttpURLConnection 也时常被归类到同步阻塞IO类库，因为网络通信同样是IO行为。
+在Java 1.4中引入了NIO框架(java.nio 包)
+    提供了Channel、Selector、Buffer等新的抽象，可以构建多路复用IO程序，同时提供更接近操作系统底层的高性能数据操作方式。
+在Java7中，NIO有了进一步的改进，也就是NIO2
+    引入了异步非阻塞IO方式，也被称为AIO(Asynchronous IO)，异步IO操作基于事件和回调机制。
+
+同步和异步是针对应用程序和内核的交互而言的。
+    同步指的是用户进程触发IO操作并等待或者轮询的去查看IO操作是否就绪。
+    异步指的是用户进程触发IO操作以后便开始做其他的事情，而当IO操作已经完成的时候会得到IO完成的通知。
+
+阻塞和非阻塞是针对进程在访问数据的时候，根据IO操作的就绪状态来采取的不同方式。
+    阻塞指的是如果当时没有东西可读，或暂时不可写，程序就进入等待状态，直到有东西可读或可写为止。
+    非阻塞指的是如果没有东西可读，或不可写，读写函数马上返回，而不会等待。
+
+<h1>BIO 同步阻塞</h1>
+(Blocking IO)通常是在JDK1.4版本之前常用的编程方式。传统的服务器端同步阻塞的经典编程模型。
+适用于单个或客户端数量较少且可预见的应用场景。例如，传统的C/S架构应用、管理工具和后台系统。
+
+服务器实现模式一个连接一个线程
+    即客户端有连接请求时服务器端就需要启动一个线程进行处理， 
+    如果这个连接不做任何事情会造成不必要的线程开销，当然可以通过线程池机制改善。
+    之所以使用多线程, 主要原因在于socket.accept()、socket.read()、socket.write()三个主要函数都是同步阻塞的，当一个连接在处理I/O的时候，系统是阻塞的。
+    在读取输入流或者写入输出流时，在读、写动作完成之前，线程会一直阻塞。
+
+实现过程
+    首先在服务端启动一个ServerSocket来监听网络请求，
+    客户端启动Socket发起网络请求，
+    默认情况下ServerSocket会建立一个线程来处理此请求，
+    如果服务端没有线程可用，客户端则会阻塞等待或遭到拒绝。
+    建立好的连接，在通讯过程中，是同步的。在并发处理效率上比较低。
+<code>
+import java.io.*;
+import java.net.*;
+ 
+public class Server {
+    public static void main(String[] args) {
+        ExecutorService executor = Executors.newFixedThreadPool(10);//创建一个线程池限制同时运行的线程数，提高并发处理的效率
+ 
+        try (ServerSocket serverSocket = new ServerSocket(12345)) {//服务端启动一个ServerSocket来监听特定端口上的网络请求
+            System.out.println("正在监听12345端口");
+ 
+            while (true) {
+                Socket socket = serverSocket.accept();//每当有一个客户端连接时
+                System.out.println("已连接上一个新的客户端");
+                executor.submit(new ServerThread(socket));//线程池处理这个连接
+            }
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        } finally {
+            executor.shutdown();
+        }
+    }
+}
+ 
+class ServerThread extends Thread {
+    private Socket socket;
+ 
+    public ServerThread(Socket socket) {
+        this.socket = socket;
+    }
+ 
+    public void run() {
+        try (InputStream input = socket.getInputStream();
+             BufferedReader reader = new BufferedReader(new InputStreamReader(input));
+             OutputStream output = socket.getOutputStream();
+             PrintWriter writer = new PrintWriter(output, true)) {
+
+            String text;
+            while ((text = reader.readLine()) != null) {
+                System.out.println("[客户端消息]: " + text);
+                writer.println("我是来自server的答复");
+            }
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+    }
+}
+</code>
+<code>
+import java.io.*;
+import java.net.*;
+ 
+public class Client {
+    public static void main(String[] args) {
+        String hostname = "localhost";
+        int port = 12345;
+ 
+        try (Socket socket = new Socket(hostname, port);//创建一个Socket并连接到服务端
+             OutputStream output = socket.getOutputStream();
+             PrintWriter writer = new PrintWriter(output, true);
+             InputStream input = socket.getInputStream();
+             BufferedReader reader = new BufferedReader(new InputStreamReader(input));
+             BufferedReader consoleReader = new BufferedReader(new InputStreamReader(System.in))) {
+ 
+            String text;
+            while (true) {
+                System.out.print("Enter message: ");
+                text = consoleReader.readLine();
+                writer.println(text);//向服务端发送消息
+
+                String response = reader.readLine();
+                System.out.println(response);//接收服务端的响应
+            }
+        } catch (UnknownHostException ex) {
+            System.out.println("Server not found: " + ex.getMessage());
+        } catch (IOException ex) {
+            System.out.println("I/O error: " + ex.getMessage());
+        }
+    }
+}
+</code>
+<code>
+public class Client2 {
+    //..
+}
+</code>
+这个模型严重依赖于线程，但线程是很”贵”的资源，主要表现在：
+    线程的创建和销毁成本很高，在Linux这样的操作系统中，线程本质上就是一个进程。创建和销毁都是重量级的系统函数。
+    线程本身占用较大内存，像Java的线程栈，一般至少分配512K～1M的空间，如果系统中的线程数过千，占用的内存将非常惊人。
+    线程的切换成本是很高的。操作系统发生线程切换的时候，需要保留线程的上下文，然后执行系统调用。如果线程数过高，可能执行线程切换的时间甚至会大于线程执行的时间，这时候带来的表现往往是系统load偏高、CPU sy使用率特别高(超过20%以上)，导致系统几乎陷入不可用的状态。
+    容易造成锯齿状的系统负载。因为系统负载是用活动线程数或CPU核心数，一旦线程数量高而且外部网络环境不是很稳定，就很容易造成大量请求的结果同时返回，激活大量阻塞线程从而使系统负载压力过大。
+所以，当面对十万甚至百万级连接的时候，传统的BIO模型是无能为力的
+
+<h1>NIO 同步非阻塞</h1>
+(Non-blocking IO)Java NIO主要由Channel,Buffer,Selector三个核心部分组成
+适用于连接数目多且连接比较短（轻操作）的架构，如聊天室、实时游戏服务器,大型应用服务器等
+Java NIO和BIO之间第一个最大的区别是，BIO是面向流的，NIO是面向缓冲区的。
+NIO 模型中通常会有两个线程分别绑定一个轮询器selector ,一个轮询是否有新的连接，一个轮询连接是否有数据可读
+NIO也是I/O多路复用的基础
+    Java IO的各种流是阻塞的。这意味着，当一个线程调用read() 或write()时，该线程被阻塞，直到有数据被读取或者数据写入。该线程在阻塞期间不能做其他事情。
+    而Java NIO的非阻塞模式，如果通道没有东西可读，或不可写，读写函数马上返回，而不会阻塞，这个线程可以去做别的事情。
+    线程通常将非阻塞IO的空闲时间用于在其它通道上执行IO操作，所以一个单独的线程可以管理多个输入和输出通道（channel），即IO多路复用的原理。
+
+文件IO操作
+    在传统的文件IO操作中，我们都是调用操作系统提供的底层标准IO系统调用函数read()、write() ，此时调用此函数的进程（在JAVA中即java进程）由当前的用户态切换到内核态，然后OS的内核代码负责将相应的文件数据读取到内核的IO缓冲区，然后再把数据从内核IO缓冲区拷贝到进程的私有地址空间中去，这样便完成了一次IO操作。
+    而NIO的零拷贝与传统的文件IO操作最大的不同之处就在于它虽然也是要从磁盘读取数据，但是它并不需要将数据读取到OS内核缓冲区，而是直接将进程的用户私有地址空间中的一部分区域与文件对象建立起映射关系，这样直接从内存中读写文件，速度大幅度提升。
+
+通道 channel
+    通道 Channel 是对原 I/O 包中的流的模拟，可以通过它读取和写入数据。通道与流的不同之处在于，流只能在一个方向上移动(一个流必须是 InputStream 或者 OutputStream 的子类)，而通道是双向的，可以用于读、写或者同时用于读写。通道包括以下类型：
+        FileChannel：从文件中读写数据
+        DatagramChannel：通过 UDP 读写网络中数据
+        SocketChannel：通过 TCP 读写网络中数据
+        ServerSocketChannel：可以监听新进来的 TCP 连接，对每一个新进来的连接都会创建一个 SocketChannel
+
+文件复制 
+    如果处理的是小文件或者对复制速度要求不是非常高的情况下，使用 BufferedInputStream 和 BufferedOutputStream 可以简单快速地完成任务。缺点是对于大文件，由于数据是逐字节传输的，可能效率较低，特别是在网络文件系统或远程位置时。
+    对于需要高性能和大文件处理的场景，特别是需要考虑到文件系统的效率和零拷贝技术的情况，使用 FileChannel 和 ByteBuffer 更为合适, 它能够提供更高的吞吐量和更低的 CPU 使用率，尤其在处理大文件时表现更为明显
+    参见IO中复制例
+<code>
+public class fastCopy {
+    public static void main(String[] args) {
+        String src = "out.txt";
+        String dst = "test/out.txt";
+        fastCopy(src,dst);
+    }
+    public static void fastCopy(String src,String dst) {
+        try (FileInputStream fis = new FileInputStream(src);
+             FileChannel fileInputChannel = fis.getChannel();
+             FileOutputStream fos = new FileOutputStream(dst);
+             FileChannel fileOutChannel = fos.getChannel()) {
+
+            ByteBuffer buffer = ByteBuffer.allocateDirect(1024);
+            while (fileInputChannel.read(buffer) != -1) {//从 fileInputChannel 读取数据到 buffer 中，此时 buffer 处于写模式。
+                buffer.flip();//切换到读模式
+                fileOutChannel.write(buffer);//从 buffer 读取数据并写入到 fileOutChannel，此时缓冲区的数据从位置 0 到 limit 被读取。
+                buffer.clear();
+            }
+            System.out.println("复制完毕");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
+</code>
+<code> 
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
+import java.nio.channels.*;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.util.Iterator;
+import java.util.Set;
+ 
+public class NIOServer {
+    public static void main(String[] args) {
+        try {
+            // 打开服务器套接字通道
+            ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
+             // 绑定到特定端口
+            serverSocketChannel.socket().bind(new InetSocketAddress(8080));
+            System.out.println("Server started on port 8080");
+             // 设置为非阻塞模式
+            serverSocketChannel.configureBlocking(false);
+             // 打开Selector
+            Selector selector = Selector.open();
+             // 将ServerSocketChannel注册到Selector，并指定关注事件为接收操作
+            serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
+ 
+            while (true) {
+                // 等待需要处理的事件发生
+                selector.select();
+ 
+                // 获取所有触发的事件的SelectionKey
+                Set&lt;SelectionKey> selectedKeys = selector.selectedKeys();
+                Iterator&lt;SelectionKey> keyIterator = selectedKeys.iterator();
+ 
+                while (keyIterator.hasNext()) {
+                    SelectionKey key = keyIterator.next();
+ 
+                    if (key.isAcceptable()) {
+                        // 有新的连接
+                        ServerSocketChannel server = (ServerSocketChannel) key.channel();
+                        SocketChannel clientSocketChannel = server.accept();
+                        clientSocketChannel.configureBlocking(false);
+ 
+                        // 将新的SocketChannel注册到Selector，并指定关注事件为读操作
+                        clientSocketChannel.register(selector, SelectionKey.OP_READ);
+ 
+                        System.out.println("Connection established with " + clientSocketChannel.getRemoteAddress());
+                    } else if (key.isReadable()) {
+                        // 有可读数据
+                        SocketChannel clientSocketChannel = (SocketChannel) key.channel();
+                        ByteBuffer buffer = ByteBuffer.allocate(1024);
+                        int bytesRead = clientSocketChannel.read(buffer);//此处将读到内容写进buffer,即处于buffer的写模式
+ 
+                        if (bytesRead == -1) {
+                            // 客户端断开连接
+                            clientSocketChannel.close();
+                            key.cancel();
+                            System.out.println("Connection closed by client: " + clientSocketChannel.getRemoteAddress());
+                        } else {
+                            buffer.flip();// 切换到读模式(从buffer中读取)
+                            Charset charset = StandardCharsets.UTF_8;
+                            String message = charset.decode(buffer).toString().trim();
+                            System.out.println("Message from client " + clientSocketChannel.getRemoteAddress() + ": " + message);
+ 
+                            // 回复消息给客户端
+                            String response = "我是来自服务端的答复";
+                            ByteBuffer responseBuffer = charset.encode(response);
+                            clientSocketChannel.write(responseBuffer);
+                        }
+                    }
+                    keyIterator.remove();
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
+</code>
+<code>
+public class NIOClient {
+    public static void main(String[] args) {
+        try {
+            // 打开客户端套接字通道
+            SocketChannel socketChannel = SocketChannel.open(new InetSocketAddress("localhost", 8080));
+ 
+            String message = "我是来自客户端的消息";
+            Charset charset = StandardCharsets.UTF_8;
+            ByteBuffer buffer = charset.encode(message);
+            socketChannel.write(buffer);  // 发送消息到服务器
+ 
+            // 接收服务器的回复
+            ByteBuffer responseBuffer = ByteBuffer.allocate(1024);
+            int bytesRead = socketChannel.read(responseBuffer);
+            while (bytesRead != -1) {
+                responseBuffer.flip();  // 切换到读模式
+ 
+                // 解码服务器的回复
+                CharBuffer charBuffer = charset.decode(responseBuffer);
+                System.out.println("Response from server: " + charBuffer.toString());
+ 
+                responseBuffer.clear();  // 清空缓冲区，准备下一次读取
+                bytesRead = socketChannel.read(responseBuffer);
+            }
+            socketChannel.close();  // 关闭连接
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
+</code>
+<code>
+public class NIOClient2 {
+    //..
+    String message = "我是来自客户端2的消息";
+    //..
+}
+</code>
+
+<h1>AIO 异步非阻塞</h1>
+Asynchronous IO
+在JDK1.7中，这部分内容被称作NIO.2，主要在java.nio.channels包下增加了下面四个异步通道
+    AsynchronousSocketChannel
+    AsynchronousServerSocketChannel
+    AsynchronousFileChannel
+    AsynchronousDatagramChannel
+基于事件驱动和回调机制，适用于高延迟I/O操作和高并发、高吞吐量要求的场景，编程最为复杂，但性能最好
+<code>
+public class AsyncServer {
+    public static void main(String[] args) {
+        try {
+            //使用AsynchronousServerSocketChannel来监听连接请求，并使用回调方法处理每个连接
+            AsynchronousServerSocketChannel serverChannel = AsynchronousServerSocketChannel.open();
+            serverChannel.bind(new InetSocketAddress("localhost", 12345));
+ 
+            System.out.println("正在监听12345端口");
+            //使用CompletionHandler来处理连接和读写操作。通过回调方法处理每个客户端的请求而不阻塞主线程
+            serverChannel.accept(null, new CompletionHandler&lt;AsynchronousSocketChannel, Void>() {
+                @Override
+                public void completed(AsynchronousSocketChannel socketChannel, Void attachment) {
+                    // 当一个客户端连接被接受后，serverChannel.accept(null, this)会准备接受下一个连接
+                    serverChannel.accept(null, this);
+ 
+                    // 处理当前连接
+                    ByteBuffer buffer = ByteBuffer.allocate(1024);
+                    socketChannel.read(buffer, buffer, new CompletionHandler&lt;Integer, ByteBuffer>() {
+                        @Override
+                        public void completed(Integer result, ByteBuffer buffer) {
+                            buffer.flip();
+                            String message = StandardCharsets.UTF_8.decode(buffer).toString();
+                            System.out.println("[客户端消息]:" + message);
+ 
+                            buffer.clear();
+                            buffer.put(("我是来自server的答复").getBytes(StandardCharsets.UTF_8));
+                            buffer.flip();
+                            socketChannel.write(buffer, buffer, new CompletionHandler&lt;Integer, ByteBuffer>() {
+                                @Override
+                                public void completed(Integer result, ByteBuffer buffer) {
+                                    if (buffer.hasRemaining()) {
+                                        socketChannel.write(buffer, buffer, this);
+                                    } else {
+                                        buffer.compact();
+                                        socketChannel.read(buffer, buffer, this);
+                                    }
+                                }
+                                @Override
+                                public void failed(Throwable exc, ByteBuffer buffer) {
+                                    exc.printStackTrace();
+                                }
+                            });
+                        }
+                        @Override
+                        public void failed(Throwable exc, ByteBuffer buffer) {
+                            exc.printStackTrace();
+                        }
+                    });
+                }
+                @Override
+                public void failed(Throwable exc, Void attachment) {
+                    exc.printStackTrace();
+                }
+            });
+            // 防止主线程退出
+            System.in.read();
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+    }
+}
+</code>
+<code>
+public class AsyncClient {
+    public static void main(String[] args) {
+        try (AsynchronousSocketChannel clientChannel = AsynchronousSocketChannel.open()) {
+            InetSocketAddress hostAddress = new InetSocketAddress("localhost", 12345);
+            Future&lt;Void> future = clientChannel.connect(hostAddress);
+            future.get();
+ 
+            System.out.println("已连接到服务器");
+ 
+            ByteBuffer buffer = ByteBuffer.allocate(1024);
+            String message = "Hello, Server!";
+            buffer.put(message.getBytes(StandardCharsets.UTF_8));
+            buffer.flip();
+ 
+            clientChannel.write(buffer).get();
+ 
+            buffer.clear();
+            clientChannel.read(buffer, buffer, new CompletionHandler&lt;Integer, ByteBuffer>() {
+                @Override
+                public void completed(Integer result, ByteBuffer buffer) {
+                    buffer.flip();
+                    String response = StandardCharsets.UTF_8.decode(buffer).toString();
+                    System.out.println("[服务端消息]:" + response);
+                }
+                @Override
+                public void failed(Throwable exc, ByteBuffer buffer) {
+                    exc.printStackTrace();
+                }
+            });
+            // 防止主线程退出
+            System.in.read();
+        } catch (IOException | InterruptedException | ExecutionException ex) {
+            ex.printStackTrace();
+        }
+    }
+}
+</code>
+<code>
+public class AsyncClient2 {
+    //..
+    String message = "Hello, Server!,我是AsyncClient2";
+    //..
+}
+</code>
+</pre>
+ </body>
+</html>

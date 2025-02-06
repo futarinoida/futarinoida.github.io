@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>Spring JDBC</title>
+</head>
+<body><span id="anchor">20240729003931-_数据库</span>
+<pre>
+Spring JDBC是Spring框架用于处理关系型数据库的模块,对JDBC API进行了轻量封装
+    JdbcTemplate是其核心类,提供数据的CRUD方法
+
+Mybatis和Spring JDBC
+    Mybatis作为一个ORM框架,其封装程度较高,方便快速地完成与数据库的交互工作,但是因为封装程度高导致执行效率相对较低
+    而Spring JDBC只是对原始的JDBC API进行了简单封装
+    对于互联网一线大厂无论是数据量还是用户并发量都非常高,使用MyBatis可能由于微小的性能差距导致整体应用变慢,因此更倾向使用像Spring JDBC这样轻量级的封装框架,在此基础上结合自己企业应用的特点进行二次封装,同时因为有底层ioc容器的存在,使程序不至于像原生JDBC那样难以管理
+    Spring JDBC是介于ORM框架和原生JDBC之间的一种折中选择
+
+<h1>依赖</h1>
+<code xml>
+&lt;dependency&gt;
+    &lt;groupId&gt;org.springframework&lt;/groupId&gt;
+    &lt;artifactId&gt;spring-jdbc&lt;/artifactId&gt;
+    &lt;version&gt;5.3.19&lt;/version&gt;
+&lt;/dependency&gt;
+</code>
+
+<h1>配置</h1>
+<code xml>
+&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;
+&lt;beans xmlns=&quot;http://www.springframework.org/schema/beans&quot;
+       xmlns:xsi=&quot;http://www.w3.org/2001/XMLSchema-instance&quot;
+       xsi:schemaLocation=&quot;
+           http://www.springframework.org/schema/beans https://www.springframework.org/schema/beans/spring-beans.xsd
+&quot;&gt;
+    &lt;!-- 创建数据源 -->
+    &lt;bean id=&quot;dataSource&quot; class=&quot;org.springframework.jdbc.datasource.DriverManagerDataSource&quot;&gt;
+        &lt;property name=&quot;driverClassName&quot; value=&quot;com.mysql.cj.jdbc.Driver&quot;/&gt;
+        &lt;property name=&quot;url&quot; value=&quot;jdbc:mysql://localhost:3306/testdb?useSSL=true&amp;amp;useUnicode=true&amp;amp;characterEncoding=UTF-8&amp;amp;serverTimezone=Asia/Shanghai&amp;amp;allowPublicKeyRetrieval=true&quot;/&gt;
+        &lt;property name=&quot;username&quot; value=&quot;root&quot;/&gt;
+        &lt;property name=&quot;password&quot; value=&quot;root&quot;/&gt;
+    &lt;/bean&gt;
+    &lt;!-- 创建jdbcTemplate关联到数据源 -->
+    &lt;bean id=&quot;jdbcTemplate&quot; class=&quot;org.springframework.jdbc.core.JdbcTemplate&quot;&gt;
+        &lt;property name=&quot;dataSource&quot; ref=&quot;dataSource&quot;/&gt;
+    &lt;/bean&gt;
+    &lt;!-- 创建DAO注入jdbcTemplate -->
+    &lt;bean id=&quot;employeeDao&quot; class=&quot;com.ida.demo10.jdbc.dao.EmployeeDao&quot;&gt;
+        &lt;property name=&quot;jdbcTemplate&quot; ref=&quot;jdbcTemplate&quot;/&gt;
+    &lt;/bean&gt;
+&lt;/beans&gt;
+</code>
+
+<h1>CURD操作</h1>
+<code>
+public class EmployeeDao {
+    private JdbcTemplate jdbcTemplate; //setter
+ 
+    //单条记录封装为实体对象
+    public Employee findById(Integer eno) {
+        String sql = "select * from testdb.employee where eno = ?";
+        return jdbcTemplate.queryForObject(
+                sql,
+                new Object[]{eno},
+                new BeanPropertyRowMapper&lt;>(Employee.class)
+        );
+    }
+ 
+    //多条记录封装为实体对象列表
+    public List&lt;Employee> findByDname(String dname) {
+        String sql = "select * from testdb.employee where dname=?";
+        return jdbcTemplate.query(
+                sql,
+                new Object[]{dname},
+                new BeanPropertyRowMapper&lt;>(Employee.class)
+        );
+    }
+ 
+    //多条记录封装为Map对象列表
+    public List&lt;Map&lt;String, Object>> findByDnameDTO(String dname) {
+        String sql = "select ename name,salary from testdb.employee where dname=?";
+        return jdbcTemplate.queryForList(
+                sql,
+                new Object[]{dname}
+        );
+    }
+ 
+    public long[] insert(Employee employee) {
+        //无自增主键
+//        String sql = "INSERT INTO testdb.employee(eno, ename, salary, dname, hiredate) VALUES (?, ?, ?, ?, ?)";
+//        return jdbcTemplate.update(
+//                sql,
+//                employee.getEno(),
+//                employee.getEname(),
+//                employee.getSalary(),
+//                employee.getDname(),
+//                employee.getHiredate()
+//        );
+ 
+        //有自增主键, 需要实现 PreparedStatementCreator 接口,
+        //PreparedStatement 本身不支持按字段名赋值，只能通过索引来设置参数
+        //使用 NamedParameterJdbcTemplate 代替 JdbcTemplate可以按字段名来赋值参数，同时保留获取自动生成主键的功能
+        String sql = "INSERT INTO testdb.employee(ename, salary, dname, hiredate) VALUES (?, ?, ?, ?)";
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        int cnt = jdbcTemplate.update(new PreparedStatementCreator() {
+            @Override
+            public PreparedStatement createPreparedStatement(Connection connection) throws SQLException {
+                PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+                ps.setString(1, employee.getEname());
+                ps.setFloat(2, employee.getSalary());
+                ps.setString(3, employee.getDname());
+                ps.setDate(4, new java.sql.Date(employee.getHiredate().getTime()));
+                return ps;
+            }
+        }, keyHolder);
+
+        return new long[]{cnt, keyHolder.getKey().longValue()};
+    }
+ 
+    public int update(Employee employee) {
+        String sql = "update testdb.employee set ename=?,salary=?,dname=?,hiredate=? where eno=?";
+        return jdbcTemplate.update(
+                sql,
+                employee.getEname(),
+                employee.getSalary(),
+                employee.getDname(),
+                employee.getHiredate(),
+                employee.getEno()
+        );
+    }
+ 
+    public int delete(Integer eno) {
+        String sql = "delete from testdb.employee where eno=?";
+        return jdbcTemplate.update(
+                sql,
+                eno
+        );
+    }
+}
+</code>
+<h2>测试</h2>
+<code>
+@RunWith(SpringJUnit4ClassRunner.class)
+@ContextConfiguration(locations = {"classpath:applicationContext-spring_jdbc.xml"})
+public class EmployeeDaoTest {
+    @Resource
+    private EmployeeDao employeeDao;
+ 
+    @Test
+    public void findById() {
+        System.out.println(employeeDao.findById(3420));
+    }
+ 
+    @Test
+    public void selectByDname() {
+        employeeDao.findByDname("研发部").forEach(System.out::println);
+    }
+ 
+    @Test
+    public void selectByDnameDTO() {
+        employeeDao.findByDnameDTO("研发部").forEach(System.out::println);
+    }
+ 
+    @Test
+    public void insert() {
+        Employee employee = new Employee();
+        employee.setEname("Jerry");
+        employee.setSalary(6666f);
+        employee.setDname("市场部");
+        employee.setHiredate(new Date());
+        long[] cnt_key = employeeDao.insert(employee);
+        System.out.println(cnt_key[0]);
+        employee.setEno((int) cnt_key[1]);
+        System.out.println(employee);
+    }
+ 
+    @Test
+    public void update() {
+        Employee employee = employeeDao.findById(3611);
+        employee.setSalary(employee.getSalary()+1000);
+        int cnt = employeeDao.update(employee);
+        System.out.println(cnt);
+    }
+ 
+    @Test
+    public void delete() {
+        System.out.println(employeeDao.delete(3612));
+    }
+}
+</code>
+
+<h1>事务管理</h1>
+Spring JDBC通过TransactionManager实现事务控制
+Spring的事务是通过AOP实现的，这意味着事务管理是基于代理的, 而内部方法调用不会经过代理
+    Spring 会为你的服务类创建一个代理对象。这个代理对象会拦截对服务方法的调用，并在调用前启动事务，在调用后提交或回滚事务
+    当在同一个类内部直接调用另一个方法时，这个调用不会经过 Spring 的代理，因此不会应用事务管理
+
+<h2>编程式事务</h2>
+编程式事务指通过代码手动提交和回滚
+<h3>配置</h3>
+<code xml>
+&lt;!-- 创建事务管理器, 关联dataSource -->
+&lt;bean id=&quot;transactionManager&quot; class=&quot;org.springframework.jdbc.datasource.DataSourceTransactionManager&quot;&gt;
+    &lt;property name=&quot;dataSource&quot; ref=&quot;dataSource&quot;/&gt;
+&lt;/bean&gt;
+&lt;!-- 为服务类注入事务管理器 -->
+&lt;bean id=&quot;employeeService&quot; class=&quot;com.ida.demo10.jdbc.service.EmployeeService&quot;&gt;
+    &lt;property name=&quot;employeeDao&quot; ref=&quot;employeeDao&quot;/&gt;
+    &lt;property name=&quot;transactionManager&quot; ref=&quot;transactionManager&quot;/&gt;
+&lt;/bean&gt;
+</code>
+<h3>使用</h3>
+<code>
+public class EmployeeService {
+    private EmployeeDao employeeDao; //setter
+    private DataSourceTransactionManager transactionManager; //setter
+ 
+    public void batchImport() {
+        //DefaultTransactionDefinition定义了一些默认的事务属性（例如传播行为、隔离级别等）
+        //开始一个事务, TransactionStatus用于管理和跟踪当前事务的状态
+        TransactionStatus status = transactionManager.getTransaction(new DefaultTransactionDefinition());
+        try {
+            //------------------------------------------
+            for (int i = 1; i &lt;= 10; i++) {
+                    if (i == 5) {
+                        //throw new RuntimeException("xxx");
+                    }
+                Employee employee = new Employee();
+                employee.setEname("员工"+i);
+                employee.setSalary(6666f);
+                employee.setDname("市场部");
+                employee.setHiredate(new Date());
+                employeeDao.insert(employee);
+            }
+            //------------------------------------------
+            transactionManager.commit(status); //提交事务
+        } catch (Exception e) {
+            transactionManager.rollback(status); //回滚事务
+            throw new RuntimeException(e);
+        }
+    }
+}
+</code>
+
+<h2>声明式事务</h2>
+声明式事务指通过配置形式自动实现事务控制
+声明式事务本质是AOP环绕通知
+
+目标方法执行成功时自动提交,抛出非检查异常(Error 和 RuntimeException 以及他们的子类)时自动回滚
+    对于检查异常 Spring 默认情况下不会自动回滚事务。需要显式配置回滚规则，以便在遇到检查异常时进行回滚。
+        xml配置时在tx:method中添加属性rollback-for="java.io.IOException, java.sql.SQLException"
+        @Transactional(rollbackFor= Exception,class) 任何异常都进行回滚
+            Error,Exception继承Throwable, RuntimeException继承Exception
+            如果 IOException 发生在数据写入操作的过程中，通常需要回滚事务以确保数据一致性
+
+在接口上配置 @Transactional 注解后，无需在实现类上重复配置, 除非需要对某些方法使用不同的事务配置，或者需要覆盖接口上的事务注解时
+
+接口上使用事务注解
+    在接口上配置 @Transactional 注解后，无需在实现类上重复配置, 除非需要对某些方法使用不同的事务配置，或者需要覆盖接口上的事务注解时
+
+<h3>配置</h3>
+增加tx,aop命名空间
+配置事务通知属性
+为事务通知绑定切点
+<code xml>
+&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;
+&lt;beans xmlns=&quot;http://www.springframework.org/schema/beans&quot;
+       xmlns:xsi=&quot;http://www.w3.org/2001/XMLSchema-instance&quot;
+       xmlns:tx=&quot;http://www.springframework.org/schema/tx&quot;
+       xmlns:aop=&quot;http://www.springframework.org/schema/aop&quot;
+       xsi:schemaLocation=&quot;
+           http://www.springframework.org/schema/beans https://www.springframework.org/schema/beans/spring-beans.xsd
+           http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd
+           http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop.xsd
+&quot;&gt;
+ 
+    &lt;bean id=&quot;dataSource&quot; class=&quot;org.springframework.jdbc.datasource.DriverManagerDataSource&quot;&gt;
+        &lt;property name=&quot;driverClassName&quot; value=&quot;com.mysql.cj.jdbc.Driver&quot;/&gt;
+        &lt;property name=&quot;url&quot;
+                  value=&quot;jdbc:mysql://localhost:3306/testdb?useSSL=true&amp;amp;useUnicode=true&amp;amp;characterEncoding=UTF-8&amp;amp;serverTimezone=Asia/Shanghai&amp;amp;allowPublicKeyRetrieval=true&quot;/&gt;
+        &lt;property name=&quot;username&quot; value=&quot;root&quot;/&gt;
+        &lt;property name=&quot;password&quot; value=&quot;root&quot;/&gt;
+    &lt;/bean&gt;
+    &lt;bean id=&quot;jdbcTemplate&quot; class=&quot;org.springframework.jdbc.core.JdbcTemplate&quot;&gt;
+        &lt;property name=&quot;dataSource&quot; ref=&quot;dataSource&quot;/&gt;
+    &lt;/bean&gt;
+ 
+    &lt;bean id=&quot;employeeDao&quot; class=&quot;com.ida.demo10.jdbc.dao.EmployeeDao&quot;&gt;
+        &lt;property name=&quot;jdbcTemplate&quot; ref=&quot;jdbcTemplate&quot;/&gt;
+    &lt;/bean&gt;
+ 
+    &lt;!-- 编程式事务例 --&gt;
+    &lt;bean id=&quot;employeeService&quot; class=&quot;com.ida.demo10.jdbc.service.EmployeeService&quot;&gt;
+        &lt;property name=&quot;employeeDao&quot; ref=&quot;employeeDao&quot;/&gt;
+        &lt;property name=&quot;transactionManager&quot; ref=&quot;transactionManager&quot;/&gt;
+    &lt;/bean&gt;
+    &lt;!-- 声明式事务例 --&gt;
+    &lt;bean id=&quot;employeeService2&quot; class=&quot;com.ida.demo10.jdbc.service.EmployeeService2&quot;&gt;
+        &lt;property name=&quot;employeeDao&quot; ref=&quot;employeeDao&quot;/&gt;
+    &lt;/bean&gt;
+ 
+    &lt;bean id=&quot;transactionManager&quot; class=&quot;org.springframework.jdbc.datasource.DataSourceTransactionManager&quot;&gt;
+        &lt;property name=&quot;dataSource&quot; ref=&quot;dataSource&quot;/&gt;
+    &lt;/bean&gt;
+ 
+    &lt;!-- 配置声明式事务通知属性 --&gt;
+    &lt;tx:advice id=&quot;txAdvice&quot; transaction-manager=&quot;transactionManager&quot;&gt;
+        &lt;tx:attributes&gt;
+            &lt;tx:method name=&quot;batchImport&quot; propagation=&quot;REQUIRED&quot;/&gt;
+            &lt;!--
+                name支持通配符
+                read-only="true"设置事务为只读可以帮助采取更高效的执行计划，减少锁定等操作,同时Spring会阻止数据的修改避免误操作
+            --&gt;
+            &lt;tx:method name=&quot;get*&quot; propagation=&quot;NOT_SUPPORTED&quot; read-only=&quot;true&quot;/&gt;
+            &lt;!-- 不符合上面筛选条件时方法的兜底设置 --&gt;
+            &lt;tx:method name=&quot;*&quot; propagation=&quot;REQUIRED&quot;/&gt;
+            &lt;!-- 如果切点匹配的方法不在 &lt;tx:method&gt; 范围内，并且没有提供一个通用的兜底设置，那么这些方法将不会被应用任何事务管理策略 --&gt;
+        &lt;/tx:attributes&gt;
+    &lt;/tx:advice&gt;
+    &lt;!-- 为声明式事务通知绑定切点 --&gt;
+    &lt;aop:config&gt;
+        &lt;aop:pointcut id=&quot;pointcut&quot; expression=&quot;execution(* com.ida.demo10.jdbc.service..*2.*(..))&quot;/&gt;
+        &lt;aop:advisor advice-ref=&quot;txAdvice&quot; pointcut-ref=&quot;pointcut&quot;/&gt;
+    &lt;/aop:config&gt;
+&lt;/beans&gt;
+</code>
+<code>
+public class EmployeeService2 {
+    private EmployeeDao employeeDao; //setter
+ 
+    public void batchImport(int m) {
+        for (int i = m; i &lt; m+10; i++) {
+            if (i == m+3) {
+                //throw new RuntimeException("xxx");
+            }
+            Employee employee = new Employee();
+            employee.setEname("员工"+i);
+            employee.setSalary(6666f);
+            employee.setDname("市场部");
+            employee.setHiredate(new Date());
+            employeeDao.insert(employee);
+        }
+    }
+}
+ 
+@RunWith(SpringJUnit4ClassRunner.class)
+@ContextConfiguration(locations = {"classpath:applicationContext-spring_jdbc.xml"})
+public class EmployeeService2Test {
+    @Resource
+    private EmployeeService2 employeeService2;
+
+    @Test
+    public void batchImport() {
+        employeeService2.batchImport(0);
+    }
+}
+</code>
+<h3>注解形式的声明式事务</h3>
+放在类上对类中所有方法有效,默认REQUIRED
+方法上的注解声明优先于类上的注解声明
+查询方法不需要事务,标记@Transactional(propagation = Propagation.NOT_SUPPORTED ,readOnly = true)
+<code xml>
+&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;
+&lt;beans xmlns=&quot;http://www.springframework.org/schema/beans&quot;
+       xmlns:xsi=&quot;http://www.w3.org/2001/XMLSchema-instance&quot;
+       xmlns:context=&quot;http://www.springframework.org/schema/context&quot;
+       xmlns:tx=&quot;http://www.springframework.org/schema/tx&quot;
+       xsi:schemaLocation=&quot;
+           http://www.springframework.org/schema/beans https://www.springframework.org/schema/beans/spring-beans.xsd
+           http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd
+           http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+&quot;&gt;
+    &lt;bean id=&quot;dataSource&quot; class=&quot;org.springframework.jdbc.datasource.DriverManagerDataSource&quot;&gt;
+        &lt;property name=&quot;driverClassName&quot; value=&quot;com.mysql.cj.jdbc.Driver&quot;/&gt;
+        &lt;property name=&quot;url&quot;
+                  value=&quot;jdbc:mysql://localhost:3306/testdb?useSSL=true&amp;amp;useUnicode=true&amp;amp;characterEncoding=UTF-8&amp;amp;serverTimezone=Asia/Shanghai&amp;amp;allowPublicKeyRetrieval=true&quot;/&gt;
+        &lt;property name=&quot;username&quot; value=&quot;root&quot;/&gt;
+        &lt;property name=&quot;password&quot; value=&quot;root&quot;/&gt;
+    &lt;/bean&gt;
+    &lt;bean id=&quot;jdbcTemplate&quot; class=&quot;org.springframework.jdbc.core.JdbcTemplate&quot;&gt;
+        &lt;property name=&quot;dataSource&quot; ref=&quot;dataSource&quot;/&gt;
+    &lt;/bean&gt;
+    &lt;bean id=&quot;transactionManager&quot; class=&quot;org.springframework.jdbc.datasource.DataSourceTransactionManager&quot;&gt;
+        &lt;property name=&quot;dataSource&quot; ref=&quot;dataSource&quot;/&gt;
+    &lt;/bean&gt;
+    &lt;!-- 启用组件扫描 --&gt;
+    &lt;context:component-scan base-package=&quot;com.ida.demo10.jdbc.transactionAnno&quot;/&gt;
+    &lt;!-- 启用注解形式声明事务 --&gt;
+    &lt;tx:annotation-driven transaction-manager=&quot;transactionManager&quot;/&gt;
+&lt;/beans&gt;
+</code>
+
+<h2>事务的传播行为</h2>
+<p>
+传播方式:存在事务时行为:不存在事务时行为:当前事务异常时行为:新事务异常时行为
+REQUIRED(默认):使用当前事务:新建事务:当前事务回滚，新事务也回滚:N/A
+REQUIRES_NEW:挂起当前事务，新建一个新事务:新建事务:当前事务回滚，新事务不受影响:新事务回滚，当前事务不受影响
+SUPPORTS:使用当前事务:不使用事务:当前事务回滚:N/A
+NOT_SUPPORTED:挂起当前事务，不使用事务:不使用事务:当前事务回滚:N/A
+MANDATORY:使用当前事务:抛出异常:当前事务回滚:N/A
+NEVER:抛出异常:不使用事务:当前事务回滚:N/A
+NESTED:使用当前事务，但创建一个嵌套事务（保存点）:新建事务:当前事务回滚，嵌套事务回滚到保存点:嵌套事务回滚，当前事务不受影响
+</p>
+REQUIRES_NEW 的设计目的是确保新事务完全独立于外层事务运行。这样即使新事务失败或异常回滚，外层事务仍可以独立决定自己的执行或回滚
+
+<code>
+public class BatchService {
+    private EmployeeDao employeeDao; //setter
+    private DataSourceTransactionManager transactionManager; //setter
+  
+    public void task1(int m) {
+        for (int i = m; i &lt; m + 10; i++) {
+            if (i == m + 3) {
+                //throw new RuntimeException("xxx");
+            }
+            Employee employee = new Employee();
+            employee.setEname("员工" + i);
+            employee.setSalary(6666f);
+            employee.setDname("市场部");
+            employee.setHiredate(new Date());
+            employeeDao.insert(employee);
+        }
+    }
+ 
+    public void task2(int m) {
+        for (int i = m; i &lt; m + 10; i++) {
+            if (i == m + 3) {
+                throw new RuntimeException("xxx");
+            }
+            Employee employee = new Employee();
+            employee.setEname("员工" + i);
+            employee.setSalary(6666f);
+            employee.setDname("市场部");
+            employee.setHiredate(new Date());
+            employeeDao.insert(employee);
+        }
+    }
+ 
+    public void task3(int m) {
+        for (int i = m; i &lt; m + 10; i++) {
+            if (i == m + 3) {
+                //throw new RuntimeException("xxx");
+            }
+            Employee employee = new Employee();
+            employee.setEname("员工" + i);
+            employee.setSalary(6666f);
+            employee.setDname("市场部");
+            employee.setHiredate(new Date());
+            employeeDao.insert(employee);
+        }
+    }
+}
+ 
+//task1,3完整写入, task2异常回滚;
+//如果A或B处放开, 即superTask上抛异常, task1完整写入, task2异常回滚, task3由于superTask异常而没有执行机会
+//因为 task1 的事务是独立的 (REQUIRES_NEW)，即使 superTask 方法中的事务被回滚，也不会影响到 task1 的结果
+public class BS {
+    private BatchService batchService; //setter
+ 
+    public void superTask() { //REQUIRED
+        //在不同类中调用task以保证经过代理应用事务管理
+        //每个task方法单独try/catch消化,保证所有task都被执行到,各自异常各自回滚互不干扰
+        try {
+            batchService.task1(0); //REQUIRES_NEW
+        } catch (RuntimeException e) {
+            e.printStackTrace();
+        }
+        try {
+            batchService.task2(10); //REQUIRES_NEW
+        } catch (RuntimeException e) {
+            e.printStackTrace();
+            //throw e; //A
+        }
+        try {
+            if (true) {
+                throw new RuntimeException("xxx");
+            }
+        } catch (RuntimeException e) {
+            e.printStackTrace(); //如果事务内部异常选择内部自行消化而没有抛到外层,将不会触发回滚
+            //throw e; //B
+        }
+        try {
+            batchService.task3(20); //REQUIRES_NEW
+        } catch (RuntimeException e) {
+            e.printStackTrace();
+        }
+    }
+}
+ 
+@RunWith(SpringJUnit4ClassRunner.class)
+@ContextConfiguration(locations = {"classpath:applicationContext-spring_jdbc.xml"})
+public class BSTest {
+    @Resource
+    private BS bs;
+ 
+    @Test
+    public void superTask() {
+        bs.superTask();
+    }
+}
+</code>
+<code xml>
+&lt;!-- 事务传播例 --&gt;
+&lt;bean id=&quot;batchService&quot; class=&quot;com.ida.demo10.jdbc.service.BatchService&quot;&gt;
+    &lt;property name=&quot;employeeDao&quot; ref=&quot;employeeDao&quot;/&gt;
+&lt;/bean&gt;
+&lt;bean id=&quot;bs&quot; class=&quot;com.ida.demo10.jdbc.service.BS&quot;&gt;
+    &lt;property name=&quot;batchService&quot; ref=&quot;batchService&quot;/&gt;
+&lt;/bean&gt;
+ 
+&lt;bean id=&quot;transactionManager&quot; class=&quot;org.springframework.jdbc.datasource.DataSourceTransactionManager&quot;&gt;
+    &lt;property name=&quot;dataSource&quot; ref=&quot;dataSource&quot;/&gt;
+&lt;/bean&gt;
+
+&lt;!-- 配置声明式事务通知属性 --&gt;
+&lt;tx:advice id=&quot;txAdvice&quot; transaction-manager=&quot;transactionManager&quot;&gt;
+    &lt;tx:attributes&gt;
+        &lt;tx:method name=&quot;task1&quot; propagation=&quot;REQUIRES_NEW&quot;/&gt;
+        &lt;tx:method name=&quot;task2&quot; propagation=&quot;REQUIRES_NEW&quot;/&gt;
+        &lt;tx:method name=&quot;task3&quot; propagation=&quot;REQUIRES_NEW&quot;/&gt;
+        &lt;tx:method name=&quot;*&quot; propagation=&quot;REQUIRED&quot;/&gt;
+    &lt;/tx:attributes&gt;
+&lt;/tx:advice&gt;
+
+&lt;aop:config&gt;
+    &lt;!-- 可以使用逻辑运算符 --&gt;
+    &lt;aop:pointcut id=&quot;pointcut&quot; expression=&quot;execution(* com.ida.demo10.jdbc.service.*2.*(..)) || execution(* com.ida.demo10.jdbc.service.B*.*(..))&quot;/&gt;
+    &lt;aop:advisor advice-ref=&quot;txAdvice&quot; pointcut-ref=&quot;pointcut&quot;/&gt;
+&lt;/aop:config&gt;
+</code>
+</pre>
+</body>
+</html>

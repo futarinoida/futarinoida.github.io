@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>方法</title>
+</head>
+<body><span id="anchor">20240616183123-_java</span>
+<pre>
+<h1>方法签名</h1>
+方法名和参数列表(它们合起来被称为"方法签名")唯一地标识出某个方法
+
+<h1>可变参数列表</h1>
+一个方法中只能有一个可变参数,且置于末尾
+方法1: add(int i, int... f); //可以add(1, 2, 5),也可以add(1, new int[]{2,5})
+方法2: add(int i, int[] f); //不可以add(1, 2, 5)
+一个类中同时存在方法1和方法2时,两者为重复定义而非重载
+当add(1, 2)时, 优先调用方法2: add(int i, int[] f);
+
+<h1>重载</h1>
+参数类型,顺序,个数不同
+与返回值无关
+与访问修饰符无关
+
+<h1>重写</h1>
+存在于有继承关系的子类中
+参数类型,顺序,个数相同
+父类返回值为void或基本数据类型不允许修改,为引用类型时可以是父类或它的子类
+访问修饰符权限不能小于父类
+父类static修饰的方法不能被重写
+若子类中也有方法签名一致的static方法时,视为子类独有方法,并非重写,而只是对父类的该方法做了隐藏
+</pre>
+</body>
+</html>

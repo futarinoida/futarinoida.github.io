@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>github空间域名绑定</title>
+ </head>
+ <body>
+  <span id="anchor">20240307183503-_工具使用</span>
+  <pre>
+升级为github基础订阅
+repo设private,开通page主页  
+github添加购买的godaddy域名 
+将github提供的txt记录添加至godaddy domain dns
+返回github验证domain
+godaddy domain dns添加4条github的A记录
+<code null>
+A @ 185.199.108.153
+A @ 185.199.109.153
+A @ 185.199.110.153
+A @ 185.199.111.153
+</code>
+godaddy domain dns中修改 [cName www yourdomain.com.] 为
+<code null>repo.github.io.</code>
+repo/settings/pages, custom domain
+<code null>www.yourdomain.com</code>
+启用https
+
+https://github.com/settings/pages_verified_domains/new
+</pre>
+ </body>
+</html>

@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>Dubbo课程查询</title>
+</head>
+<body><span id="anchor">20240615135002-_项目例</span>
+<pre>
+生产者的职责：生产者主要负责将服务注册到注册中心，而不是从注册中心获取服务信息或进行服务调用。因此，它不需要关注连接超时的问题。
+消费者的职责：消费者则需要从注册中心获取服务信息，并与服务进行调用，这些操作需要超时控制以防止连接或请求过长时间挂起
+
+<h1>结构</h1>
+demo21 
+    producer 
+    consumer 
+
+<h1>pom</h1>
+<h2>demo21</h2>
+<code xml>
+&lt;groupId>com.ida.demo21&lt;/groupId>
+&lt;artifactId>demo21&lt;/artifactId>
+&lt;version>1.0-SNAPSHOT&lt;/version>
+&lt;packaging>pom&lt;/packaging>
+&lt;modules>
+    &lt;module>producer&lt;/module>
+    &lt;module>consumer&lt;/module>
+&lt;/modules>
+ 
+&lt;properties>
+    &lt;!-- .. -->
+    &lt;spring-boot.version>2.3.12.RELEASE&lt;/spring-boot.version>
+    &lt;dubbo.version>2.7.4.1&lt;/dubbo.version>
+&lt;/properties>
+ 
+&lt;dependencyManagement>
+    &lt;dependencies>
+        &lt;!-- boot -->
+        &lt;dependency>
+            &lt;groupId>org.springframework.boot&lt;/groupId>
+            &lt;artifactId>spring-boot-dependencies&lt;/artifactId>
+            &lt;version>${spring-boot.version}&lt;/version>
+            &lt;type>pom&lt;/type>
+            &lt;scope>import&lt;/scope>
+        &lt;/dependency>
+        &lt;!-- dubbo -->
+        &lt;dependency>
+            &lt;groupId>org.apache.dubbo&lt;/groupId>
+            &lt;artifactId>dubbo-dependencies-bom&lt;/artifactId>
+            &lt;version>${dubbo.version}&lt;/version>
+            &lt;type>pom&lt;/type>
+            &lt;scope>import&lt;/scope>
+        &lt;/dependency>
+        &lt;dependency>
+            &lt;groupId>org.apache.dubbo&lt;/groupId>
+            &lt;artifactId>dubbo&lt;/artifactId>
+            &lt;version>${dubbo.version}&lt;/version>
+            &lt;exclusions>
+                &lt;exclusion>
+                    &lt;groupId>org.springframework&lt;/groupId>
+                    &lt;artifactId>spring&lt;/artifactId>
+                &lt;/exclusion>
+                &lt;exclusion>
+                    &lt;groupId>javax.servlet&lt;/groupId>
+                    &lt;artifactId>servlet-api&lt;/artifactId>
+                &lt;/exclusion>
+                &lt;exclusion>
+                    &lt;groupId>log4j&lt;/groupId>
+                    &lt;artifactId>log4j&lt;/artifactId>
+                &lt;/exclusion>
+            &lt;/exclusions>
+        &lt;/dependency>
+    &lt;/dependencies>
+&lt;/dependencyManagement>
+</code>
+
+<h2>producer</h2>
+<code xml>
+&lt;!-- 父模块 -->
+&lt;parent>
+    &lt;groupId>com.ida.demo21&lt;/groupId>
+    &lt;artifactId>demo21&lt;/artifactId>
+    &lt;version>1.0-SNAPSHOT&lt;/version>
+&lt;/parent>
+ 
+&lt;artifactId>producer&lt;/artifactId>
+ 
+&lt;dependencies>
+    &lt;!-- boot依赖 -->
+    &lt;dependency>
+        &lt;groupId>org.springframework.boot&lt;/groupId>
+        &lt;artifactId>spring-boot-starter-web&lt;/artifactId>
+    &lt;/dependency>
+    &lt;!-- mysql,mybatis -->
+    &lt;dependency>
+        &lt;groupId>mysql&lt;/groupId>
+        &lt;artifactId>mysql-connector-java&lt;/artifactId>
+    &lt;/dependency>
+    &lt;dependency>
+        &lt;groupId>org.mybatis.spring.boot&lt;/groupId>
+        &lt;artifactId>mybatis-spring-boot-starter&lt;/artifactId>
+        &lt;version>2.1.1&lt;/version>
+    &lt;/dependency>
+    &lt;!-- dubbo -->
+    &lt;dependency>
+        &lt;groupId>org.apache.dubbo&lt;/groupId>
+        &lt;!-- 这是 Dubbo 提供的 Spring Boot 启动器，旨在简化 Dubbo 与 Spring Boot 的集成 -->
+        &lt;artifactId>dubbo-spring-boot-starter&lt;/artifactId>
+        &lt;version>${dubbo.version}&lt;/version>
+    &lt;/dependency>
+    &lt;dependency>
+        &lt;groupId>org.apache.dubbo&lt;/groupId>
+        &lt;!-- 这是 Dubbo 的核心库，包含了 Dubbo 框架的主要实现和功能。它包括了 Dubbo 的协议、通信、负载均衡等核心功能 -->
+        &lt;artifactId>dubbo&lt;/artifactId>
+    &lt;/dependency>
+    &lt;!-- zookeeper -->
+    &lt;dependency>
+        &lt;groupId>org.apache.dubbo&lt;/groupId>
+        &lt;artifactId>dubbo-dependencies-zookeeper&lt;/artifactId>
+        &lt;version>${dubbo.version}&lt;/version>
+        &lt;type>pom&lt;/type>
+        &lt;exclusions>
+            &lt;exclusion>
+                &lt;groupId>org.slf4j&lt;/groupId>
+                &lt;artifactId>slf4j-log4j12&lt;/artifactId>
+            &lt;/exclusion>
+        &lt;/exclusions>
+    &lt;/dependency>
+&lt;/dependencies>
+</code>
+<h2>consumer</h2>
+<code xml>
+&lt;!-- 父模块 -->
+demo21
+ 
+&lt;artifactId>consumer&lt;/artifactId>
+ 
+&lt;dependencies>
+    &lt;!-- boot依赖 -->
+    spring-boot-starter-web
+    &lt;!-- mysql,mybatis -->
+    mysql-connector-java
+    mybatis-spring-boot-starter
+    &lt;!-- dubbo -->
+    dubbo-spring-boot-starter
+    dubbo
+    &lt;!-- zookeeper -->
+    dubbo-dependencies-zookeeper
+    &lt;!-- 模块依赖 -->
+    &lt;dependency>
+        &lt;groupId>com.ida.demo21&lt;/groupId>
+        &lt;artifactId>producer&lt;/artifactId>
+        &lt;version>1.0-SNAPSHOT&lt;/version>
+        &lt;scope>compile&lt;/scope>
+    &lt;/dependency>
+&lt;/dependencies>
+</code>
+<h1>properties</h1>
+<h2>producer</h2>
+<code properties>
+# dubbo
+dubbo.registry.address=zookeeper://192.168.149.136:2181
+dubbo.config-center.timeout=30000
+ 
+dubbo.application.name=course-list
+producer.service.version=1.0.0
+dubbo.scan.base-packages=com.ida.demo21.producer.service.impl
+dubbo.protocol.host=192.168.149.1
+dubbo.protocol.port=-1
+dubbo.protocol.name=dubbo
+dubbo.registry.file=/usr/local/zookeeper/reg.cache
+ 
+spring.application.name=course-list
+ 
+# datasource
+spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+spring.datasource.url=jdbc:mysql://localhost:3306/course?serverTimezone=UTC&useUnicode=true&characterEncoding=utf-8&useSSL=true
+spring.datasource.username=root
+spring.datasource.password=root
+ 
+# mybatis
+mybatis.mapper-locations=classpath:mappers/*.xml
+mybatis.configuration.map-underscore-to-camel-case=true
+ 
+# logback
+logging.pattern.console=%clr(%d{${LOG_DATEFORMAT_PATTERN:HH:mm:ss.SSS}}){faint} %clr(${LOG_LEVEL_PATTERN:-%5p}) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n${LOG_EXCEPTION_CONVERSION_WORD:%wEx}
+</code>
+# 使用位于 192.168.149.136、端口为 2181 的 ZooKeeper 进行服务注册和发现
+    dubbo.registry.address=zookeeper://192.168.149.136:2181
+# 与配置中心交互时的超时时间, 例如连接zkl默认5秒, 超过则zookeeper not connected
+    dubbo.config-center.timeout=30000
+# 在服务注册、发现和调用过程中进行标识和管理
+    dubbo.application.name=course-list
+# 服务版本
+    producer.service.version=1.0.0
+# 在指定的包中查找服务实现，并将其注册以进行 RPC 通信
+    dubbo.scan.base-packages=com.ida.demo21.producer.service.impl
+# 服务暴露的主机地址, 帮助在多网卡环境或特定网络配置下明确服务的绑定地址, 如果不设置通常会自动选择本地的网络接口地址
+    dubbo.protocol.host=192.168.149.1
+# 服务暴露时使用的端口号, -1表示随机可用的端口, 未声明此属性时随机选择一个可用端口来暴露服务
+# 注册中心（如 ZooKeeper）会记录生产者暴露服务时所使用的随机端口号，并将其注册在注册中心中。消费者在调用服务时，会从注册中心获取到生产者的服务地址（包括随机分配的端口号)
+    dubbo.protocol.port=-1
+# 服务暴露时使用的协议 [dubbo,rest,hessian,rmi,webservice], 未声明此属性时默认dubbo, 消费者会自动从注册中心获取到服务提供者的协议信息，并根据提供者使用的协议来调用服务
+    dubbo.protocol.name=dubbo
+# 在服务注册时，生产者会将服务信息缓存到这个文件中, 在注册中心不可用时，提供一定程度的服务容错能力
+    dubbo.registry.file=/usr/local/zookeeper/reg.cache
+# server.port 服务间调用时不对外开放
+    spring.application.name=course-list
+<h2>consumer</h2>
+<code properties>
+# dubbo
+dubbo.registry.address=zookeeper://192.168.149.136:2181
+dubbo.config-center.timeout=30000
+dubbo.application.name=course-price
+dubbo.consumer.timeout=10000
+dubbo.registry.timeout=10000
+dubbo.registry.file=D:\\mess\\zk\\producer.cache
+producer.service.version=1.0.0
+ 
+server.port=9021
+spring.application.name=course-price
+ 
+# datasource
+ 
+# mybatis
+ 
+# logback
+</code>
+# 使用位于 192.168.149.136、端口为 2181 的 ZooKeeper 进行服务注册和发现
+    dubbo.registry.address=zookeeper://192.168.149.136:2181
+# 与配置中心交互时的超时时间, 例如连接zk默认5秒, 超过则zookeeper not connected
+    dubbo.config-center.timeout=30000
+# 在服务注册、发现和调用过程中进行标识和管理
+    dubbo.application.name=course-price
+# 消费者模块等待提供者响应的最长时间
+    dubbo.consumer.timeout=10000
+# 消费者在与注册中心建立连接、发送请求或获取服务列表时的最大等待时间
+    dubbo.registry.timeout=10000
+# 在服务订阅时，消费者会将服务的注册信息缓存到这个文件中,在注册中心不可用时，提供一定程度的服务容错能力
+    dubbo.registry.file=D:\\mess\\zk\\consumer.cache
+# 所订阅服务的版本
+    producer.service.version=1.0.0
+# consumer在从producer处拿数据后对外服务因此需要暴露端口
+    server.port=9021
+
+<h1>差异</h1>
+<h2>producer</h2>
+生产者不提供控制器类, 不需要对外暴露
+方法签名涉及的实体类需标记Serializable
+<h3>服务类</h3>
+<code>
+//@Service为org.apache.dubbo包下的注解, 版本号必需
+@Service(version = "${producer.service.version}")
+public class CourseListServiceImpl implements CourseListService {
+    @Resource
+    private CourseMapper courseMapper;
+    @Override
+    public List&lt;Course> getCourseList(){
+        return courseMapper.selectList();
+    }
+}
+</code>
+<h3>启动类</h3>
+<code>
+@EnableAutoConfiguration //替代@SpringBootApplication注解
+@MapperScan(basePackages = "com.ida.demo21.producer.dao")
+public class ProducerApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(ProducerApplication.class,args);
+    }
+}
+</code>
+<h2>consumer</h2>
+消费者调用生产者服务取得数据, 通过控制器类正常向外暴露
+<h3>服务类</h3>
+<code>
+@Service("courseService")
+public class CoursePriceServiceImpl implements CoursePriceService {
+    @Resource
+    private CoursePriceMapper coursePriceMapper;
+ 
+    // 调用时使用此处注解, 版本号必需, org.apache.dubbo包下
+    @Reference(version = "${producer.service.version}")
+    private CourseListService courseListService;
+ 
+    @Override
+    public List&lt;CourseAndPriceVO> getCourseAndPrice() {
+        //..
+        List&lt;Course> courseList = courseListService.getCourseList();
+        //..
+    }
+}
+</code>
+
+<h1>docker中部署zookeeper</h1>
+<h2>镜像拉取和容器创建</h2>
+<code bash>
+systemctl start docker
+docker search zookeeper
+docker pull zookeeper:3.7.2
+docker images 
+docker run --name zk01 -d -p 2181:2181 zookeeper:3.7.2
+docker ps -a 
+docker exec -t zk01 bash
+cd /
+ll
+cd apache-zookeeper-3.7.2-bin
+cd bin
+find / -name "*.cfg"
+cat /conf/zoo.cfg 
+zkServer.sh start
+</code>
+<h2>powershell连通性测试</h2>
+<code bash>
+PS C:\Users\ida> Test-NetConnection -ComputerName 192.168.149.135 -Port 2181
+ComputerName     : 192.168.149.135
+RemoteAddress    : 192.168.149.135
+RemotePort       : 2181
+InterfaceAlias   : VMware Network Adapter VMnet8
+SourceAddress    : 192.168.149.1
+TcpTestSucceeded : True
+</code>
+</pre>
+</body>
+</html>

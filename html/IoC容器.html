@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>IoC容器</title>
+</head>
+<body><span id="anchor">20240501094304-_java web</span>
+<pre>
+Spring Framework
+核心特性
+    依赖注入（DI）：
+        Ioc是设计理念,是现代程序设计遵循的标准,是宏观目标
+            Inverse of Control,是一种设计理念, 从主动创建管理改为由代理人来创建与管理对象,消费者通过代理人来获取对象
+        DI(Dependency Injection)是具体技术实现,是微观实现
+            DI在java中利用反射技术实现对象注入(injection),通过配置xml改变对象,避免因为改写代码导致重新编译, 以此降低对象之间的直接耦合
+    面向切面编程）：
+        支持将横切关注点（如事务管理、日志记录、安全）从业务逻辑中分离出来，使代码更加模块化和可维护。
+    数据访问支持：
+        提供了对不同数据访问技术（如 JDBC、JPA、Hibernate）的支持，简化了数据库操作和事务管理。
+    声明式事务管理：
+        允许通过配置文件或注解来声明事务管理，从而避免了在业务逻辑中显式编写事务处理代码。
+    模块化设计：
+        包含多个模块（如 Spring Core, Spring AOP, Spring Data, Spring Security），可以根据需要选择和组合这些模块。
+        Spring Core Container：
+            提供了 IoC 容器的实现，支持 Bean 的创建、配置和生命周期管理。
+        Spring AOP：
+            提供了对面向切面编程的支持，使得在应用程序中能够方便地实现横切关注点（如事务管理、日志记录）。
+        Spring Data Access/Integration：
+            包括对 JDBC、ORM、消息队列等数据访问技术的支持，简化了数据访问层的开发。
+        Spring Web：
+            包括 Spring MVC（用于构建 Web 应用的模型-视图-控制器框架）和 Spring WebFlux（用于响应式编程的 Web 框架）。
+        Spring Security：
+            提供了安全框架，支持认证、授权、加密等安全功能。
+        Spring Test：
+            提供了对 Spring 应用程序的测试支持，包括对 Spring Context 的集成测试。
+
+生态系统
+    Spring Framework 的生态系统非常丰富，包括多个子项目和扩展，如：
+        Spring Boot：
+            简化了 Spring 应用程序的创建和配置，提供了开箱即用的配置和默认设置。
+        Spring Cloud：
+            用于构建分布式系统中的微服务，提供了服务注册与发现、配置管理、断路器等功能。
+        Spring Data：
+            简化了数据访问层的开发，提供了对各种数据存储技术的支持。
+
+<h1>IoC容器初始化</h1>
+IoC容器的三种配置方法
+    基于xml配置文件,适合大型模块
+    基于注解
+    基于java config,适合敏捷开发
+<h2>依赖</h2>
+<code xml>
+&lt;dependency&gt;
+    &lt;groupId&gt;org.springframework&lt;/groupId&gt;
+    &lt;artifactId&gt;spring-context&lt;/artifactId&gt;
+    &lt;version&gt;5.3.19&lt;/version&gt;
+&lt;/dependency&gt;
+</code>
+<h2>基于xml配置文件</h2>
+property
+    当 bean 使用无参构造函数创建时，可以使用property标签来设置属性值
+    运行时自动调用setxxx方法为属性赋值, 不是直接赋值, 以确保在注入属性时能够进行必要的校验和处理
+id和name
+    bean元素的id属性和name属性都用于标识bean, 两者在同一个配置文件中都不允许出现重复
+        如果bean元素既没有id属性也没有name属性, 在获取该bean时需要以类全限定名作为标识
+    id属性用于定义bean的唯一标识符，而name属性允许为bean定义多个别名,用逗号、分号或空格分隔
+    如果多个配置文件中存在重复标识, 将按照配置文件的加载顺序, 使用最后出现的那个
+value属性的字符串值会自动转换为目标类型
+<code xml>
+&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;
+&lt;beans xmlns=&quot;http://www.springframework.org/schema/beans&quot;
+       xmlns:xsi=&quot;http://www.w3.org/2001/XMLSchema-instance&quot;
+       xsi:schemaLocation=&quot;http://www.springframework.org/schema/beans https://www.springframework.org/schema/beans/spring-beans.xsd&quot;&gt;
+ 
+    &lt;bean id=&quot;sweetApple&quot; class=&quot;com.ida.demo10.ioc.entity.Apple&quot;&gt;
+        &lt;property name=&quot;title&quot; value=&quot;红富士&quot;/&gt;
+    &lt;/bean&gt;
+ 
+    &lt;!-- ref关联对象, 通过配置文件维护,构造新对象或调整关联对象,不用改变源码和重新编译,以此减少对象之间的耦合 --&gt;
+    &lt;bean id=&quot;lily&quot; class=&quot;com.ida.demo10.ioc.entity.Child&quot;&gt;
+        &lt;property name=&quot;name&quot; value=&quot;莉莉&quot;/&gt;
+        &lt;property name=&quot;apple&quot; ref=&quot;sweetApple2&quot;/&gt;
+    &lt;/bean&gt;
+ 
+    &lt;bean id=&quot;andy&quot; class=&quot;com.ida.demo10.ioc.entity.Child&quot;&gt;
+        &lt;constructor-arg name=&quot;name&quot; value=&quot;安迪&quot;/&gt;
+        &lt;constructor-arg name=&quot;apple&quot; ref=&quot;sweetApple2&quot;/&gt;
+    &lt;/bean&gt;
+ 
+    &lt;!-- 使用无参构造对象 --&gt;
+    &lt;bean id=&quot;sweetApple1&quot; class=&quot;com.ida.demo10.ioc.entity.Apple&quot;/&gt;
+ 
+    &lt;!-- 使用带参构造对象 --&gt;
+    &lt;bean id=&quot;sweetApple2&quot; class=&quot;com.ida.demo10.ioc.entity.Apple&quot;&gt;
+        &lt;constructor-arg name=&quot;title&quot; value=&quot;红富士&quot;/&gt;
+        &lt;!-- 也可以按参数顺序赋值(不推荐),0起 --&gt;
+        &lt;constructor-arg index=&quot;1&quot; value=&quot;red&quot;/&gt;
+        &lt;constructor-arg name=&quot;origin&quot; value=&quot;欧洲&quot;/&gt;
+    &lt;/bean&gt;
+ 
+    &lt;!--
+        使用静态工厂获取对象, 通过这种方式可以在容器之外以程序的方式组织对象例如增加额外的行为(而ioc难以实现)
+        public class AppleStaticFactory {//工厂类隐藏创建对象的细节
+            public static Apple createSweetApple() {
+                return new Apple(&quot;红富士&quot;,&quot;红色&quot;,&quot;欧洲&quot;);
+            }
+        }
+    --&gt;
+    &lt;bean id=&quot;sweetApple3&quot;
+          class=&quot;com.ida.demo10.ioc.factory.AppleStaticFactory&quot;
+          factory-method=&quot;createSweetApple&quot;/&gt;
+ 
+    &lt;!--
+        通过工厂实例中的方法创建对象, ioc对工厂类进行实例化后调用其中方法创建对象
+        相较于使用静态工厂方法
+            实例工厂方法允许工厂类持有状态，可以在创建对象时依据这些状态或配置来生成不同的对象
+            工厂类本身可以作为Spring容器中的一个bean，通过依赖注入的方式为其注入其他依赖
+            可以更容易地对工厂类进行扩展和修改，而不需要修改调用静态方法的代码
+            可以利用接口或抽象类来定义工厂行为，从而实现多态性
+        public class AppleFactoryInstance {
+            public Apple createSweetApple() {
+                return new Apple("红富士","红色","欧洲");
+            }
+        }
+    --&gt;
+    &lt;bean id=&quot;factoryInstance&quot; class=&quot;com.ida.demo10.ioc.factory.AppleFactoryInstance&quot;/&gt;
+    &lt;bean id=&quot;sweetApple4&quot; factory-bean=&quot;factoryInstance&quot; factory-method=&quot;createSweetApple&quot;/&gt;
+&lt;/beans&gt;
+</code>
+<h2>从IoC容器获取bean</h2>
+<code>
+public class SpringApplication {
+    public static void main(String[] args) {
+        //加载 Spring 配置文件并初始化 IoC 容器
+        ApplicationContext context = new ClassPathXmlApplicationContext("classpath:applicationContext.xml");
+
+        //加载多个配置文件
+        String[] configLocations = new String[]{
+                "classpath:ApplicationContext.xml",
+                "classpath:ApplicationContext2.xml"
+        };
+        //ApplicationContext context = new ClassPathXmlApplicationContext(configLocations);
+
+        //从容器中获取 bean
+        //Apple sweetApple = (Apple) context.getBean("sweetApple2");
+        Apple sweetApple = context.getBean("sweetApple2", Apple.class);
+    }
+}
+</code>
+<h2>classpath:路径表达式</h2>
+20240501155812.webp
+
+<h1>IoC实现团队工作解耦</h1>
+20240728142013.webp
+dao和service(包括配置文件)分别由两个人维护,两人只须约定好dao实现类的bean标识, 不用了解对方如何实现
+当数据库从mysql迁移到oracle时
+    service维护者无须任何感知或更改
+    dao维护者只须新增一个dao接口实现类, 替换自己维护的配置文件中的bean类路径即可
+<h2>dao维护</h2>
+<code>
+public interface BookDao {
+    void insert();
+}
+ 
+public class BookDaoImpl implements BookDao{
+    @Override
+    public void insert() {
+        System.out.println("向mysql插入一条图书数据");
+    }
+}
+ 
+public class BookDaoOracleImpl implements BookDao{
+    @Override
+    public void insert() {
+        System.out.println("向oracle插入一条图书数据");
+    }
+}
+</code>
+<code xml>
+&lt;!-- applicationContext-bookDao.xml --&gt;
+&lt;bean id=&quot;bookDao&quot; class=&quot;com.ida.demo10.ioc.bookshop.dao.BookDaoOracleImpl&quot;/&gt;
+</code>
+<h2>service维护</h2>
+<code>
+public class BookService {
+    private BookDao bookDao;
+    //getter,setter
+ 
+    public void purchase() {
+        System.out.println("采购了一本书");
+        bookDao.insert();
+    }
+}
+</code>
+<code xml>
+&lt;!-- applicationContext-bookService.xml --&gt;
+&lt;bean id=&quot;bookService&quot; class=&quot;com.ida.demo10.ioc.bookshop.service.BookService&quot;&gt;
+    &lt;property name=&quot;bookDao&quot; ref=&quot;bookDao&quot;/&gt;
+&lt;/bean&gt;
+</code>
+<h2>入口类</h2>
+<code>
+public class BookShopApplication {
+    public static void main(String[] args) {
+        ApplicationContext context =
+                new ClassPathXmlApplicationContext("classpath:applicationContext-book*.xml");
+        BookService bookService = context.getBean("bookService",BookService.class);
+        bookService.purchase();
+    }
+}
+</code>
+
+<h1>注入集合对象和Properties</h1>
+<h2>例公司资产配置清单</h2>
+<code>
+public class Company {
+    private List&lt;String> rooms;
+    private Set&lt;String> employees;
+    private Map&lt;String,Computer> computers;
+    private Properties info;
+    //getter,setter
+}
+ 
+public class Computer {
+    private String brand;
+    private String type;
+    private String sn;
+    private Float price;
+    //getter,setter,constructor
+}
+</code>
+<code xml>
+&lt;bean id=&quot;c1&quot; class=&quot;com.ida.demo10.ioc.assets.entity.Computer&quot;&gt;
+    &lt;constructor-arg name=&quot;brand&quot; value=&quot;HP&quot;/&gt;
+    &lt;constructor-arg name=&quot;type&quot; value=&quot;台式机&quot;/&gt;
+    &lt;constructor-arg name=&quot;sn&quot; value=&quot;001&quot;/&gt;
+    &lt;constructor-arg name=&quot;price&quot; value=&quot;11000&quot;/&gt;
+&lt;/bean&gt;
+ 
+&lt;bean id=&quot;company&quot; class=&quot;com.ida.demo10.ioc.assets.entity.Company&quot;&gt;
+    &lt;property name=&quot;rooms&quot;&gt;
+        &lt;list&gt;
+            &lt;value&gt;201-总裁办&lt;/value&gt;
+            &lt;value&gt;202-会议室&lt;/value&gt;
+            &lt;value&gt;203-休息室&lt;/value&gt;
+            &lt;!-- &lt;ref bean=&quot;beanId&quot;/&gt;--&gt;
+        &lt;/list&gt;
+    &lt;/property&gt;
+ 
+    &lt;property name=&quot;employees&quot;&gt;
+        &lt;!-- 底层是LinkedHashSet类型 --&gt;
+        &lt;set&gt;
+            &lt;value&gt;Tom&lt;/value&gt;
+            &lt;value&gt;Jerry&lt;/value&gt;
+            &lt;value&gt;Tom&lt;/value&gt;
+            &lt;!-- &lt;ref bean=&quot;beanId&quot;/&gt;--&gt;
+        &lt;/set&gt;
+    &lt;/property&gt;
+ 
+    &lt;property name=&quot;computers&quot;&gt;
+        &lt;!-- 底层是LinkedHashMap类型 --&gt;
+        &lt;map&gt;
+            &lt;!-- &lt;entry key=&quot;k1&quot; value=&quot;v1&quot;/&gt; --&gt;
+            &lt;entry key=&quot;dev-1&quot; value-ref=&quot;c1&quot;/&gt;
+            &lt;entry key=&quot;dev-2&quot;&gt;
+                &lt;!-- 可以创建无标识的内部bean, 只为当前键值对服务,外部无法获取,也不会出现在getBeanDefinitionNames()中 --&gt;
+                &lt;bean class=&quot;com.ida.demo10.ioc.assets.entity.Computer&quot;&gt;
+                    &lt;constructor-arg name=&quot;brand&quot; value=&quot;MSI&quot;/&gt;
+                    &lt;constructor-arg name=&quot;type&quot; value=&quot;笔记本&quot;/&gt;
+                    &lt;constructor-arg name=&quot;sn&quot; value=&quot;002&quot;/&gt;
+                    &lt;constructor-arg name=&quot;price&quot; value=&quot;13000&quot;/&gt;
+                &lt;/bean&gt;
+            &lt;/entry&gt;
+        &lt;/map&gt;
+    &lt;/property&gt;
+ 
+    &lt;property name=&quot;info&quot;&gt;
+        &lt;!-- 只允许字符串,可以保存连接字符串用户名密码等信息 --&gt;
+        &lt;!-- company.getInfo().getProperty(&quot;website&quot;); --&gt;
+        &lt;props&gt;
+            &lt;prop key=&quot;phone&quot;&gt;65-8888&lt;/prop&gt;
+            &lt;prop key=&quot;address&quot;&gt;xxx&lt;/prop&gt;
+            &lt;prop key=&quot;website&quot;&gt;http://xxx&lt;/prop&gt;
+        &lt;/props&gt;
+    &lt;/property&gt;
+&lt;/bean&gt;
+ 
+&lt;!--
+    当出现多个无标识同类型的bean时,getBeanDefinitionNames()得到的bean标识是全限定类名#出现的顺序(0起)
+    获取时要书写全限定类名#出现的顺序,不写#序号时默认为#0
+    context.getBean("com.ida.demo10.ioc.assets.entity.Computer#1",Computer.class)
+-->
+&lt;bean class=&quot;com.ida.demo10.ioc.assets.entity.Computer&quot;/&gt;
+&lt;bean class=&quot;com.ida.demo10.ioc.assets.entity.Computer&quot;/&gt;
+&lt;bean name=&quot;n1,n2,n3&quot; class=&quot;com.ida.demo10.ioc.assets.entity.Computer&quot;/&gt;
+</code>
+
+<h2>获取容器内的对象清单</h2>
+getBeanDefinitionNames()方法只会返回bean的id，而不会返回其所有别名
+    如果需要获取bean的所有别名，可以使用getAliases()方法
+如果只使用name属性来定义bean，且指定了多个别名
+    Spring将使用第一个别名作为这个bean的主名称（实际bean的唯一标识符），而其他别名将作为该bean的别名
+<code>
+for (String beanId : context.getBeanDefinitionNames()) {
+    System.out.println("标识:"+beanId);
+    //获取所有别名
+    for (String alias : context.getAliases(beanId)) {
+        System.out.println("别名:" + alias);
+    }
+    System.out.println("类型:"+context.getBean(beanId).getClass().getName());
+    System.out.println("---------------------");
+}
+/*
+标识:c1
+类型:com.ida.demo10.ioc.assets.entity.Computer
+---------------------
+标识:company
+类型:com.ida.demo10.ioc.assets.entity.Company
+---------------------
+标识:com.ida.demo10.ioc.assets.entity.Computer#0
+别名:com.ida.demo10.ioc.assets.entity.Computer
+类型:com.ida.demo10.ioc.assets.entity.Computer
+---------------------
+标识:com.ida.demo10.ioc.assets.entity.Computer#1
+类型:com.ida.demo10.ioc.assets.entity.Computer
+---------------------
+标识:n1
+别名:n2
+别名:n3
+类型:com.ida.demo10.ioc.assets.entity.Computer
+---------------------
+*/
+</code>
+
+<h1>bean的scope属性</h1>
+20240502085735.webp
+20240502090743.webp
+
+singleton在容器中是单例多线程执行,不会出现阻塞因此高效, 但存在并发问题, b1,b2,b3各自持有的是同一个dao的引用
+    singleton的实例化时机是在IoC容器启动时
+prototpype在容器中多实例,占用更多资源,不存在并发问题, b1,b2,b3各自持有的是独立的dao引用
+    prototype的实例化时机是在getBean()时或对象注入时
+如果对象的属性是恒定不变的则适合使用singleton, 如果在程序的运行过程中不断地发生变化则应使用prototype
+
+<h1>容器的生命周期</h1>
+init-method 指定了一个在 Spring Bean 完成依赖注入之后、在 Bean 被使用之前调用的方法
+destroy-method 指定了一个方法，当容器关闭或 Bean 被销毁时调用，用于执行资源的释放或清理工作
+    当 Spring 容器关闭时（例如在应用程序停止时），容器会开始销毁所有单例作用域的 Bean。
+    对于非单例作用域的 Bean（如 prototype），destroy-method 不会被自动调用，因为容器不会管理这些 Bean 的生命周期
+
+<code xml>
+&lt;bean id=&quot;order&quot; class=&quot;com.ida.demo10.ioc.life.entity.Order&quot; init-method=&quot;init&quot; destroy-method=&quot;destroy&quot;&gt;
+    &lt;property name=&quot;price&quot; value=&quot;19.8&quot;/&gt;
+    &lt;property name=&quot;quantity&quot; value=&quot;1000&quot;/&gt;
+    &lt;!-- total属性由price和quantity计算而来,利用容器的生命周期中的init-method --&gt;
+&lt;/bean&gt;
+</code>
+<code>
+public class Order {
+    private Float price;
+    private Integer quantity;
+    private Float total;
+    //getter,setter
+ 
+    public Order() {
+        System.out.println("调用了Order的默认构造方法");
+    }
+    public void pay() {
+        System.out.println("调用了Order的pay()方法,订单金额为:" + total);
+    }
+    public void setPrice(Float price) {
+        System.out.println("调用了Order的setPrice()方法");
+        this.price = price;
+    }
+    public void setQuantity(Integer quantity) {
+        System.out.println("调用了Order的setQuantity()方法");
+        this.quantity = quantity;
+    }
+ 
+    public void init() {
+        System.out.println("调用了Order的init()方法");
+        total = quantity * price;
+    }
+    public void destroy() {
+        System.out.println("调用了Order的destroy()方法");
+    }
+}
+</code>
+<code>
+public static void main(String[] args) {
+    ApplicationContext context = new ClassPathXmlApplicationContext("classpath:applicationContext-life.xml");
+    System.out.println("容器初始化完毕");
+    Order order = context.getBean("order", Order.class);
+    order.pay();
+    //销毁容器时,调用bean中destroy-method属性所指的方法(释放io资源)
+    ((ClassPathXmlApplicationContext)context).registerShutdownHook();
+}
+/*
+调用了Order的默认构造方法
+调用了Order的setPrice()方法
+调用了Order的setQuantity()方法
+调用了Order的init()方法
+容器初始化完毕
+调用了Order的pay()方法,订单金额为:19800.0
+调用了Order的destroy()方法
+*/
+</code>
+
+<h1>手写简易IoC容器</h1>
+20240728182938.webp
+<code xml>
+&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;
+&lt;!-- applicationContext-simple_ioc.xml --&gt;
+&lt;beans&gt;
+    &lt;bean id=&quot;sweetApple&quot; class=&quot;com.ida.demo10.ioc.simple_ioc.entity.Apple&quot;&gt;
+        &lt;property name=&quot;title&quot; value=&quot;红富士&quot;/&gt;
+        &lt;property name=&quot;color&quot; value=&quot;红色&quot;/&gt;
+        &lt;property name=&quot;origin&quot; value=&quot;欧洲&quot;/&gt;
+    &lt;/bean&gt;
+&lt;/beans&gt;
+</code>
+<code>
+public interface ApplicationContext {
+    Object getBean(String beanId);
+}
+ 
+public class ClassPathXmlApplicationContext implements ApplicationContext {
+    private Map&lt;String, Object> iocContainer = new HashMap&lt;>();
+ 
+    public ClassPathXmlApplicationContext(String xmlName) {
+        //引入dom4j和jaxen(Xpath表达式解释器)
+        InputStream file = ClassPathXmlApplicationContext.class.getClassLoader().getResourceAsStream(xmlName);
+        SAXReader saxReader = new SAXReader();
+        try {
+            Document doc = saxReader.read(file);
+            List&lt;Node> beans = doc.selectNodes("//bean");
+            for (Node bean : beans) {
+                Element element = (Element) bean;
+                String id = element.attributeValue("id");
+                Class&lt;?> clz = Class.forName(element.attributeValue("class"));
+                Object obj = clz.newInstance();
+ 
+                for (Node property : bean.selectNodes("//property")) {
+                    Element element1 = (Element) property;
+                    String name = element1.attributeValue("name");
+                    String value = element1.attributeValue("value");
+                    String methodName = "set" + name.substring(0,1).toUpperCase() + name.substring(1);
+                    Method method = clz.getDeclaredMethod(methodName, String.class);
+                    method.invoke(obj,value);
+                }
+ 
+                iocContainer.put(id, obj);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+ 
+    @Override
+    public Object getBean(String beanId) {
+        return iocContainer.get(beanId);
+    }
+}
+ 
+public class Application {
+    public static void main(String[] args) {
+        ApplicationContext context = new ClassPathXmlApplicationContext("applicationContext-simple_ioc.xml");
+        Apple sweetApple = (Apple) context.getBean("sweetApple");
+        System.out.println(sweetApple);
+    }
+}
+//Apple{title='红富士', color='红色', origin='欧洲'}
+</code>
+
+<h1>基于注解配置IoC容器</h1>
+相比于xml配置形式,注解形式的xml增加了context命名空间
+    https://docs.spring.io/spring-framework/reference/core/beans/annotation-config.html
+<code xml>
+&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xsi:schemaLocation="
+           http://www.springframework.org/schema/beans https://www.springframework.org/schema/beans/spring-beans.xsd
+           http://www.springframework.org/schema/context https://www.springframework.org/schema/context/spring-context.xsd
+"&gt;
+ 
+    &lt;!-- 
+        在IoC容器初始化时根据指定的包地址自动扫描四种组件类型注解并完成实例化(单例)
+        @Repository
+        @Service
+        @Controller
+        @Component
+    --&gt;
+    &lt;context:component-scan base-package="com.ida.demo10.ioc.annotation"&gt;
+        &lt;!-- 用正则表达式排除某些类 --&gt;
+        &lt;context:exclude-filter type="regex" expression="com.ida.demo10.ioc.annotation.exl.*"/&gt;
+    &lt;/context:component-scan&gt;
+&lt;/beans&gt;
+</code>
+
+<h2>组件类型注解</h2>
+组件类型注解默认beanId为类名首字母小写, 也可以手动指定,@xxx("xxx")
+    @Component
+        组件注解,通用注解,被该注解描述的类将被IoC容器管理并实例化
+        后面三个注解是此注解的细化,当不确定归于哪一类时,可以选择此注解
+    @Controller
+        语义注解,说明当前类是MVC应用中的控制器类
+    @Service 
+        语义注解,说明当前类是Service业务服务类
+    @Respository (仓库)
+        语义注解,说明当前类用于业务持久层,通常描述对应Dao类
+
+<h2>自动装配注解</h2>
+20240502141654.webp
+将@Autowired注解放在成员属性(字段)上,通常为此种做法,不依赖setter
+    反射将属性的私有修饰符改为public，直接进行赋值不经过setter, 赋值完成后再改为private, @Resource同理
+将@Autowired注解放在set方法上
+    这种方式会在bean初始化时自动按类型或者名称对set方法的参数进行注入, Spring会自动调用这个set方法，并将符合类型或者名称的bean作为参数传入执行
+当属性是接口类型,此接口下有多个实现类时，@Autowired就会报错, 除非使用 @Primary 注解标注其中一个实现类，优先选择注入该实现类的 Bean
+
+@Resource设置name属性,则按name在IoC容器中进行匹配注入
+@Resource未设置name属性时
+    以属性名作为bean标识在IoC容器中进行匹配注入
+    如按属性名未匹配到,再按类型进行匹配,同@Autowired,需加入@Primary解决接口下有多个实现类时的情况
+在使用@Resource时推荐设置name或保证属性名与bean名称一致(类名首字母小写)
+
+<h2>元数据注解</h2>
+20240502155859.webp
+
+@Value 注解用来注入外部配置中的值，它支持两种语法：$ 和 #
+    ${} (Property Placeholder)
+        ${} 语法用于占位符，它会从Spring的环境中解析属性。这些属性可以来源于属性文件（如 .properties 文件），系统环境变量，或者通过 @PropertySource 注解定义的其他属性源
+            在非 Spring Boot 项目中，@PropertySource 是主要的方式来加载自定义的 .properties 文件，因为这些项目没有 application.properties 的自动加载机制
+            在Windows中，你可以通过命令行设置环境变量 set MY_ENV_VAR=some_value
+            在Unix/Linux/MacOS中，你可以通过终端设置环境变量 export MY_ENV_VAR=some_value
+            通过@Value("${MY_ENV_VAR}")注入
+    #{} (SpEL: Spring Expression Language)
+        允许在表达式中使用Spring bean的属性、方法调用以及其他复杂的表达式计算。
+@Value为静态变量注入值,需要标记在它的setter方法(非static)上
+
+<code xml>
+&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;beans ..&gt;
+    &lt;!-- 
+        通知容器初始化时加载属性文件
+        引入多个文件时location="classpath:aop-config.properties, classpath:another-config.properties" 
+        属性可以直接在xml中以${}方式引用
+    --&gt;
+    &lt;context:property-placeholder location="classpath:config.properties"/&gt;
+    ..
+&lt;/beans&gt;
+</code>
+config.properties
+<code ini>
+info=ida
+    
+connection.driver=jdbcxxxx
+connection.url=xxx 
+connection.username=xxx
+connection.password=xxx
+</code>
+<code>
+@Service
+@Scope("prototype") //与xml配置bean scope相同
+public class UserService {
+    //注入静态数据, 用在字段上时不经过setter,改private为public赋值然后改回private, 用在setter上则经setter注入
+    //@Value("ida")
+    //注入config.properties中的metaData属性值 
+    @Value("${info}")
+    private String metaData;
+ 
+    @Value("${connection.driver}")
+    private String driver;
+     
+    @PostConstruct //与xml配置bean init-method相同
+    public void init(){
+        System.out.println(metaData);//ida
+    }
+}
+</code>
+
+<h1>基于Java Config配置IoC容器</h1>
+使用独立的Java类集中管理对象与依赖, 可以在编译期进行依赖检查, 不易出错
+java config利用方法创建对象,并将方法返回的对象放入容器,方法名会作为beanId
+
+20240502170707.webp
+
+@ImportResource 可以同时使用XML配置的现有定义,Spring会读取这些XML文件，并将其中定义的bean和配置加载到应用上下文中
+
+@ComponentScan 可以同时从其它路径中扫描Spring组件（如 @Component等）
+    例如UserDao类存在于annotation包, 该包的维护者习惯基于注解方式配置ioc
+
+@PropertySource 加载外部属性文件，并将这些属性文件中的值注入到Spring应用中
+    例如外部XML配置了 context:property-placeholder location="classpath:config.properties" 时
+        @Value("${info}")
+    例如获取外部XML配置文件(前例公司资产配置清单)中 prop 标签定义的属性值
+        @Value("#{company.info['phone']}") //Spring表达式语言（SpEL）
+
+<code>
+@Configuration
+@ComponentScan(basePackages = {"com.ida.demo10.ioc.annotation.dao", "com.another.project"})
+//@PropertySource("classpath:application.properties")
+//@ImportResource({"classpath:applicationContext.xml", "classpath:anotherContext.xml"})
+public class Config {
+    @Bean
+    public UserDao userDao(){
+        UserDao userDao = new UserDao();
+        System.out.println("方法名userDao:"+userDao);
+        return userDao;
+    }
+ 
+    @Bean
+    @Primary
+    public UserDao userDao1(){
+        UserDao userDao = new UserDao();
+        System.out.println("方法名userDao1:"+userDao);
+        return userDao;
+    }
+ 
+    @Bean //容器内的对象关联, 向参数注入userDao,再set进去; 先按name注入,不存在则按类型注入(如果存在多个相同类型的对象,使用Primary指定)
+    public UserService userService(UserDao userDao1){
+        UserService userService = new UserService();
+        userService.setUserDao(userDao1);
+        System.out.println(userDao1);
+        return userService;
+    }
+ 
+    @Bean
+    @Scope("prototype")
+    public UserController userController(UserService userService) {
+        UserController userController = new UserController();
+        userController.setUserService(userService);
+        return userController;
+    }
+}
+ 
+public class Application {
+    public static void main(String[] args) {
+        ApplicationContext context = new AnnotationConfigApplicationContext(Config.class);
+        for (String beanId : context.getBeanDefinitionNames()) {
+            System.out.println(beanId);
+        }
+    }
+}
+</code>
+
+<h1>Spring Test与Junit4整合</h1>
+除了spring-context之外还需要引用spring-test, junit
+<code xml>
+&lt;dependency&gt;
+    &lt;groupId&gt;org.springframework&lt;/groupId&gt;
+    &lt;artifactId&gt;spring-test&lt;/artifactId&gt;
+    &lt;version&gt;5.3.19&lt;/version&gt;
+&lt;/dependency&gt;
+&lt;dependency&gt;
+    &lt;groupId&gt;junit&lt;/groupId&gt;
+    &lt;artifactId&gt;junit&lt;/artifactId&gt;
+    &lt;version&gt;4.12&lt;/version&gt;
+&lt;/dependency&gt;
+</code>
+<code>
+@Repository
+public class UserDao {
+    public void insert() {
+        System.out.println("插入了一条数据");
+    }
+}
+ 
+@Service
+public class UserService { //ctrl+shift+t 生成测试
+    @Resource
+    private UserDao userDao;
+
+    public void createUser(){
+        System.out.println("创建一个用户");
+        userDao.insert();
+    }
+}
+</code>
+<code>
+@RunWith(SpringJUnit4ClassRunner.class) //将Junit4的执行权交由Spring Test
+@ContextConfiguration(locations = {"classpath:applicationContext-spring_test.xml"}) //在测试用例执行前加载配置文件初始化IoC容器
+public class UserServiceTest {
+    @Resource
+    private UserService userService;
+ 
+    @Test
+    public void createUser() {
+        userService.createUser();
+    }
+}
+</code>
+</pre>
+</body>
+</html>

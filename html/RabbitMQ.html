@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>RabbitMQ</title>
+</head>
+<body><span id="anchor">20240602102650-_中间件</span>
+<pre>
+20240813160757.webp
+
+MQ (Message Queue)
+    消息队列的特性
+        业务无关,消息队列中的消息是与具体业务逻辑无关的，它们只是简单的数据包
+        FIFO
+        容灾,在系统故障时保证消息不会丢失(持久化),正常后重新传递
+        性能,消息队列能够提高系统的性能和可伸缩性，允许异步处理消息，从而减少了请求之间的耦合
+    为什么要使用消息队列
+        系统解耦, 消息队列可以将不同组件之间的耦合度降低(生产者,消息队列,消费者位于不同服务器)，使系统更容易扩展和维护
+        异步调用, 发送者不需要等待接收者的响应，从而提高系统的响应速度和吞吐量
+        流量削峰, 消息队列可以作为缓冲区，平滑处理系统的高峰流量，避免系统因突发流量而崩溃
+
+Kafka, RabbitMQ, MQTT
+    Kafka 设计用于高吞吐量的数据流，适合于需要处理大量数据的场景。
+    RabbitMQ 更适合于需要灵活路由和复杂消息传递模式的场景，但吞吐量相对较低。
+        AMQP协议 (Advanced Message Queuing Protocol )
+            20240813161245.webp
+            server 
+            connection 与server建立连接
+            channel 大部分操作都在信道上进行
+            message 由properties(修饰消息优先级等属性)和body(消息实体)组成
+            virtual host 顶层隔离,同一个虚拟主机下不能有重复的exchange和queue
+            Exchange 交换机接收生产者的消息, 根据指定的路由器将消息转发到与交换机所绑定的队列上
+            binding 绑定交换机和队列,一个交换机可以绑定多个队列
+            routing key 路由键,虚拟机据此确定如何路由该消息
+            queue 消费者只需要监听队列来消费消息, 不必关注此消息来自哪个交换机
+    MQTT 作为一种轻量级消息传递协议，广泛应用于物联网和受限环境中。
+        MQTT 有多个开源和商用实现，包括：
+            Mosquitto：一个轻量级的开源 MQTT 消息代理。
+            HiveMQ：一个企业级 MQTT 消息代理，支持高可用性和扩展性。
+            Eclipse Paho：一个开源的 MQTT 客户端库，支持多种编程语言。
+        与 RabbitMQ 和 Kafka 相比，MQTT 专注于轻量级和实时消息传递，而 RabbitMQ 和 Kafka 更适合企业级应用和高吞吐量的数据流处理。
+
+<h1>RabbitMQ的安装</h1>
+erlang-rpm
+    https://github.com/rabbitmq/erlang-rpm/releases
+rabbitmq-server
+    https://github.com/rabbitmq/rabbitmq-server/releases
+版本对应关系
+    https://www.rabbitmq.com/which-erlang.html
+<code bash>
+#下载 erlang-23.3.4.18-1.el7.x86_64.rpm
+#wget --content-disposition "https://github.com/rabbitmq/erlang-rpm/releases/download/v23.3.4.18/erlang-23.3.4.18-1.el7.x86_64.rpm"
+#未安装wget时用curl代替
+curl -L -O -J "https://github.com/rabbitmq/erlang-rpm/releases/download/v23.3.4.18/erlang-23.3.4.18-1.el7.x86_64.rpm"
+#安装本地rmp
+yum localinstall erlang-23.3.4.18-1.el7.x86_64.rpm
+erl -version
+ 
+#下载 RabbitMq-Server rabbitmq-server-3.10.0-1.el7.noarch.rpm
+curl -L -O -J "https://github.com/rabbitmq/rabbitmq-server/releases/download/v3.10.0-rc.6/rabbitmq-server-3.10.0.rc.6-1.el7.noarch.rpm"
+yum localinstall rabbitmq-server-3.10.0.rc.6-1.el7.noarch.rpm
+ 
+#如果虚拟机改过默认主机名,需要 vi /etc/hosts 将名字映射到127.0.0.1, RabbitMQ 节点是通过主机名来识别和通信的
+systemctl start rabbitmq-server
+systemctl stop rabbitmq-server
+systemctl restart rabbitmq-server
+ 
+#检查 RabbitMQ 服务的系统级状态, 服务的启动时间、最近的日志条目、服务的 PID,服务的当前状态，如运行、停止或失败
+systemctl status rabbitmq-server 
+#检查 RabbitMQ 实例的运行时状态, 显示 RabbitMQ 节点的内部状态和详细信息，如 RabbitMQ 版本、节点状态、队列、连接等
+rabbitmqctl status
+  
+#5672 端口：这是 RabbitMQ 的默认 AMQP 端口，用于处理AMQP客户端的连接。这是消息传递服务的主要端口，所有通过 AMQP 协议进行的消息传递都会使用这个端口。
+#15672 端口：RabbitMQ 管理插件的默认端口。通过这个端口可以访问 RabbitMQ 的管理界面。
+#25672 端口：用于 集群通信
+#启用管理界面
+rabbitmq-plugins enable rabbitmq_management
+#创建账号密码
+rabbitmqctl add_user ida 123456
+#分配用户组
+rabbitmqctl set_user_tags ida administrator
+#设置用户权限, 用户的默认权限是限制性的，新创建的用户没有任何权限。必须通过显式的 set_permissions 命令为用户分配适当的权限，以允许他们访问和操作 RabbitMQ 的资源
+#如果用户已经是管理员组的成员，那么他们已经具备了对所有虚拟主机和资源的完全访问权限。此时，单独使用 set_permissions 命令为该用户设置权限是冗余的
+#依次为用户对交换机和队列的创建和删除权限, 用户对交换机的消息发布权限, 用户对队列的消息消费权限
+#rabbitmqctl set_permissions -p / ida ".*" ".*" ".*"
+#默认用户guest只能在本机上登陆,不能远程登陆, 新建管理员后要去后台与主机"/"绑定
+#放行端口
+firewall-cmd --permanent --add-port=15672/tcp
+firewall-cmd --permanent --add-port=5672/tcp
+firewall-cmd --reload
+firewall-cmd --list-ports
+</code>
+<code bash>
+Status of node rabbit@master ...
+Runtime
+ 
+OS PID: 3277
+OS: Linux
+Uptime (seconds): 40 #RabbitMQ 节点自启动以来的运行时间（以秒为单位）
+Is under maintenance?: false #节点是否处于维护模式，此处为 false 表示节点未处于维护模式。
+RabbitMQ version: 3.10.0-rc.6
+Node name: rabbit@master
+Erlang configuration: Erlang/OTP 23 [erts-11.2.2.17] [source] [64-bit] [smp:2:2] [ds:2:2:10] [async-threads:1] [hipe]
+Erlang processes: 355 used, 1048576 limit #Erlang 进程的使用情况和最大限制
+Scheduler run queue: 1 #Erlang 调度程序的运行队列中待处理的进程数量
+Cluster heartbeat timeout (net_ticktime): 60 #集群心跳超时时间（秒），用于节点间的心跳检测
+ 
+Plugins
+ 
+Enabled plugin file: /etc/rabbitmq/enabled_plugins #存储启用的插件配置文件路径
+Enabled plugins:
+ 
+ * rabbitmq_management #提供 RabbitMQ 管理界面的插件
+ * amqp_client #AMQP 客户端库
+ * rabbitmq_web_dispatch #Web 分发插件
+ * cowboy #HTTP 服务器库
+ * cowlib #辅助库
+ * rabbitmq_management_agent #管理代理插件
+ 
+# ..
+ 
+Total: 2, limit: 32671
+Sockets: 0, limit: 29401
+ 
+Free Disk Space
+ 
+Low free disk space watermark: 0.05 gb
+Free disk space: 16.5814 gb
+ 
+Totals
+ 
+Connection count: 0 #当前连接的数量
+Queue count: 0 #当前队列的数量
+Virtual host count: 1 #当前虚拟主机的数量
+ 
+Listeners
+ 
+Interface: [::], port: 15672, protocol: http, purpose: HTTP API
+Interface: [::], port: 25672, protocol: clustering, purpose: inter-node and CLI tool communication
+Interface: [::], port: 5672, protocol: amqp, purpose: AMQP 0-9-1 and AMQP 1.0
+</code>
+
+<h2>使用docker安装</h2>
+使用 Docker 安装 RabbitMQ 时，不需要额外安装 Erlang，因为 RabbitMQ Docker 镜像已经包含了 Erlang 的所有必要组件和依赖
+<code bash>
+#rabbitmq:management 是 RabbitMQ 官方提供的一个 Docker 镜像，其中包含 RabbitMQ 和管理插件。management 是镜像的标签（tag）
+docker run -d --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:management
+ 
+#RabbitMQ 服务：容器启动后，RabbitMQ 服务将在后台运行，并接受来自主机的端口 5672 上的 AMQP 请求。
+#Web 管理界面：你可以通过访问 http://localhost:15672 来访问 RabbitMQ 的 Web 管理界面，进行消息队列的管理和监控。
+</code>
+
+<h1>持久化和非持久化</h1>
+如果需要队列的完整性，数据在队列中的保存是必须不允许丢失的，那么可以使用持久化。
+而当需要获取的信息是实时的，或者是随机的信息，不需要信息的精确性或完整性，但是追求获取性能，可以选择非持久化队列
+
+RabbitMQ 持久化包含3个部分
+    exchange 持久化，在声明时指定 durable 为 true
+    queue 持久化，在声明时指定 durable 为 true
+    message 持久化，在投递时指定 delivery_mode=2（1是非持久化）
+
+<h1>RabbitMQ的java客户端</h1>
+<h2>依赖</h2>
+<code xml>
+&lt;dependency>
+    &lt;groupId>com.rabbitmq&lt;/groupId>
+    &lt;artifactId>amqp-client&lt;/artifactId>
+    &lt;version>5.8.0&lt;/version>
+&lt;/dependency>
+&lt;!-- rabbitmq内部的日志依赖 -->
+&lt;dependency>
+    &lt;groupId>org.slf4j&lt;/groupId>
+    &lt;artifactId>slf4j-nop&lt;/artifactId>
+    &lt;version>1.7.29&lt;/version>
+&lt;/dependency>
+</code>
+<h2>生产者方法相关参数说明</h2>
+队列
+    异常处理：确保在代码中适当处理可能出现的异常，尤其是在消费者无法连接到队列或队列不存在时。
+    队列配置：如果你在生产者中声明了队列，消费者中的 queueDeclare 语句可以省略，但如果队列的参数配置不一致，可能会引发问题。确保在任何地方声明队列时使用一致的参数配置。
+    预先创建：考虑在应用程序之外（如 RabbitMQ 管理界面）创建队列，避免在代码中声明队列时产生冲突或不一致问题。
+<code>
+public class Send {
+    private static final String QUEUE_NAME = "q1";
+    private static final String HOST = "192.168.149.130";
+    private static final String USERNAME = "ida";
+    private static final String PASSWORD = "123456";
+    private static final String MESSAGE = "Hello world";
+ 
+    public static void main(String[] args) {
+        // 创建连接工厂,设置连接信息,建立连接,获得信道,声明队列,发送消息,关闭连接
+ 
+        // 定义队列参数
+        Map&lt;String, Object> arguments = new HashMap&lt;>();
+        arguments.put("x-message-ttl", 60000); // 消息 TTL: 60,000 毫秒（60 秒）
+        arguments.put("x-max-length", 1000);   // 最大长度: 1000 条消息
+        
+        // 定义消息头部属性
+        Map&lt;String, Object> messageHeaders = new HashMap&lt;>();
+        messageHeaders.put("format", "pdf");
+        messageHeaders.put("type", "report");
+        
+        // 定义消息属性
+        AMQP.BasicProperties props = new AMQP.BasicProperties.Builder()
+                .contentType("text/plain") // 内容类型
+                .contentEncoding("UTF-8") // 内容编码
+                .deliveryMode(2) // 消息持久化: 1 = 非持久, 2 = 持久
+                .priority(1) // 消息优先级
+                .correlationId("correlation-id-123") // 相关 ID
+                .headers(messageHeaders) // 头部信息
+                .replyTo("reply-to-queue") // 回复队列
+                .expiration("60000") // 消息过期时间 (以毫秒为单位)
+                .messageId("message-id-123") // 消息 ID
+                .timestamp(new java.util.Date()) // 消息时间戳
+                .type("message-type") // 消息类型
+                .userId("ida") // 用户 ID
+                .build();
+ 
+        ConnectionFactory factory = new ConnectionFactory();
+        factory.setHost(HOST);
+        factory.setUsername(USERNAME);
+        factory.setPassword(PASSWORD);
+        try {
+            Connection connection = factory.newConnection();
+            Channel channel = connection.createChannel();
+            channel.queueDeclare(
+                    QUEUE_NAME, //队列名
+                    true, //是否持久化
+                    false, //队列是否为独占队列(仅创建者可以使用的私有队列,断开后自动删除)
+                    false, //是否在最后一个消费者断开连接后自动删除
+                    arguments); //Map类型, 指定队列的其他属性或插件参数, 例如队列的消息 TTL、队列的最大长度等
+            channel.basicPublish(
+                    "", //交换机, 默认交换机(AMQP default)用空字符串 "" 表示, 类型是 direct
+                    QUEUE_NAME, //队列名, 在使用默认交换机时，路由键被用作队列的名称
+                    //MessageProperties.MINIMAL_PERSISTENT_BASIC, //消息属性
+                    props, //消息属性
+                    MESSAGE.getBytes("UTF-8")); //消息实体, 类型为字节数组
+            channel.close();
+            connection.close();
+        } catch (IOException | TimeoutException e) {
+            throw new RuntimeException(e);
+        }
+    }
+}
+</code>
+<h2>消费者方法相关参数说明</h2>
+<code>
+public class Receive {
+    //..
+ 
+    public static void main(String[] args) {
+        ConnectionFactory factory = new ConnectionFactory();
+        factory.setHost(HOST);
+        factory.setUsername(USERNAME);
+        factory.setPassword(PASSWORD);
+        try {
+             Connection connection = factory.newConnection();
+            Channel channel = connection.createChannel();
+ 
+            //自动确认(可靠性要求不高),意味着一旦消息被发送到消费者，RabbitMQ 会认为消息已经成功处理，不论消费者是否真的处理了该消息
+            //手动确认(可靠性要求较高),消费者需要在处理完消息后显式地调用 channel.basicAck 方法来确认消息。只有在调用了 basicAck 后，RabbitMQ 才会从队列中移除该消息
+            channel.basicConsume(
+                    QUEUE_NAME, //队列名
+                    false, //手动确认
+                    new DefaultConsumer(channel){ //处理收到的消息, 传入channel
+                        @Override
+                        public void handleDelivery(
+                                String consumerTag, //RabbitMQ 在创建消费者时分配一个唯一的标识符
+                                Envelope envelope, //包含有关消息传递的信息，包括消息的路由键、交换机、消息的唯一标识符等
+                                AMQP.BasicProperties properties, //消息的属性，如消息的内容类型、消息的优先级、发布者设置的自定义属性等
+                                byte[] body
+                        ) {
+                            try {
+                                // 打印消费者标签
+                                System.out.println("Consumer Tag: " + consumerTag);
+ 
+                                // 打印消息的基本信息
+                                System.out.println("Envelope Details:");
+                                System.out.println("  Exchange: " + envelope.getExchange());
+                                System.out.println("  Routing Key: " + envelope.getRoutingKey());
+                                System.out.println("  Delivery Tag: " + envelope.getDeliveryTag());
+                                System.out.println("  Redelivered: " + envelope.isRedeliver());
+ 
+                                // 打印消息属性
+                                System.out.println("Message Properties:");
+                                System.out.println("  Content Type: " + properties.getContentType());
+                                System.out.println("  Content Encoding: " + properties.getContentEncoding());
+                                System.out.println("  Headers: " + properties.getHeaders());
+                                System.out.println("  Delivery Mode: " + properties.getDeliveryMode());
+                                System.out.println("  Priority: " + properties.getPriority());
+                                System.out.println("  Correlation ID: " + properties.getCorrelationId());
+                                System.out.println("  Reply To: " + properties.getReplyTo());
+                                System.out.println("  Expiration: " + properties.getExpiration());
+                                System.out.println("  Message ID: " + properties.getMessageId());
+                                System.out.println("  Timestamp: " + properties.getTimestamp());
+                                System.out.println("  Type: " + properties.getType());
+                                System.out.println("  User ID: " + properties.getUserId());
+ 
+                                // 打印消息体
+                                String messageBody = new String(body, "UTF-8");
+                                System.out.println("Message Body: " + messageBody);
+ 
+                                // 确认消息
+                                channel.basicAck(
+                                        envelope.getDeliveryTag(), //用于确认哪一条消息已经被成功处理
+                                        false); //true:表示确认所有到达 deliveryTag 之前的所有消息（批量确认）,false:仅确认 deliveryTag 对应的单条消息
+                            } catch (Exception e) {
+                                // 处理异常逻辑
+                                try {
+                                    channel.basicNack(
+                                            envelope.getDeliveryTag(), //指定哪一条消息未被成功处理
+                                            false, //true表示将所有到达 deliveryTag 之前的消息标记为未确认（批量拒绝）,false:仅将 deliveryTag 对应的单条消息标记为未确认
+                                            true); //true表示将未确认的消息重新投递到队列中, false:将未确认的消息丢弃或丢入死信队列（如果配置了死信队列）
+                                } catch (IOException ex) {
+                                    ex.printStackTrace();
+                                }
+                            }
+                        }
+                    }
+            );
+        } catch (IOException | TimeoutException e) {
+            throw new RuntimeException(e);
+        }
+    }
+}
+/*
+Consumer Tag: amq.ctag-gDpSJcGELhBsb8VSAuDo5A
+Envelope Details:
+  Exchange: 
+  Routing Key: q1
+  Delivery Tag: 2
+  Redelivered: false
+Message Properties:
+  Content Type: text/plain
+  Content Encoding: UTF-8
+  Headers: {format=pdf, type=report}
+  Delivery Mode: 2
+  Priority: 1
+  Correlation ID: correlation-id-123
+  Reply To: reply-to-queue
+  Expiration: 60000
+  Message ID: message-id-123
+  Timestamp: Wed Aug 14 10:00:25 CST 2024
+  Type: message-type
+  User ID: ida
+Message Body: Hello world
+*/
+</code>
+
+<h2>根据消息内容做处理</h2>
+<code>
+public class Producer {
+    public static void main(String[] args) throws IOException, TimeoutException {
+        Connection connection = ConnUtils.getConn();
+        Channel channel = connection.createChannel();
+        channel.queueDeclare(
+                "q2", //队列名
+                true, //持久化
+                false, //独占性
+                false, //自动删除
+                null); //队列参数
+ 
+        for (int i = 0; i &lt; 10; i++) {
+            String msg = i + "...";
+            channel.basicPublish(
+                    "", //交换机, 默认交换机没有名称，它用空字符串 "" 表示, 默认交换机的类型是 direct
+                    "q2", //队列名, 在使用默认交换机时，路由键被用作队列的名称
+                    null, //消息属性
+                    msg.getBytes("UTF-8")); //消息实体
+        }
+        channel.close();
+        connection.close();
+    }
+}
+</code>
+<code>
+public class Consumer {
+    public static void main(String[] args) throws IOException {
+        Connection connection = ConnUtils.getConn();
+        Channel channel = connection.createChannel();
+        channel.basicConsume(
+                "q2", //队列名
+                true, //自动确认
+                new DefaultConsumer(channel){ //消息处理, 传入channel
+                    @Override
+                    public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws UnsupportedEncodingException {
+                        String msg = new String(body, "UTF-8");
+                        System.out.println("收到消息:" + msg);
+                        char[] chars = msg.toCharArray();
+                        for (char ch : chars) {
+                            if (ch == '.') {
+                                try {
+                                    Thread.sleep(1000);
+                                } catch (InterruptedException e) {
+                                    throw new RuntimeException(e);
+                                }
+                            }
+                        }
+                        System.out.println("处理完成");
+                    }
+                }
+        );
+    }
+}
+/*
+收到消息:0...
+处理完成
+收到消息:1...
+处理完成
+.. 
+*/
+</code>
+<h2>多个消费者平均压力</h2>
+<h3>循环调度</h3>
+再实例化运行一个Consumer, (idea运行配置,修改选项,允许多个实例)
+队列生成10个消息, 这时两个Consumer会轮流取出消息进行处理, 整体速度得到提高
+<h3>公平派遣</h3>
+循环调度下每个消费者处理的消息个数接近相同, 但是每个消息的处理耗时存在差异, 导致消费者中有的提早完成, 有的仍在处理
+公平派遣加入消息确认机制, 消费者在每个消息消费完后主动通知rabbitmq, rabbitmq为其派发新的消息, 这样所有消费者都会尽可能处于消费状态, 整体速度得到进一步提高
+<code>
+public class ConsumerV2 {
+    public static void main(String[] args) throws IOException {
+        Connection connection = ConnUtils.getConn();
+        Channel channel = connection.createChannel();
+        channel.basicQos(1); //限制消费者一次处理的消息数量，避免消费者过载(因为处理慢而被堆积大量消息)
+        channel.basicConsume(
+                "q2",
+                false, //手动确认
+                new DefaultConsumer(channel){
+                    @Override
+                    public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
+                        String msg = new String(body, "UTF-8");
+                        System.out.println("收到消息:" + msg);
+                        char[] chars = msg.toCharArray();
+                        for (char ch : chars) {
+                            if (ch == '.') {
+                                try {
+                                    Thread.sleep(1000);
+                                } catch (InterruptedException e) {
+                                    throw new RuntimeException(e);
+                                }
+                            }
+                        }
+                        System.out.println("处理完成");
+                        channel.basicAck(envelope.getDeliveryTag(), false); //手动确认
+                    }
+                }
+        );
+    }
+}
+</code>
+
+<h1>交换机工作模式</h1>
+<h2>fanout</h2>
+fanout 消息会被广播到所有绑定到该交换机的队列，不考虑路由键。
+    适用于广播消息，例如：日志系统，发布/订阅模式。
+<code>
+//生产者
+channel.exchangeDeclare("fanout_exchange", "fanout"); //枚举形式 BuiltinExchangeType.FANOUT
+channel.queueDeclare("queue1", true, false, false, null);
+channel.queueDeclare("queue2", true, false, false, null);
+channel.basicPublish("fanout_exchange", "", null, "Hello World!".getBytes());
+//消费者
+channel.exchangeDeclare("fanout_exchange", "fanout");
+channel.queueBind("queue1", "fanout_exchange", "");
+channel.queueBind("queue2", "fanout_exchange", "");
+</code>
+20240603204902.webp
+
+<h2>direct</h2>
+direct 精确路由到匹配路由键的队列。默认交换机的类型是 direct
+    适用于需要精确路由的场景，例如任务分发系统，根据不同的任务类型将消息发送到不同的处理队列。
+<code>
+//产生日志
+public class EmitLogsDirect {
+    public static void main(String[] args) throws IOException, TimeoutException {
+        Connection connection = ConnUtils.getConn();
+        Channel channel = connection.createChannel();
+        channel.exchangeDeclare("x2", "direct");
+        //一个交换机向多个路由键发送不同消息
+        channel.basicPublish("x2", "info", null, "is info".getBytes("UTF-8"));
+        channel.basicPublish("x2", "warn", null, "is warn".getBytes("UTF-8"));
+        channel.basicPublish("x2", "error", null, "is error".getBytes("UTF-8"));
+        channel.close();
+        connection.close();
+    }
+}
+ 
+//接收所有级别日志, 输出到控制台
+public class ReceiveLogsDirect1 {
+    public static void main(String[] args) throws IOException {
+        Connection connection = ConnUtils.getConn();
+        Channel channel = connection.createChannel();
+        //可以创建一个临时（非持久、自动删除）队列, rabbitmq会生成默认队列名, 如果生产者发送消息时消费者的队列还未创建，消息会丢失
+        String queue = channel.queueDeclare().getQueue(); 
+        //使用同一个队列接收同一个交换机下的不同路由键消息
+        channel.queueBind(queue, "x2", "info");
+        channel.queueBind(queue, "x2", "warn");
+        channel.queueBind(queue, "x2", "error");
+        channel.basicConsume(queue, true, new DefaultConsumer(channel) {
+                @Override
+                public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws UnsupportedEncodingException {
+                    String msg = new String(body, "UTF-8");
+                    System.out.println("收到消息:" + msg);
+                }
+            }
+        );
+    }
+}
+ 
+//仅接收error级别的日志, 保存到文件
+public class ReceiveLogsDirect2 {
+    public static void main(String[] args) throws IOException {
+        Connection connection = ConnUtils.getConn();
+        Channel channel = connection.createChannel();
+        String queue = channel.queueDeclare().getQueue();
+        channel.queueBind(queue,"x2","error");
+        channel.basicConsume(queue,true, new DefaultConsumer(channel){..}
+        );
+    }
+}
+</code>
+20240814132506.webp
+
+<h2>topic</h2>
+topic 基于主题模式（Pattern Matching）进行路由，支持复杂的路由逻辑
+    路由键中的.具有特定的含义, 点用作分隔符，允许你使用通配符 * 和 # 来指定绑定模式 
+    队列的绑定模式可以包含通配符(* 替代一个单词, # 替代零个或多个单词 (任意个))允许队列接收符合这些模式的消息
+<code>
+public class EmitLogsTopic {
+    public static void main(String[] args) throws IOException, TimeoutException {
+        Connection connection = ConnUtils.getConn();
+        Channel channel = connection.createChannel();
+        channel.exchangeDeclare("x3", "topic");
+ 
+        String[] routingKeys = {
+                "quick.orange.rabbit",
+                "lazy.orange.elephant",
+                "quick.orange.fox",
+                "lazy.brown.fox",
+                "lazy.pink.rabbit",
+                "quick.brown.fox",
+                "orange",
+                "quick.orange.male.rabbit",
+                "lazy.orange.male.rabbit"
+        };
+ 
+        for (int i = 0; i &lt; routingKeys.length; i++) {
+            channel.basicPublish("x3", routingKeys[i], null, "ok".getBytes("UTF-8"));
+        }
+ 
+        channel.close();
+        connection.close();
+    }
+}
+</code>
+<code>
+public class ReceiveLogsTopic1 {
+    public static void main(String[] args) throws IOException, InterruptedException {
+        Connection connection = ConnUtils.getConn();
+        Channel channel = connection.createChannel();
+ 
+        channel.queueDeclare("tq1", false, false, false, null);
+        channel.queueBind("tq1", "x3", "*.orange.*"); //队列名, 交换机名, 路由键. queueBind重载版本,四参比三参多一个绑定参数
+ 
+        channel.queueDeclare("tq2", false, false, false, null);
+        channel.queueBind("tq2", "x3", "*.*.rabbit");
+        channel.queueBind("tq2", "x3", "lazy.#");
+ 
+        Map&lt;String, List&lt;String>> result = new TreeMap&lt;>(); //TreeMap 自动按键排序
+        // 创建 CountDownLatch 等待所有消息处理完成
+        CountDownLatch latch = new CountDownLatch(8);
+ 
+        channel.basicConsume("tq1", true, new DefaultConsumer(channel) {
+            @Override
+            public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) {
+                //尝试在 Map 中查找指定的键（在这里是 "tq1"）。如果该键存在，它将返回键对应的值；
+                //如果键不存在，它将使用提供的函数（在这里是 k -> new ArrayList&lt;>()）来生成一个新的值，并将其放入Map然后返回这个新值
+                result.computeIfAbsent("tq1", k -> new ArrayList&lt;>()).add(envelope.getRoutingKey());
+                latch.countDown(); // 处理完一条消息，计数器减 1
+            }
+        });
+ 
+        channel.basicConsume("tq2", true, new DefaultConsumer(channel) {
+            @Override
+            public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) {
+                result.computeIfAbsent("tq2", k -> new ArrayList&lt;>()).add(envelope.getRoutingKey());
+                latch.countDown(); // 处理完一条消息，计数器减 1
+            }
+        });
+ 
+        try {
+            latch.await(); //调用 await() 方法的线程将阻塞，直到计数器减到零
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+ 
+        //basicConsume 是异步的，result.forEach 方法在消息处理还没有完成时就被调用了，所以可能没有任何输出
+        //使用延时, 或者在能确定出被消费的消息总数时可以使用concurrent包下的CountDownLatch类
+        //CountDownLatch 是 Java 中用于协调线程的同步工具，主要用于等待其他线程完成某些操作, 可以设置一个倒计时计数器，线程可以等待直到计数器减到零
+        //Thread.sleep(5000);
+        result.forEach((k, v) -> {
+            System.out.println(k);
+            System.out.println("-----------");
+            v.forEach(System.out::println);
+            System.out.println("-----------");
+        });
+    }
+}
+</code>
+20240814160920.webp
+[特点].[颜色].[物种]
+20240814140749.webp
+
+<h2>headers</h2>
+headers 根据消息头部的属性进行路由，不使用路由键
+<code>
+Map&lt;String, Object> headers = new HashMap&lt;>();
+headers.put("x-match", "all"); //指定匹配模式, any: 只要消息的任意一个头部属性与绑定的属性匹配，消息就会路由到队列, all: 所有绑定的头部属性必须与消息的头部属性匹配
+headers.put("format", "pdf");
+headers.put("type", "report");
+ 
+channel.exchangeDeclare("headers_exchange", "headers"); //"headers": 声明一个名为"headers_exchange"的交换机,交换机的类型为 headers
+channel.queueDeclare("queue1", true, false, false, null);
+channel.queueBind("queue1", "headers_exchange", "", headers); //队列名,交换机名,路由键,绑定条件. queueBind重载版本,四参比三参多一个绑定参数
+ 
+Map&lt;String, Object> messageHeaders = new HashMap&lt;>();
+messageHeaders.put("format", "pdf");
+messageHeaders.put("type", "report");
+ 
+AMQP.BasicProperties properties = new AMQP.BasicProperties.Builder()
+    .headers(messageHeaders)
+    .build();
+ 
+channel.basicPublish("headers_exchange", "", properties, "Document".getBytes());
+</code>
+
+<h1>Spring Boot整合RabbitMQ</h1>
+<h2>依赖</h2>
+也可以在项目创建时勾选依赖, Messaging - Spring for RabbitMQ 
+<code xml>
+&lt;dependency&gt;
+    &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+    &lt;artifactId&gt;spring-boot-starter-amqp&lt;/artifactId&gt;
+&lt;/dependency&gt;
+&lt;dependency>
+    &lt;groupId>org.springframework.amqp&lt;/groupId>
+    &lt;artifactId>spring-rabbit-test&lt;/artifactId>
+    &lt;scope>test&lt;/scope>
+&lt;/dependency>
+</code>
+<h2>注解说明</h2>
+RabbitMQ 本身并不关心消息的内容，它将消息处理为字节数组, 而Spring AMQP会根据方法的参数类型来选择执行匹配的方法
+    如果方法参数类型是 String, byte[]，Integer等 Spring AMQP会尝试将消息体转换为对应的类型
+    如果方法参数是自定义对象（例如 MyObject），会尝试将消息体反序列化为相应的对象, 需要配置MessageConverter
+
+@RabbitListener 
+    应用于方法上
+        这个方法将会被用作处理从指定队列接收到的消息。如果消息体不能被转换为方法参数类型，Spring AMQP 将会抛出异常
+    应用于类上
+        当消息到达时，Spring只会选择类中的一个方法进行处理, 如果消息类型与多个方法签名匹配，它通常会选择第一个匹配的处理方法
+    同时应用于类和方法上
+        类上的 @RabbitListener 注解会指定一个默认的队列或交换机，而方法上的 @RabbitListener 注解可以覆盖或附加其他队列或交换机
+
+@RabbitHandler
+    一个 @RabbitListener 类可以包含多个 @RabbitHandler 方法，用于处理不同类型的消息
+        如果多个 @RabbitHandler 方法具有相同的参数类型
+            这种情况下，具体的行为可能依赖于 Spring AMQP 的实现细节或版本。一般来说，Spring 会根据特定的规则（如注册顺序）来选择合适的方法处理消息，但这个行为可能不是非常直观或一致
+    当消息到达时，Spring AMQP 根据消息的类型和参数签名选择最合适的 @RabbitHandler 方法来处理消息
+    如果不使用 @RabbitHandler，在 @RabbitListener 类中建议只定义一个方法来处理所有消息，以避免因多个方法的签名匹配到相同的消息类型而产生不确定或不一致的行为
+    @RabbitHandler 仅有效于 @RabbitListener 类
+
+</code>
+<h2>producer</h2>
+<h3>配置</h3>
+<code properties>
+server.port=9016
+spring.application.name=16-producer
+ 
+spring.rabbitmq.addresses=192.168.149.130
+spring.rabbitmq.username=ida
+spring.rabbitmq.password=123456
+spring.rabbitmq.virtual-host=/
+spring.rabbitmq.connection-timeout=15000
+</code>
+<h3>配置类</h3>
+<code>
+@Configuration
+public class RabbitMQConfig {
+ 
+    @Bean
+    public TopicExchange topicExchange() { return new TopicExchange("x4"); }
+    @Bean
+    public Queue queue1() { return new Queue("tq3", true, false, false, null); }
+    @Bean
+    public Queue queue2() { return new Queue("tq4"); }
+    @Bean
+    public Queue queue3() { return new Queue("tq5"); }
+ 
+    @Bean
+    public Binding binding1(TopicExchange topicExchange, Queue queue1) {
+        return BindingBuilder
+                .bind(queue1)
+                .to(topicExchange)
+                .with("*.orange.*");
+    }
+ 
+    @Bean
+    public Binding binding2(TopicExchange topicExchange, Queue queue2) {
+        return BindingBuilder
+                .bind(queue2)
+                .to(topicExchange)
+                .with("*.*.rabbit");
+    }
+ 
+    @Bean
+    public Binding binding3(TopicExchange topicExchange, Queue queue2) {
+        return BindingBuilder
+                .bind(queue2)
+                .to(topicExchange)
+                .with("lazy.#");
+    }
+ 
+    @Bean
+    public Binding binding4(TopicExchange topicExchange, Queue queue3) {
+        return BindingBuilder
+                .bind(queue3)
+                .to(topicExchange)
+                .with("*.user");
+    }
+ 
+    @Bean
+    //用于将 RabbitMQ 消息体转换为 Java 对象，或者将 Java 对象转换为 JSON 格式的消息体
+    public MessageConverter jsonMessageConverter(ObjectMapper objectMapper) {
+        return new Jackson2JsonMessageConverter(objectMapper);
+    }
+}
+</code>
+<h3>User</h3>
+<code>
+public class User {
+    private String name;
+    private int age;
+    private Date birthday;
+    //getter,setter
+}
+</code>
+<h3>MessageProducer</h3>
+<code>
+@Service("messageProducer")
+public class MessageProducer {
+    @Resource
+    private RabbitTemplate rabbitTemplate; //在 Spring AMQP 中，RabbitTemplate 是默认的 AmqpTemplate 实现
+    @Resource
+    private TopicExchange topicExchange;
+ 
+    public void sendMessage(String routingKey, String message) {
+        rabbitTemplate.convertAndSend(topicExchange.getName(), routingKey, message);
+    }
+ 
+    public void sendUser(String routingKey, User user) {
+        rabbitTemplate.convertAndSend(topicExchange.getName(), routingKey, user);
+    }
+}
+</code>
+<h3>测试类</h3>
+<code>
+@SpringBootTest
+class MessageProducerTest {
+    @Resource
+    private MessageProducer messageProducer;
+ 
+    @Test
+    void sendMessage() {
+        String[] routingKeys = {
+                "quick.orange.rabbit",
+                "lazy.orange.elephant",
+                "quick.orange.fox",
+                "lazy.brown.fox",
+                "lazy.pink.rabbit",
+                "quick.brown.fox",
+                "orange",
+                "quick.orange.male.rabbit",
+                "lazy.orange.male.rabbit"
+        };
+ 
+        for (int i = 0; i &lt; routingKeys.length; i++) {
+            messageProducer.sendMessage(routingKeys[i], "养石头");
+        }
+    }
+ 
+    @Test
+    void sendUser() {
+        User user = new User();
+        user.setName("小明");
+        user.setAge(12);
+        //过时的构造函数,100表示2000年
+        //user.setBirthday(new Date(100, 5, 15, 18, 59, 59));
+        //月份用数字表示时从0起, 因此使用常量名的写法
+        Calendar calendar = Calendar.getInstance();
+        calendar.set(2000, Calendar.JUNE, 15, 18, 59, 59); //月份用数字表示时从0起, 因此使用常量名的写法
+        user.setBirthday(calendar.getTime());
+ 
+        messageProducer.sendUser("obj.user", user);
+    }
+}
+</code>
+
+<h2>consumer</h2>
+<h3>配置</h3>
+<code properties>
+server.port=9017
+spring.application.name=17-consumer
+ 
+spring.rabbitmq.addresses=192.168.149.130
+spring.rabbitmq.username=ida
+spring.rabbitmq.password=123456
+spring.rabbitmq.virtual-host=/
+spring.rabbitmq.connection-timeout=15000
+</code>
+<h3>配置类</h3>
+<code>
+@Configuration
+public class RabbitMQConfig {
+    @Bean
+    //用于将 RabbitMQ 消息体转换为 Java 对象，或者将 Java 对象转换为 JSON 格式的消息体
+    public MessageConverter jsonMessageConverter(ObjectMapper objectMapper) {
+        return new Jackson2JsonMessageConverter(objectMapper);
+    }
+}
+</code>
+<h3>User</h3>
+<code>
+public class User {
+    private String name;
+    private int age;
+    private Date birthday;
+    //getter,setter
+}
+</code>
+<h3>MessageConsumer</h3>
+<code>
+@Component
+public class MessageConsumer {
+    @RabbitListener(queues = "tq3")
+    public void receiveMessageFromQueue1(String message, Message rabbitMessage) {
+        System.out.println("Received from tq3: " + message);
+        System.out.println("Routing key: " + rabbitMessage.getMessageProperties().getReceivedRoutingKey());
+    }
+ 
+    @RabbitListener(queues = "tq4")
+    public void receiveMessageFromQueue2(String message, Message rabbitMessage) {
+        System.out.println("Received from tq4: " + message);
+        System.out.println("Routing key: " + rabbitMessage.getMessageProperties().getReceivedRoutingKey());
+    }
+ 
+    @RabbitListener(queues = "tq5")
+    public void receiveMessageFromQueue3(User user, Message rabbitMessage) {
+        System.out.println("Received from tq5: " + user.toString());
+        System.out.println("Routing key: " + rabbitMessage.getMessageProperties().getReceivedRoutingKey());
+    }
+}
+</code>
+</pre>
+</body>
+</html>

@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>JDK8新增特性</title>
+ </head>
+ <body>
+  <span id="anchor">20240413150540-_java</span>
+  <pre>
+<h1>函数式接口</h1>
+函数式编程理念
+    是将代码作为可重用数据代入到程序运行中
+    强调平铺直叙"你想做什么"
+    而不是"为了使用这个功能要做哪些准备工作"
+
+函数式接口
+    只包含一个抽象方法的接口
+        但是可以包含默认方法（default method）、静态方法（static method）和Object类中的方法（如equals，hashCode等），因为它们不是抽象方法
+    函数式接口是支持Lambda表达式的基础
+        因为只有一个抽象方法, 编译器可以推断出Lambda表达式所实现的函数式接口类型, 在编译时，Lambda表达式会被转换为一个实现了目标函数式接口的匿名类的实例
+<code>
+//自定义函数式接口
+@FunctionalInterface //检查注解
+interface MyFuncInterface {
+    void myMethod();
+    default void defaultMethod() {System.out.println("默认方法");}//Java 8引入了接口默认方法
+    static void staticMethod() {System.out.println("静态方法");}//Java 8引入了接口静态方法
+}
+public class Main {
+    public static void main(String[] args) {
+        MyFuncInterface obj = () -> System.out.println("hello");//创建函数式接口的实例,使用Lambda表达式实现myMethod()方法
+        //使用函数式接口的实例调用Lambda表达式所实现myMethod()方法
+        obj.myMethod(); //hello
+        //obj.defaultMethod();
+        //MyFuncInterface.staticMethod();
+    }
+}
+</code>
+
+<h2>内置的函数式接口</h2>
+<p>
+函数式接口名:参数:返回值:说明
+Function&lt;T, R>:T:R:接受一个输入参数并返回结果
+BiFunction&lt;T, U, R>:T, U:R:接受两个输入参数并返回结果
+IntFunction&lt;R>:int:R:接受一个int类型输入并返回结果
+LongFunction&lt;R>:long:R:接受一个long类型输入并返回结果
+DoubleFunction&lt;R>:double:R:接受一个double类型输入并返回结果
+ToIntFunction&lt;T>:T:int:接受一个输入参数并返回int类型结果
+ToLongFunction&lt;T>:T:long:接受一个输入参数并返回long类型结果
+ToDoubleFunction&lt;T>:T:double:接受一个输入参数并返回double类型结果
+</p>
+<p>
+函数式接口名:参数:返回值:说明
+Supplier&lt;T>:无:T:提供一个结果，不接受参数
+IntSupplier:无:int:提供一个int类型结果，不接受参数
+LongSupplier:无:long:提供一个long类型结果，不接受参数
+DoubleSupplier:无:double:提供一个double类型结果，不接受参数
+</p>
+<p>
+函数式接口名:参数:返回值:说明
+Consumer&lt;T>:T:void:接受一个输入参数并进行操作，无返回值
+BiConsumer&lt;T, U>:T, U:void:接受两个输入参数并进行操作，无返回值
+IntConsumer:int:void:接受一个int类型输入并进行操作，无返回值
+LongConsumer:long:void:接受一个long类型输入并进行操作，无返回值
+DoubleConsumer:double:void:接受一个double类型输入并进行操作，无返回值
+ObjIntConsumer&lt;T>:T, int:void:接受一个对象和一个int类型输入并进行操作，无返回值
+ObjLongConsumer&lt;T>:T, long:void:接受一个对象和一个long类型输入并进行操作，无返回值
+ObjDoubleConsumer&lt;T>:T, double:void:接受一个对象和一个double类型输入并进行操作，无返回值
+</p>
+<p>
+函数式接口名:参数:返回值:说明
+Predicate&lt;T>:T:boolean:接受一个输入参数并返回布尔值
+BiPredicate&lt;T, U>:T, U:boolean:接受两个输入参数并返回布尔值
+</p>
+<p>
+函数式接口名:参数:返回值:说明
+UnaryOperator&lt;T>:T:T:接受一个参数并返回同类型结果（Function的特殊化）
+IntUnaryOperator:int:int:接受一个int类型输入并返回相同类型的结果
+LongUnaryOperator:long:long:接受一个long类型输入并返回相同类型的结果
+DoubleUnaryOperator:double:double:接受一个double类型输入并返回相同类型的结果
+</p>
+<p>
+函数式接口名:参数:返回值:说明
+BinaryOperator&lt;T>:T, T:T:接受两个同类型参数并返回同类型结果（BiFunction的特殊化）
+IntBinaryOperator:int, int:int:接受两个int类型输入并返回相同类型的结果
+LongBinaryOperator:long, long:long:接受两个long类型输入并返回相同类型的结果
+DoubleBinaryOperator:double, double:double:接受两个double类型输入并返回相同类型的结果
+</p>
+<code>
+// Function apply()
+Function&lt;String, Integer> lengthFunction = String::length;
+System.out.println("Length: " + lengthFunction.apply("Hello"));
+ 
+// BiFunction
+BiFunction&lt;Integer, Integer, Integer> add = (a, b) -> a + b;
+System.out.println("Sum: " + add.apply(2, 3));
+ 
+// Consumer accept()
+Consumer&lt;String> printConsumer = System.out::println;
+printConsumer.accept("Hello, World!");
+ 
+// BiConsumer
+BiConsumer&lt;String, Integer> printBiConsumer = (s, i) -> System.out.println(s + ": " + i);
+printBiConsumer.accept("Age", 30);
+ 
+// Supplier get()
+Supplier&lt;String> stringSupplier = () -> "Hello, Supplier!";
+System.out.println("Supplied: " + stringSupplier.get());
+ 
+// Predicate test() 谓词
+Predicate&lt;String> isEmpty = String::isEmpty;
+System.out.println("Is empty: " + isEmpty.test(""));
+ 
+// BiPredicate
+BiPredicate&lt;String, String> equals = String::equals;
+System.out.println("Are equal: " + equals.test("hello", "hello"));
+ 
+// UnaryOperator apply()
+UnaryOperator&lt;String> toUpperCase = String::toUpperCase;
+System.out.println("Upper case: " + toUpperCase.apply("hello"));
+ 
+// BinaryOperator
+BinaryOperator&lt;Integer> multiply = (a, b) -> a * b;
+System.out.println("Product: " + multiply.apply(2, 3));
+</code>
+<h2>接口的默认方法</h2>
+Predicate,BiPredicate
+    and,or,negate
+Function 
+    andThen 先应用当前函数，再应用 andThen 中的函数。
+    compose 先应用 compose 中的函数，再应用当前函数。
+<code>
+Function&lt;Integer, Integer> times2 = x -> x * 2;
+Function&lt;Integer, Integer> square = x -> x * x;
+Function&lt;Integer, Integer> times2ThenSquare = times2.andThen(square);
+Function&lt;Integer, Integer> squareThenTimes2 = times2.compose(square);//先square后times2
+</code>
+BiFunction
+    andThen
+Consumer,BiConsumer
+    andThen 
+UnaryOperator
+    andThen
+    compose
+BinaryOperator
+    andThen
+Comparator
+    reversed 返回一个比较器，表示当前比较器的顺序相反
+    thenComparing(Comparator) 先应用当前比较器，再应用参数中的比较器
+<code>
+Comparator&lt;Person> byName = Comparator.comparing(Person::getName);
+Comparator&lt;Person> byAge = Comparator.comparingInt(Person::getAge);
+Comparator&lt;Person> byNameThenAge = byName.thenComparing(byAge);
+</code>
+    thenComparing(Function keyExtractor, Comparator keyComparator) 
+        keyExtractor: 一个函数，用于从对象中提取用于比较的键。
+        keyComparator: 一个比较器，用于比较提取出来的键。
+        先使用当前比较器对两个对象进行比较，如果比较结果相等，再使用提供的 keyExtractor 和 keyComparator 对提取出来的键进行比较
+<code>
+// 先按名字排序，如果名字相同再按年龄排序（降序）
+Comparator&lt;Person> byNameThenAgeDescending = Comparator
+    .comparing(Person::getName)
+    .thenComparing(Person::getAge, Comparator.reverseOrder());
+List&lt;Person> sortedPeople = people.stream()
+    .sorted(byNameThenAgeDescending)
+    .collect(Collectors.toList());
+</code>
+    thenComparing(Function keyExtractor) 如果比较结果相等，再使用 keyExtractor 提取出的键进行比较，且使用键的自然顺序进行比较。
+        自然顺序（Natural Order）是指对象的默认排序顺序，它通常是根据对象实现的 Comparable 接口中的 compareTo 方法定义的。
+        在 Java 中，许多基本类型和标准库中的类都实现了 Comparable 接口，从而定义了它们的自然顺序。
+<code>
+// 先按名字排序，如果名字相同再按年龄排序（升序，自然顺序）
+Comparator&lt;Person> byNameThenAge = Comparator
+    .comparing(Person::getName)
+    .thenComparing(Person::getAge);
+</code>
+<h2>应用例</h2>
+<code>
+@Test
+public void case2() {
+    Predicate&lt;Integer&gt; predicate1 = n -&gt; n &gt; 5;
+    Predicate&lt;Integer&gt; predicate2 = n -&gt; n % 2 == 0;
+    boolean test1 = predicate1.and(predicate2).test(6);//true
+    boolean test2 = predicate1.and(predicate2).test(7);//false
+ 
+    List&lt;Integer&gt; list = Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+    for (Integer a : list) {
+        if (predicate1.test(a)) {
+            System.out.print(a + &quot; &quot;);
+        }
+    }
+    //不需要调整filter方法而实现各种逻辑
+    filter(list, a -&gt; a &gt; 5 &amp;&amp; a % 2 == 0);
+}
+public void filter(List&lt;Integer&gt; list, Predicate&lt;Integer&gt; predicate) {
+    for (Integer a : list) {
+        if (predicate.test(a)) {
+            System.out.print(a + &quot; &quot;);
+        }
+    }
+}
+</code>
+<code>
+@Test
+public void case3() {
+    String s = "信息文本";
+    //向控制台输出
+    output(s, str -&gt; System.out.println(str));
+    output(s, str -&gt; {
+        //向网络地址输出..
+    });
+}
+public static void output(String s, Consumer&lt;String&gt; consumer) {
+    consumer.accept(s);
+}
+</code>
+<code>
+@Test
+public void case4(){
+    //生成随机定长字符串,通常用于安全领域中的加密和解密
+    Function&lt;Integer,String&gt; randomStr = len -&gt; {
+        String chars = &quot;abcdefghigklmnopqrstuvwxyz0123456789&quot;;
+        Random random = new Random();
+        StringBuffer stringBuffer = new StringBuffer();
+        for (int i = 0; i &lt; len; i++) {
+            int pos = random.nextInt(chars.length());
+            stringBuffer.append(chars.charAt(pos));
+        }
+        return stringBuffer.toString();
+    };
+    System.out.println(randomStr.apply(10));
+}
+</code>
+
+<h1>Lambda表达式</h1>
+通常用于函数式接口的实例化，使得代码简洁易读
+
+<h1>方法引用</h1>
+方法引用是 Lambda 表达式的一种更简洁的形式，可以直接引用现有的方法
+    不需要为了实现一个函数式接口而额外编写代码
+
+<h2>静态方法引用</h2>
+格式：
+    ClassName::staticMethodName
+示例：
+    Integer::parseInt，String::valueOf
+用途：
+    引用静态方法
+<code>
+Function&lt;Integer, String> intToString = String::valueOf;
+ 
+//Lambda写法
+Function&lt;Integer, String> intToString = x -> String.valueOf(x);
+ 
+//匿名类写法
+Function&lt;Integer, String> intToString = new Function&lt;Integer, String>() {
+    @Override
+    public String apply(Integer x) {
+        return String.valueOf(x);
+    }
+};
+</code>
+
+<h2>实例方法引用</h2>
+格式：
+    对象引用::实例方法名
+    类名::实例方法名
+示例：
+    System.out::println，String::length
+用途：
+    引用对象的实例方法或类的实例方法。
+<code>
+List&lt;String> list = Arrays.asList("a", "b", "c");
+list.forEach(System.out::println);
+
+//Lambda写法
+List&lt;String> list = Arrays.asList("a", "b", "c");
+list.forEach(s -> System.out.println(s));
+
+//匿名类写法
+List&lt;String> list = Arrays.asList("a", "b", "c");
+list.forEach(new Consumer&lt;String>() {
+    @Override
+    public void accept(String s) {
+        System.out.println(s);
+    }
+});
+</code>
+<code>
+Function&lt;String, Integer> strLength = String::length;
+ 
+//Lambda写法
+Function&lt;String, Integer> strLength = s -> s.length();
+ 
+//匿名类写法
+Function&lt;String, Integer> strLength = new Function&lt;String, Integer>() {
+    @Override
+    public Integer apply(String s) {
+        return s.length();
+    }
+};
+</code>
+<code>
+String str = "hello";
+Function&lt;String, String> toUpperCaseFunction = str::toUpperCase;
+ 
+//Lambda写法
+Function&lt;String, String> toUpperCaseFunction = s -> s.toUpperCase();
+ 
+//匿名类写法
+Function&lt;String, String> toUpperCaseFunction = new Function&lt;String, String>() {
+    @Override
+    public String apply(String s) {
+        return s.toUpperCase();
+    }
+};
+</code>
+
+<h2>构造方法引用</h2>
+格式：
+    ClassName::new
+示例：
+    ArrayList::new，String::new
+用途：
+    引用构造方法，用于创建对象实例。
+<code>
+Supplier&lt;List&lt;String>> listSupplier = ArrayList::new;
+List&lt;String> list = listSupplier.get();
+ 
+//Lambda写法
+Supplier&lt;List&lt;String>> listSupplier = () -> new ArrayList&lt;>();
+List&lt;String> list = listSupplier.get();
+ 
+//匿名类写法
+Supplier&lt;List&lt;String>> listSupplier = new Supplier&lt;List&lt;String>>() {
+    @Override
+    public List&lt;String> get() {
+        return new ArrayList&lt;>();
+    }
+};
+List&lt;String> list = listSupplier.get();
+</code>
+
+<h2>数组构造方法引用</h2>
+格式：
+    TypeName[]::new
+示例：
+    int[]::new，String[]::new
+用途：
+    引用数组的构造方法，用于创建数组实例。
+<code>
+Supplier&lt;String[]> arraySupplier = String[]::new
+ 
+//Lambda写法
+Supplier&lt;String[]> arraySupplier = () -> new String[10];
+ 
+//匿名类写法
+Supplier&lt;String[]> arraySupplier = new Supplier&lt;String[]>() {
+    @Override
+    public String[] get() {
+        return new String[10];
+    }
+};
+</code>
+
+<h1>Optional</h1>
+用来表示一个可能包含也可能不包含非空值的对象。
+主要用于返回类型, 避免显式的 null 检查，可以在不引发 NullPointerException 的情况下处理缺失值。
+<code>
+//创建一个包含非 null 值的 Optional 对象。如果传入了null,则报空指针, 通常与 get() 或 ifPresent() 搭配使用
+Optional&lt;String> optional1 = Optional.of("Hello, World!");
+ 
+//创建一个可能包含 null 值的 Optional 对象。通常与 orElse() 或 orElseGet() 搭配使用
+Optional&lt;String> optional2 = Optional.ofNullable(null);
+System.out.println(Optional.ofNullable(null));//Optional.empty
+System.out.println(Optional.ofNullable(null).get());//报错No value present
+ 
+//创建一个空的 Optional 对象。表示没有找到值或没有结果的情况, 判断是否返回了一个Optional.empty(),isPresent
+Optional&lt;String> optional3 = Optional.empty();
+System.out.println(Optional.empty());//Optional.empty
+System.out.println(Optional.empty().get());//报错No value present
+public Optional&lt;User> findUserByUsername(String username) {
+    User user = userDatabase.get(username);
+    return user != null ? Optional.of(user) : Optional.empty();
+}
+ 
+//检查 Optional 对象 看清楚iS iF
+isPresent() //如果值存在，返回 true，否则返回 false。
+ifPresent(Consumer&lt;? super T> consumer) //如果值存在，执行给定的代码块。
+ 
+//获取值
+get() //如果值存在，返回值，否则抛出 NoSuchElementException。
+orElse(T other) //如果值存在，返回值，否则返回 other。
+orElseGet(Supplier&lt;? extends T> other) //如果值存在，返回值，否则返回由 Supplier 提供的值。
+orElseThrow(Supplier&lt;? extends X> exceptionSupplier): //如果值存在，返回值，否则抛出由 Supplier 提供的异常。
+ 
+//转换值
+map(Function&lt;? super T, ? extends U> mapper) //如果值存在，应用 Function 转换值并返回一个新的 Optional。
+flatMap(Function&lt;? super T, Optional&lt;U>> mapper) //如果值存在，应用 Function 返回一个新的 Optional，不会对结果进行包装。
+filter(Predicate&lt;? super T> predicate) //如果值存在并满足给定的 Predicate，返回包含该值的 Optional，否则返回一个空的 Optional。
+</code>
+
+<h1>新的日期与时间API</h1>
+Java 8 引入了全新的日期和时间 API，称为 java.time 包，提供了一套更现代、更易用的日期和时间类, 它们是不可变的线程安全对象, 解决了旧版 java.util.Date 和 java.util.Calendar 的诸多问题
+    LocalDate：表示日期（年、月、日），无时间部分。
+    LocalTime：表示时间（时、分、秒、纳秒），无日期部分。
+    LocalDateTime：表示日期和时间，无时区信息。
+    ZonedDateTime：表示日期和时间，有时区信息。
+    Instant：表示时间戳（自1970-01-01T00:00:00Z起的秒数），通常用于机器时间戳。
+    Duration：表示时间段，以秒和纳秒为单位。
+    Period：表示日期间隔，以年、月、日为单位。
+    DateTimeFormatter：用于解析和格式化日期时间对象。
+    ZoneId：表示时区。
+<code>
+LocalDate today = LocalDate.now();//2024-06-02
+LocalDate specificDate = LocalDate.of(2024, 6, 22);
+LocalDate parsedDate = LocalDate.parse("2024-06-02");
+LocalDate tomorrow = today.plusDays(1);
+ 
+LocalTime now = LocalTime.now();//10:22:46.067
+LocalTime specificTime = LocalTime.of(10, 9);//10:09
+LocalTime specificTime2 = LocalTime.of(10, 9,8,7);//10:09:08.000000007
+LocalTime parsedTime = LocalTime.parse("10:30");
+LocalTime parsedTime2 = LocalTime.parse("10:30:20");
+LocalTime nextHour = now.plusHours(1);//11:22:46.067
+ 
+LocalDateTime now2 = LocalDateTime.now();//2024-06-23T10:30:45.896
+LocalDateTime specificDateTime = LocalDateTime.of(2024, 6, 22, 10, 30);//2024-06-22T10:30
+LocalDateTime parsedDateTime = LocalDateTime.parse("2024-06-22T10:30:00");
+LocalDateTime nextDaySameTime = now2.plusDays(1);
+ 
+ZonedDateTime now3 = ZonedDateTime.now();//2024-06-23T10:32:23.397+08:00[Asia/Shanghai]
+ZonedDateTime specificZonedDateTime = ZonedDateTime.of(2024, 6, 22, 10, 30, 50, 0, ZoneId.of("America/New_York"));//2024-06-22T10:30:50-04:00[America/New_York]
+ZonedDateTime parsedZonedDateTime = ZonedDateTime.parse("2024-06-22T10:30:00-04:00[America/New_York]");
+ZonedDateTime nextHourSameZone = now3.plusHours(1);
+ 
+Instant now4 = Instant.now();//2024-06-23T02:36:41.362Z
+Instant specificInstant = Instant.ofEpochSecond(1624380000);//2021-06-22T16:40:00Z
+Instant parsedInstant = Instant.parse("2024-06-22T14:00:00Z");
+Instant nextSecond = now4.plusSeconds(1);//2024-06-23T02:36:42.362Z
+ 
+LocalTime start = LocalTime.of(10, 30);
+LocalTime end = LocalTime.of(12, 0);
+//Duration 计算时间间隔时并不会自动转换不同单位之间的关系
+Duration duration = Duration.between(start, end);
+System.out.println(duration.toHours());//1 返回的是整个时间间隔的小时部分
+System.out.println(duration.toMinutes());//90 返回的是整个时间间隔的分钟部分，包括小时转换成的分钟
+//要得到小时和剩余的分钟，可以通过以下方法计算
+Duration duration2 = Duration.between(start, end);
+long hours = duration2.toHours();
+long minutes = duration2.toMinutes() % 60;
+System.out.println("Duration: " + hours + " hours " + minutes + " minutes");
+ 
+LocalDate startDate = LocalDate.of(2023, 1, 1);
+LocalDate endDate = LocalDate.of(2024, 6, 22);
+//Period 计算日期间隔时会自动处理不同单位之间的关系
+Period period = Period.between(startDate, endDate);
+System.out.println("Period: " + period.getYears() + " years " + period.getMonths() + " months " + period.getDays() + " days");//Period: 1 years 5 months 21 days
+ 
+LocalDate date = LocalDate.now();
+DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+System.out.println("Formatted date: " + date.format(formatter));//2024-06-23
+LocalDate parsedDate2 = LocalDate.parse("2024-06-22", formatter);
+</code>
+</pre>
+ </body>
+</html>

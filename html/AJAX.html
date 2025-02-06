@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>AJAX</title>
+</head>
+<body><span id="anchor">20240521124656-_前端</span>
+<pre>
+Asynchronous Javascript And XML
+AJAX 是一种技术组合：它结合了 JavaScript、HTTP 请求、服务器端处理和数据格式（如 JSON 或 XML）
+AJAX 使用 JavaScript 来发起异步 HTTP 请求，这意味着请求在后台进行，不会阻塞用户界面的更新或其他操作, 因此可以在不刷新页面的前提下进行局部更新
+AJAX 本身不是 JavaScript, 但它依赖于 JavaScript 进行操作
+它不是W3C的标准
+
+<h1>XMLHttpRequest对象的方法属性</h1>
+20240702140343.webp
+
+<h1>三种请求方式</h1>
+<code html>
+&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+    &lt;meta charset=&quot;UTF-8&quot;&gt;
+    &lt;title&gt;Title&lt;/title&gt;
+    &lt;script src=&quot;js/jquery-1.11.1.min.js&quot;&gt;&lt;/script&gt;
+    &lt;script&gt;
+        //使用 XMLHttpRequest 进行 AJAX 请求
+        function postData() {
+            var name = encodeURIComponent(document.getElementById(&quot;name&quot;).value);
+            var age = encodeURIComponent(document.getElementById(&quot;age&quot;).value);
+            var url = &quot;/page24&quot;;
+ 
+            if (window.XMLHttpRequest)
+                xhr = new XMLHttpRequest();//IE7+等现代浏览器
+            else
+                xhr = new ActiveXObject(Microsoft.XMLHTTP);//IE5,6
+            //第三个参数决定在发送的过程中,程序是否继续向下执行, true异步请求, false同步请求(如果数据没有返回,则send()一直处于阻塞状态)
+            xhr.open(&quot;POST&quot;, url, true);
+            xhr.setRequestHeader(&quot;Content-Type&quot;, &quot;application/x-www-form-urlencoded&quot;);
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 &amp;&amp; xhr.status === 200) {
+                    document.getElementById(&quot;result&quot;).innerHTML = xhr.responseText + &quot;XMLHttpRequest&quot;;
+                }
+            };
+ 
+            var data = &quot;name=&quot; + name + &quot;&amp;age=&quot; + age;
+            xhr.send(data);
+ 
+            // 同步请求时
+            /*
+            xhr.open(&quot;POST&quot;, url, false);
+            xhr.setRequestHeader(&quot;Content-Type&quot;, &quot;application/x-www-form-urlencoded&quot;);
+            var data = &quot;name=&quot; + name + &quot;&amp;age=&quot; + age;
+            xhr.send(data);
+            // 直接在 send() 之后检查 readyState 和 status 并处理响应
+            if (xhr.readyState === 4) { // 请求已完成
+                if (xhr.status === 200) {
+                    console.log(xhr.responseText);
+                } else {
+                    console.error(&quot;Error:&quot;, xhr.status, xhr.statusText);
+                }
+            }
+            */
+        }
+ 
+        //使用 fetch API 进行 AJAX 请求
+        //fetch方法是JavaScript内置的一个现代API，用于进行网络请求。它是XMLHttpRequest的现代替代品，提供了一种更简单、更强大的方式来发起HTTP请求
+        function postData2() {
+            var name = encodeURIComponent(document.getElementById(&quot;name&quot;).value);
+            var age = encodeURIComponent(document.getElementById(&quot;age&quot;).value);
+            var url = &quot;/page24&quot;;
+ 
+            fetch(url, {
+                method: &#39;POST&#39;,
+                headers: {
+                    &#39;Content-Type&#39;: &#39;application/x-www-form-urlencoded&#39;
+                },
+                body: &quot;name=&quot; + name + &quot;&amp;age=&quot; + age
+            })
+                .then(response =&gt; response.text())
+                .then(data =&gt; {
+                    document.getElementById(&quot;result&quot;).innerHTML = data + &quot;fetch&quot;;
+                })
+                .catch(error =&gt; console.error(&#39;Error:&#39;, error));
+        }
+ 
+        //使用 jQuery 简化 AJAX 请求的编写
+        $(document).ready(function() {
+            $(&#39;#submitBtn&#39;).click(function() {
+                var name = $(&#39;#name&#39;).val();
+                var age = $(&#39;#age&#39;).val();
+                $.ajax({
+                    type: &#39;POST&#39;,
+                    url: &#39;/page24&#39;,
+                    //data: &quot;name=&quot; + name + &quot;&amp;age=&quot; + age,
+                    data: { name: name, age:age },
+                    //如果后端返回的是纯文本而不是 JSON 数据，dataType 应该省略或设置为 &quot;text&quot;
+                    //dataType: &#39;json&#39;,
+                    success: function(response) {
+                        $(&#39;#result&#39;).html(response + &quot;jquery&quot;);
+                    },
+                    //xhr:XMLHttpRequest 对象, status:表示错误类型的字符串如&quot;timeout&quot;, error：表示错误信息的字符串
+                    //error: function(xhr, status) { //两参
+                    error: function(xhr, status, error) { //三参
+                        $(&#39;#result&#39;).html(&#39;Error: &#39; + error);
+ 
+                        switch(xhr.status){
+                            case &quot;405&quot; : console.log(&quot;无效的请求方式&quot;);break; //例如type为post,但servlet中未写doPost方法
+                            case &quot;404&quot; : console.log(&quot;未找到url资源&quot;);break;
+                            case &quot;500&quot; : console.log(&quot;服务器内部错误&quot;);break;
+                            default : console.log(&quot;error&quot;);
+                        }
+                    }
+                });
+            });
+        });
+ 
+        //------------------------------------------------------------------
+ 
+        function getData() {
+            var name = encodeURIComponent(document.getElementById(&quot;name2&quot;).value);
+            var age = encodeURIComponent(document.getElementById(&quot;age2&quot;).value)
+            var url = &quot;/page25?name=&quot; + name + &quot;&amp;age=&quot; + age;
+ 
+            if (window.XMLHttpRequest)
+                xhr = new XMLHttpRequest();//IE7+等现代浏览器
+            else
+                xhr = new ActiveXObject(Microsoft.XMLHTTP);//IE5,6
+            //GET方式可能得到的是缓存的结果, 可以在url后添加一个唯一的查询参数来防止缓存,如随机数或当前时间戳
+            //xhr.open(&quot;GET&quot;, url + &quot;&amp;timestamp=&quot; + Math.random(), true);
+            xhr.open(&quot;GET&quot;, url + &quot;&amp;random=&quot; + new Date().getTime(), true);
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 &amp;&amp; xhr.status === 200) {
+                    document.getElementById(&quot;result2&quot;).innerHTML = xhr.responseText + &quot;XMLHttpRequest&quot;;
+                }
+            };
+            xhr.send();
+        }
+ 
+        function getData2() {
+            var name = encodeURIComponent(document.getElementById(&quot;name2&quot;).value);
+            var age = encodeURIComponent(document.getElementById(&quot;age2&quot;).value);
+            var url = &quot;/page25?name=&quot; + name + &quot;&amp;age=&quot; + age;
+ 
+            fetch(url)
+                .then(response =&gt; {
+                    if (!response.ok) {
+                        throw new Error(&#39;Network response was not ok &#39; + response.statusText);
+                    }
+                    return response.text();
+                })
+                .then(data =&gt; {
+                    document.getElementById(&quot;result2&quot;).innerHTML = data + &quot;fetch&quot;;
+                })
+                .catch(error =&gt; {
+                    console.error(&#39;There has been a problem with your fetch operation:&#39;, error);
+                });
+        }
+ 
+        $(document).ready(function() {
+            $(&quot;#submitBtn2&quot;).click(function() {
+                var name = $(&quot;#name2&quot;).val();
+                var age = $(&quot;#age2&quot;).val();
+                $.ajax({
+                    type: &#39;GET&#39;,
+                    cache: false, // 设置为 false 以防止缓存
+                    url: &#39;/page25&#39;,
+                    data: { name: name, age:age },
+                    success: function(response) {
+                        $(&quot;#result2&quot;).html(response + &quot;jquery&quot;);
+                    },
+                    error: function(xhr, status, error) {
+                        console.error(&quot;There was an error with your request:&quot;, status, error);
+                    }
+                });
+            });
+        });
+    &lt;/script&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;form&gt;
+    &lt;label for=&quot;name&quot;&gt;Name:&lt;/label&gt;
+    &lt;input type=&quot;text&quot; id=&quot;name&quot; name=&quot;name&quot;&gt;&lt;br&gt;
+    &lt;label for=&quot;age&quot;&gt;Age:&lt;/label&gt;
+    &lt;input type=&quot;text&quot; id=&quot;age&quot; name=&quot;age&quot;&gt;&lt;br&gt;
+    &lt;button type=&quot;button&quot; onclick=&quot;postData()&quot;&gt;post_XMLHttpRequest&lt;/button&gt;&lt;br&gt;
+    &lt;button type=&quot;button&quot; onclick=&quot;postData2()&quot;&gt;post_fetch&lt;/button&gt;&lt;br&gt;
+    &lt;button type=&quot;button&quot; id=&quot;submitBtn&quot;&gt;post_jquery&lt;/button&gt;
+&lt;/form&gt;
+&lt;div id=&quot;result&quot;&gt;&lt;/div&gt;&lt;br&gt;
+ 
+&lt;form&gt;
+    &lt;label for=&quot;name2&quot;&gt;Name2:&lt;/label&gt;
+    &lt;input type=&quot;text&quot; id=&quot;name2&quot; name=&quot;name2&quot;&gt;&lt;br&gt;
+    &lt;label for=&quot;age2&quot;&gt;Age2:&lt;/label&gt;
+    &lt;input type=&quot;text&quot; id=&quot;age2&quot; name=&quot;age2&quot;&gt;&lt;br&gt;
+    &lt;button type=&quot;button&quot; onclick=&quot;getData()&quot;&gt;get_XMLHttpRequest&lt;/button&gt;&lt;br&gt;
+    &lt;button type=&quot;button&quot; onclick=&quot;getData2()&quot;&gt;get_fetch&lt;/button&gt;&lt;br&gt;
+    &lt;button type=&quot;button&quot; id=&quot;submitBtn2&quot;&gt;get_jquery&lt;/button&gt;
+&lt;/form&gt;
+&lt;div id=&quot;result2&quot;&gt;&lt;/div&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code>
+<code>
+public class AjaxTest {
+    @WebServlet("/page24")
+    public static class Ajax1 extends HttpServlet {
+        @Override
+        protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+            String name = req.getParameter("name");
+            String age = req.getParameter("age");
+            resp.setCharacterEncoding("UTF-8");
+            resp.setContentType("text/plain");
+            resp.getWriter().write("[POST] hello," + name + ":" + age + " ");
+        }
+    }
+ 
+    @WebServlet("/page25")
+    public static class Ajax2 extends HttpServlet {
+        @Override
+        protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+            String name = req.getParameter("name");
+            String age = req.getParameter("age");
+            resp.setCharacterEncoding("UTF-8");
+            resp.setContentType("text/plain");
+            resp.getWriter().write("[GET] hello," + name + ":" + age + " ");
+        }
+    }
+}
+</code>
+
+<h1>例 轮播新闻</h1>
+<code html>
+&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+    &lt;meta charset=&quot;UTF-8&quot;&gt;
+    &lt;title&gt;Title&lt;/title&gt;
+    &lt;script src=&quot;js/jquery-1.11.1.min.js&quot;&gt;&lt;/script&gt;
+    &lt;script&gt;
+        var interval = null;
+ 
+        function getData() {
+            var xhr;
+            var news;
+            var current = 0;
+ 
+            if (window.XMLHttpRequest)
+                xhr = new XMLHttpRequest();
+            else
+                xhr = new ActiveXObject(&quot;Microsoft.XMLHTTP&quot;);
+ 
+            xhr.open(&quot;GET&quot;, &quot;/page26?random=&quot; + new Date().getTime(), true);
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 &amp;&amp; xhr.status === 200) {
+                    news = JSON.parse(xhr.responseText);
+                    clearInterval(interval);
+                    interval = setInterval(function() {
+                        if (current === news.length)
+                            current = 0;
+ 
+                        document.getElementById(&#39;content&#39;).innerHTML =
+                            &quot;&lt;h1&gt;XMLHttpRequest&lt;/h1&gt;&quot; +
+                            &quot;&lt;h1&gt;&quot; + news[current].title + &quot;&lt;/h1&gt;&quot; +
+                            &quot;&lt;span&gt;&quot; + news[current].date + &quot; &quot; + news[current].category + &quot;&lt;/span&gt;&lt;br&gt;&quot; +
+                            &quot;&lt;p&gt;&quot; + news[current].content + &quot;&lt;/p&gt;&quot;;
+
+                        current++;
+                    }, 3000);
+                }
+            };
+            xhr.send();
+        }
+ 
+        function getData2() {
+            var news;
+            var current = 0;
+ 
+            fetch(&quot;/page26?random=&quot; + new Date().getTime())
+                .then(response =&gt; {
+                    if (!response.ok) {
+                        throw new Error(&#39;Network response was not ok &#39; + response.statusText);
+                    }
+                    return response.json();
+                })
+                .then(data =&gt; {
+                    news = data;
+                    clearInterval(interval);
+                    interval = setInterval(function() {
+                        if (current === news.length)
+                            current = 0;
+
+                        document.getElementById(&#39;content&#39;).innerHTML =
+                            &quot;&lt;h1&gt;fetch&lt;/h1&gt;&quot; +
+                            &quot;&lt;h1&gt;&quot; + news[current].title + &quot;&lt;/h1&gt;&quot; +
+                            &quot;&lt;span&gt;&quot; + news[current].date + &quot; &quot; + news[current].category + &quot;&lt;/span&gt;&lt;br&gt;&quot; +
+                            &quot;&lt;p&gt;&quot; + news[current].content + &quot;&lt;/p&gt;&quot;;
+
+                        current++;
+                    }, 3000);
+                })
+                .catch(error =&gt; {
+                    console.error(&#39;There has been a problem with your fetch operation:&#39;, error);
+                });
+        }
+ 
+        $(document).ready(function() {
+            $(&quot;#submitBtn&quot;).click(function() {
+                var current = 0;
+ 
+                $.ajax({
+                    type: &#39;GET&#39;,
+                    cache: false,
+                    url: &#39;/page26&#39;,
+                    dataType: &#39;json&#39;,
+                    success: function(news) {
+                        clearInterval(interval);
+                        interval = setInterval(function() {
+                            if (current === news.length)
+                                current = 0;
+ 
+                            $(&quot;#content&quot;).html(
+                                &quot;&lt;h1&gt;jquery&lt;/h1&gt;&quot; +
+                                &quot;&lt;h1&gt;&quot; + news[current].title + &quot;&lt;/h1&gt;&quot; +
+                                &quot;&lt;span&gt;&quot; + news[current].date + &quot; &quot; + news[current].category + &quot;&lt;/span&gt;&lt;br&gt;&quot; +
+                                &quot;&lt;p&gt;&quot; + news[current].content + &quot;&lt;/p&gt;&quot;
+                            );
+ 
+                            current++;
+                        }, 3000);
+                    },
+                    error: function(xhr, status, error) {
+                        console.error(&quot;There was an error with your request:&quot;, status, error);
+                    }
+                });
+            });
+        });
+    &lt;/script&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;form&gt;
+    &lt;button type=&quot;button&quot; onclick=&quot;getData()&quot;&gt;get_XMLHttpRequest&lt;/button&gt;
+    &lt;button type=&quot;button&quot; onclick=&quot;getData2()&quot;&gt;get_fetch&lt;/button&gt;
+    &lt;button type=&quot;button&quot; id=&quot;submitBtn&quot;&gt;get_jquery&lt;/button&gt;
+&lt;/form&gt;
+&lt;br&gt;
+&lt;div id=&quot;content&quot;&gt;&lt;/div&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code>
+<code>
+@WebServlet("/page26")
+public class NewsServlet extends HttpServlet {
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        List&lt;News> list = new ArrayList();
+        list.add(new News("标题1","2024-1","分类1","今天天气真晴朗"));
+        list.add(new News("标题2","2024-2","分类2","今天天气好晴朗"));
+        list.add(new News("标题3","2024-3","分类3","今天天气很晴朗"));
+
+        String jsonString = JSON.toJSONString(list);
+        resp.setCharacterEncoding("UTF-8");
+        resp.getWriter().println(jsonString);
+    }
+}
+</code>
+
+<h1>例 二级菜单联动</h1>
+<code>
+@WebServlet("/page29")
+public class MenuLinkageServlet extends HttpServlet {
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        String level = req.getParameter("level");
+        String subTitle = req.getParameter("subTitle");
+ 
+        List&lt;Category> list = new ArrayList&lt;>();
+        if (level.equals("1")) {
+            list.add(new Category("AI","人工智能"));
+            list.add(new Category("Web","网络应用"));
+        } else if (level.equals("2")) {
+            if (subTitle.equals("AI")) {
+                list.add(new Category("Arithmetic","算法"));
+                list.add(new Category("BlockChain","区块链"));
+            } else if (subTitle.equals("Web")) {
+                list.add(new Category("HTML", "超文本标记语言"));
+                list.add(new Category("CSS", "样式表"));
+            }
+        }
+ 
+        Gson gson = new Gson();
+        String json = gson.toJson(list);
+        resp.setContentType("text/html;charset=UTF-8");
+        resp.getWriter().write(json);
+    }
+}
+</code>
+<code html>
+&lt;html&gt;
+&lt;head&gt;
+    &lt;title&gt;Title&lt;/title&gt;
+    &lt;script src=&quot;js/jquery-1.11.1.min.js&quot;&gt;&lt;/script&gt;
+    &lt;script&gt;
+        $(function () {
+            $.ajax({
+                url: &quot;/page29&quot;,
+                type: &quot;get&quot;,
+                data: {&quot;level&quot;: &quot;1&quot;},
+                dataType: &quot;json&quot;,
+                success: function (data) {
+                    for (let i = 0; i &lt; data.length; i++) {
+                        $(&quot;#level1&quot;).append(&quot;&lt;option value=&#39;&quot; + data[i].name + &quot;&#39;&gt;&quot; + data[i].description + &quot;&lt;/option&gt;&quot;);
+                    }
+                }
+            })
+ 
+            $(&quot;#level1&quot;).on(&quot;change&quot;, function () {
+                $.ajax({
+                    url: &quot;/page29&quot;,
+                    type: &quot;get&quot;,
+                    data: {&quot;level&quot;: &quot;2&quot;, &quot;subTitle&quot;: $(this).val()},
+                    dataType: &quot;json&quot;,
+                    success: function (data) {
+                        // document.getElementById(&quot;lv2&quot;).options.length=0;
+                        // $(&quot;#lv2&gt;option&quot;).remove();
+                        $(&quot;#level2&quot;).empty();
+                        for (let i = 0; i &lt; data.length; i++) {
+                            $(&quot;#level2&quot;).append(&quot;&lt;option value=&#39;&quot; + data[i].name + &quot;&#39;&gt;&quot; + data[i].description + &quot;&lt;/option&gt;&quot;);
+                        }
+                    }
+                })
+            })
+        })
+    &lt;/script&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;select id=&quot;level1&quot;&gt;
+    &lt;option selected=&quot;selected&quot;&gt;请选择&lt;/option&gt;
+&lt;/select&gt;
+&lt;select id=&quot;level2&quot;&gt;&lt;/select&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code>
+</pre>
+</body>
+</html>

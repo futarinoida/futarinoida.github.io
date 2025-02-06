@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>集合</title>
+ </head>
+ <body>
+  <span id="anchor">20240307183503-_java</span>
+  <pre>
+<h1>基于哈希的数据结构</h1>
+基于哈希的数据结构如 HashMap 和 HashSet 使用 hashCode 方法来确定对象存储的桶，然后使用 equals 方法在桶中查找特定的对象。
+如果两个相等的对象具有不同的哈希码，它们可能会被放置在不同的桶中，从而导致逻辑上相等的对象无法在哈希表中找到。
+如果两个不相等的对象具有相同的哈希码，它们会被放置在同一个桶中，equals 方法会在桶中进一步区分它们。
+于是有了以下总结
+    如果两个对象根据 equals 方法是相等的，那么它们的 hashCode 也必须相等。
+    如果两个对象根据 equals 方法不相等，它们的 hashCode 不必不同
+ 
+一个好的哈希函数能让信息均匀的存入每个桶内
+    但是哈希冲突永远无法避免，只能减少概率
+    不同的对象具有相同的 hashCode 值（哈希冲突），它们会被放置在同一个桶中，HashMap 和 HashSet 必须使用 equals 方法在桶中逐个比较对象，从而降低了性能
+最坏的哈希函数导致的结果可能是所有的对象都放在同一个桶内，这就跟直接放入数组内没有什么区别了
+在程序执行期间，只要对象的状态（参与 equals 和 hashCode 方法计算的字段）不改变，对象的 hashCode 值就必须保持不变。
+
+equals 方法
+    定义：equals 方法用于比较两个对象是否“逻辑相等”。
+    默认实现：Object 类中的默认实现是比较对象的引用（即内存地址），只有当两个引用指向同一个对象时，equals 方法才返回 true。
+    重写：当一个类希望根据其字段来定义相等性时，通常需要重写 equals 方法。
+
+hashCode 方法
+    定义：hashCode 方法返回对象的散列码（哈希码），这是一个整数值，用于支持基于哈希的数据结构。
+    默认实现：Object 类中的默认实现是基于对象的内存地址生成的散列码。
+    重写：当重写 equals 方法时，通常也需要重写 hashCode 方法，以确保哈希码与对象的逻辑相等性保持一致。
+
+重写了equals方法时,同时重写hashCode方法的必要性
+    如果不是要保存在 HashSet 或 HashMap，则与 hashcode 没有什么关系了
+    假设有一个 Person 类，它重写了 equals 方法但没有重写 hashCode 方法
+        在使用 HashMap 或 HashSet 时的问题
+            如果两个Person对象根据 equals 方法是相等的，但它们的 hashCode 值不同（因为没有重写 hashCode 方法,所以默认继承Object使用了基于对象内存地址生成的hashCode,必然不同），它们可能会被放置在不同的桶中，从而破坏了数据结构的正确性导致无法找到逻辑上相等的对象。
+ 
+如果我们使用了自定义类作为Map的键, 并且类中的属性值参与了hashCode的运算，那么在删除对象时，就不能再对其属性值进行修改，否则会导致内存泄露问题。
+    因为当我们尝试删除这个对象，哈希表会根据新的hashCode值进行操作，但由于对象实际存储的位置是根据旧的hashCode值决定的，会导致无法正确删除对象,而对象占用内存无法被垃圾回收。
+    使用 JDK 提供的不可变类 (immutable class) 作为 Map 的键可以确保对象一旦创建后，其属性值不再改变
+        不可变类 (immutable class) 已经实现了正确的 hashCode() 和 equals() 方法
+            String, Integer, Long, Double, BigDecimal, BigInteger, LocalDate、LocalTime、LocalDateTime
+    或者将自定义类设计为不可变类, 使用final修饰字段和类
+<code>
+public class Demo {
+    public static void main(String[] args) {
+        Map&lt;Person, String> map = new HashMap&lt;>();
+        Person person = new Person("Alice", 30);
+        map.put(person, "Developer");
+ 
+        System.out.println(map.get(person));//Developer
+        person.setAge(31);
+        System.out.println(map.get(person));//null
+ 
+        map.remove(person);
+        System.out.println(map.size());//1,未能成功删除
+    }
+}
+//final class  Person {
+class Person {
+    //private final String name;
+    private String name;
+    //private final int age;
+    private int age;
+    public Person(String name, int age) {
+        this.name = name;
+        this.age = age;
+    }
+    public void setAge(int age) {
+        this.age = age;
+    }
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        Person person = (Person) obj;
+        return age == person.age && Objects.equals(name, person.name);
+    }
+    @Override
+    public int hashCode() {
+        return Objects.hash(name, age);
+    }
+    @Override
+    public String toString() {
+        return "Person{" + "name='" + name + '\'' + ", age=" + age + '}';
+    }
+}
+</code>
+
+<h1>HashMap</h1>
+HashMap为了提高查找效率，在插入的时候对键做了一次哈希算法，这就导致插入的元素是无序的
+HashMap是线程不安全的，在多线程并发的环境下，可能会产生死锁等问题，需要自己处理多线程的安全问题
+虽然HashMap是线程不安全的，但是它的效率远远高于Hashtable，这样设计是合理的，因为大部分的 使用场景都是单线程
+    HashTable(key和value都不能为null) 被认为是个遗留的类，在迭代的时候修改 Map应该使用 ConcurrentHashMap。
+        ConcurrentHashMap虽然也是线程安全的，但是它的效率比Hashtable要高好多倍
+            因为 ConcurrentHashMap使用了分段锁，并不对整个数据进行锁定。
+
+HashMap,LinkedHashMap允许一个 null 键和多个 null 值
+reeMap不允许 null 键, 因为 TreeMap 需要对键进行排序，而 null 键无法进行比较
+ConcurrentHashMap,Hashtable不允许 null 键和 null 值
+
+putIfAbsent 
+    如果 Map 中不包含指定的键，则 putIfAbsent 方法会插入该键值对，并返回 null
+    如果 Map 中已经包含了指定的键，则方法不会插入新的键值对，而是返回已有键的值
+
+computeIfAbsent
+<code>
+Map&lt;String, List&lt;String>> result = new HashMap&lt;>();
+ 
+//传统写法
+if (result.containsKey("tq1")) {
+    result.get("tq1").add(envelope.getRoutingKey());
+} else {
+    List&lt;String> list = new ArrayList&lt;>();
+    list.add(envelope.getRoutingKey());
+    result.put("tq1", list);
+}
+ 
+//简化写法
+result.computeIfAbsent("tq1", k -> new ArrayList&lt;>()).add(envelope.getRoutingKey());
+//尝试在 Map 中查找指定的键（在这里是 "tq1"）。如果该键存在，它将返回键对应的值；如果键不存在，它将使用提供的函数（在这里是 k -> new ArrayList&lt;>()）来生成一个新的值，并将其放入 Map 中，然后返回这个新值
+
+</code>
+
+<h1>HashMap扩容时机</h1>
+当 hashmap 中的元素个数大于loadFactor * capacity(默认0.75)的第一个2的幂的数时，会触发rehash进行数组扩容
+也就是说，默认情况下，数组大小为 16，那么当 hashmap 中元素个数超过 16*0.75=12 的时候
+就把数组的大小扩展为 2*16=32， 即扩大一倍，然后重新计算每个元素在数组中的位置，而这是一个非常消耗性能的操作
+所以如果我们已经预知 hashmap 中元素的个数，那么预设元素的个数能够避免HashMap扩容, 从而提高 hashmap 的性能
+<code>
+int count = 10000;//预知容量
+//不能直接设置成loadFactor * capacity，因为这个数有可能不是2的幂，HashMap规定的容器容量必须是2的幂
+int initCapacity = 1 + (int) (count / 0.75);//计算公式
+HashMap&lt;Integer, Object&gt; map = new HashMap&lt;&gt;(initCapacity);
+</code>
+https://cloud.tencent.com/developer/article/1755828
+
+<h1>fail-fast和fail-safe</h1>
+fail-fast 
+    迭代器在遍历集合时，如果检测到集合在迭代过程中被修改（除了通过迭代器自己的 remove 方法），它会立刻抛出 ConcurrentModificationException。
+        因为迭代器内部会更新结构修改计数器，从而避免检测到并发修改。
+    这种机制用于早期发现并发修改问题，以避免后续操作产生不一致的结果。
+    fail-fast 保证了集合的一致性，因为一旦检测到并发修改就终止操作。
+    java.util包下的集合类都是快速失败机制的
+
+fail-safe 
+    迭代器在遍历集合时，不直接访问集合本身，而是访问集合的一个副本。
+    因此，即使集合在迭代过程中被修改，也不会抛出 ConcurrentModificationException，因为它遍历的是原集合的一个副本
+    由于是对副本进行操作，不能保证遍历过程中数据的实时一致性。
+ 
+java.util.concurrent并发集合类
+    这些类在迭代时不会抛出 ConcurrentModificationException，因为它们在迭代期间操作的是集合的副本或者使用了其他机制来确保安全迭代
+        CopyOnWriteArrayList
+            迭代时创建了一个副本，所以可以安全地进行迭代。适用于读多写少的场景
+        CopyOnWriteArraySet
+            基于 CopyOnWriteArrayList 实现，具有相同的 fail-safe 性质。
+        ConcurrentHashMap
+            通过细粒度锁和无锁操作确保线程安全。
+            提供的迭代器是弱一致的（Weakly Consistent），可以容忍并发修改。
+        ConcurrentSkipListMap
+            基于跳表实现，适用于需要排序的并发场景。
+            提供的迭代器是弱一致的。
+        ConcurrentSkipListSet
+            基于 ConcurrentSkipListMap 实现，具有相同的 fail-safe 性质。
+    这些类在迭代时检测到并发修改会抛出 ConcurrentModificationException，尽管它们本身是线程安全的（通过同步或其他机制）
+        ConcurrentLinkedQueue
+            提供了高效的无锁并发队列。
+            迭代器是弱一致的，但仍然可能会抛出 ConcurrentModificationException。
+        ConcurrentLinkedDeque
+            提供了高效的无锁并发双端队列。
+            迭代器是弱一致的，但仍然可能会抛出 ConcurrentModificationException
+        LinkedBlockingQueue
+            基于链表的阻塞队列，提供线程安全的队列操作。
+            迭代器是弱一致的，但仍然可能会抛出 ConcurrentModificationException
+
+<h1>线程安全的集合类</h1>
+java.util.concurrent 包中的集合类
+Collections 工具类提供的方法, 通过包装普通的集合,使其线程安全, 所有的访问方法都被同步
+    因为在每次访问时都需要加锁，性能较低，适用于低并发环境。
+        Collections.synchronizedList
+            List&lt;String> list = Collections.synchronizedList(new ArrayList&lt;>());
+            list.add("one");
+        Collections.synchronizedSet
+        Collections.synchronizedMap
+
+<h1>只读集合</h1>
+当一个集合被作为参数传递给一个函数时，如何才可以确保函数不能修改它？
+    在作为参数传递之前，我们可以使用 Collections.unmodifiableCollection(Collection c)方法创建一个只读集合
+    这将确保改变集合的任何操作都会抛出 UnsupportedOperationException
+
+<h1>ArrayList、Array、LinkedList 和 Vector</h1>
+使用 Array 当你知道元素数量且不需要动态调整时。
+使用 ArrayList 当你需要动态数组且不需要线程安全时。
+使用 LinkedList 当你需要频繁插入和删除操作时。
+使用 Vector 当你需要线程安全的动态数组时（虽然一般建议使用 Collections.synchronizedList 或 CopyOnWriteArrayList 进行线程安全处理）。
+
+ArrayList适合查找和修改（get/set）
+    ArrayList因为基于数组索引，可以通过其索引值快速定位
+    而LinkedList按序号索引数据需要进行前向或后向遍历
+        JDK 1.7 及之前：ArrayList 的无参构造函数会初始化一个容量为 10 的数组。
+        JDK 1.8 及之后：ArrayList 的无参构造函数会初始化一个容量为 0 的数组。在添加第一个元素时，容量会扩容为 10。
+        每次约按1.5倍扩容,a = a+a/2,当a为偶数时，才是1.5倍
+        当元素个数超过容量*加载因子 时，扩容至a+a/2
+
+LinkList适合插入和删除（add/remove）
+    在LinkedList的中间插入或删除一个元素的开销是固定的，因为双向链表有前后指针，可直接断开指针进行删除和增加。
+    而在ArrayList的中间插入或删除一个元素意味着这个列表中剩余的元素都会被移动
+    
+Array可以包含基本类型和对象类型
+    ArrayList只能包含对象类型
+
+Vector
+    动态调整大小，初始容量为 10, 超过当前容量的 2 倍时扩容
+    所有方法都被 synchronized 修饰，线程安全，但性能较低
+
+<h1>集合排序</h1>
+使用 Collections.sort() 方法适用于 List 类型的集合，它直接修改原始集合并进行排序。
+使用 Stream API 的 sorted() 方法提供了一种函数式的排序方式，它不修改原始集合而是生成一个新的排序后的集合。
+对自定义对象进行排序时，可以实现 Comparable 接口或者提供 Comparator 实现来定义排序规则。
+    Comparator (java.util) 是一个外部比较器，它与类本身无关，可以用来为不同类型的对象定义排序顺序。
+        thenComparing用于组合多个比较器 (Comparator 接口中默认方法), 参见本地页面JDK8新增特性,接口的默认方法,Comparator
+    Comparable (java.lang) 是在 Java 类内部实现的，它定义了对象的内部顺序。如果一个类实现了Comparable 接口，就意味着这个类支持排序
+<code>
+List&lt;String> sortedList = list.stream()
+    .sorted((s1, s2) -> s1.length() - s2.length())
+    //.sorted(Comparator.comparingInt(String::length))
+    //.sorted((s1, s2) -> Integer.compare(s1.length(), s2.length()))
+    /*
+    .sorted(new Comparator&lt;String>() {
+        @Override
+        public int compare(String s1, String s2) {
+            return Integer.compare(s1.length(), s2.length());
+        }
+    })
+    */
+    .collect(Collectors.toList());
+List&lt;Integer> list = Arrays.asList(4, 2, 7, 5, 9);
+list.sort(Integer::compareTo);
+/*
+list.sort(new Comparator&lt;Integer>() {
+    @Override
+    public int compare(Integer o1, Integer o2) {
+        return o1.compareTo(o2);
+    }
+});
+*/
+    
+//map按k,v排序
+Map&lt;Integer, String> linkedHashMap = map.entrySet().stream()
+                .sorted(Map.Entry.comparingByValue())
+                //.sorted(Map.Entry.comparingByKey(new Comparator{..})).reversed()
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        /*
+                        new Function&lt;Map.Entry&lt;String, Integer>() {
+                                            @Override
+                                            public Integer apply(Map.Entry&lt;String, Integer> entry) {
+                                                return entry.getKey();
+                                            }
+                                        }
+                        */
+                        Map.Entry::getValue,
+                        (a, b) -> a, //mergeFunction,key值重复时,保留前者忽略后者
+                        LinkedHashMap::new));
+</code>
+
+
+<h1>集合迭代</h1>
+Iterator
+    适用于所有集合，主要有三个方法：hasNext()、next() 和 remove()
+    可以在遍历过程中安全地删除当前元素。
+        因为 iterator.remove() 会更新 Iterator 的内部状态
+<code>
+Iterator&lt;String> iterator = list.iterator();
+while (iterator.hasNext()) {
+    String name = iterator.next();
+    if (name.length() > 5) {
+        iterator.remove();
+    }
+}
+</code>
+    从JDK1.8开始，removeIf 方法可以作为传统迭代器删除方式的一种替代方案, 它更简洁和直观，同时提供了更好的表达能力和性能优化
+<code>
+//removeIf(Predicate&lt;? super E> filter)
+list.removeIf(s -> s.length() > 5);
+</code>
+
+增强 for 循环
+    简洁易读，适用于所有实现了 Iterable 接口的集合。
+    不能在遍历集合时直接删除元素。
+        如果在增强型 for 循环中尝试直接调用集合的 remove 方法，会导致 ConcurrentModificationException 异常。
+            因为增强型 for 循环的背后是使用了 Iterator，直接修改集合使得 Iterator 检测到集合被并发修改
+            如果需要在遍历集合时删除符合条件的元素，应该使用显式的 Iterator 进行遍历并通过 iterator.remove() 方法删除元素。
+<code>
+try {
+    for (String name : list) {
+        if (name.length() > 5) {
+            list.remove(name); // 这会导致 ConcurrentModificationException
+        }
+    }
+} catch (ConcurrentModificationException e) {
+    System.out.println("异常: " + e);
+}
+ 
+//这种写只能满足循环中刚好只有一个符合条件的数据
+for(Cat cat : set){
+    if("刀疤".equals(cat.getName())){
+        set.remove(cat);
+        break; //除非找到目标后终止遍历,否则将报错
+    }
+}
+ 
+//当剔除多个符合条件的数据时
+Set&lt;Cat&gt; temp = new HashSet&lt;&gt;(); //新建一个临时容器
+for(pack.Cat cat : set){
+    if(cat.getMonth() &lt; 5){
+        temp.add(cat); //将符合条件的数据放入临时容器
+    }
+}
+set.removeAll(temp); //从原set中剔除符合条件的数据
+</code>
+普通 for 循环
+    在 ArrayList 和 LinkedList 中使用普通 for 循环遍历并删除元素时，都需要处理索引问题(倒序或者remove之后i--)
+        删除元素时LinkedList 不会像 ArrayList 那样需要移动元素，因此性能更好
+<code>
+for (int i = list.size() - 1; i >= 0; i--) {//倒序
+    String name = list.get(i);
+    if (name.length() > 5) {
+        list.remove(i);
+    }
+}
+for (int i = 0; i &lt; list.size(); i++) {
+    String name = list.get(i);
+    if (name.length() > 5) {
+        list.remove(i);
+        i--; // 调整索引以避免跳过元素
+    }
+}
+</code>
+
+Stream API
+    list.forEach(); 
+        是直接在集合上调用 forEach 方法，不会创建额外的流对象, 因此可能略微更高效
+        Iterable 的 forEach 是一个终端操作，无法链式调用其他集合流操作
+    list.stream().forEach();
+        先创建流对象，然后执行操作，可能稍微慢一些。但可以在需要时链式调用其他流操作，如过滤、映射等，使代码更具灵活性
+        对于并行流来说，它可以提供更好的并行执行能力处理大量数据。
+            list.parallelStream().forEach();
+
+ListIterator
+    Iterator 的子接口，提供了额外的方法，如 hasPrevious() 和 previous()，适用于双向遍历 List
+<code>
+List&lt;String> list = new ArrayList&lt;>();
+list.add("A");
+list.add("B");
+list.add("C");
+ListIterator&lt;String> listIterator = list.listIterator();
+while (listIterator.hasNext()) {
+    System.out.println(listIterator.next());
+}
+System.out.println("Reverse order:");
+while (listIterator.hasPrevious()) {
+    System.out.println(listIterator.previous());
+}
+/*
+A
+B
+C
+Reverse order:
+C
+B
+A
+*/
+</code>
+
+clear()删除当前集合中的所有元素(将集合的大小设置为 0)
+removeAll()删除集合的一个子集, 清空集合时使用clear()而不要使用removeAll()
+<code>
+List&lt;String> list1 = new ArrayList&lt;>();
+list1.add("apple");
+list1.add("banana");
+list1.add("cherry");
+ 
+List&lt;String> list2 = new ArrayList&lt;>();
+list2.add("banana");
+list2.add("date");
+ 
+list1.removeAll(list2); // 删除 list1 中与 list2 相同的元素
+</code>
+
+<h1>Stream</h1>
+不可变性
+    Stream API 的操作通常不会改变源数据，而是生成新的数据流。
+    这种不可变性有助于编写并发程序时避免状态竞争和数据修改的问题。
+链式调用
+    在链式调用中，每个中间操作都会返回一个新的 Stream 对象，这个新的 Stream 对象包含了原始 Stream 对象的数据以及新增的操作信息，但并不会立即对数据执行操作, 而是推迟到需要使用结果的时候再进行计算
+惰性求值
+    惰性求值的概念体现在中间操作上, 它避免了对整个数据集进行多次遍历和计算
+
+中间操作
+    filter, map, flatMap, sorted, distinct, limit, skip, peek
+终端操作
+    forEach, collect, reduce, count, anyMatch, allMatch, noneMatch, findFirst, findAny, min, max, toArray
+
+<h2>Stream创建方式</h2>
+<code>
+//Stream.of
+Stream&lt;Integer&gt; stream = Stream.of(1, 2, 3, 4, 5, 6);
+</code>
+<code>
+//通过集合
+List&lt;Employee&gt; employees = EmployeeData.getEmployees();
+Stream&lt;Employee&gt; stream = employees.stream();
+Stream&lt;Employee&gt; parallelStream = employees.parallelStream();
+</code>
+<code>
+//通过Map
+Map&lt;String, String&gt; map = new HashMap&lt;&gt;();
+Stream&lt;String&gt; keyStream = map.keySet().stream();
+Stream&lt;String&gt; valueStream = map.values().stream();
+Stream&lt;Map.Entry&lt;String, String&gt;&gt; entryStream = map.entrySet().stream();
+</code>
+<code>
+//通过数组
+int[] arr = new int[]{1,2,3,4,5,6};
+IntStream stream = Arrays.stream(arr);
+Employee e1 = new Employee(1001,"Tom");
+Employee e2 = new Employee(1002,"Jerry");
+Employee[] arr1 = new Employee[]{e1,e2};
+Stream&lt;Employee&gt; stream1 = Arrays.stream(arr1);
+</code>
+<code>
+//无限流
+Stream.iterate(0, t -&gt; t + 2).limit(10).forEach(System.out::println);
+Stream.generate(Math::random).limit(10).forEach(System.out::println);
+</code>
+<code>
+//对于文本文件，可以Files.newBufferedReader(Path) + BufferedReader.lines()
+try (BufferedReader reader = Files.newBufferedReader(Paths.get("file.txt"))) {
+    Stream&lt;String> lines = reader.lines();
+    // 处理文本行的 Stream
+} catch (IOException e) {
+    e.printStackTrace();
+}
+</code>
+<code>
+//不需要额外的异常处理和手动关闭文件时可以Files.lines(Path)
+Stream&lt;String> lines = Files.lines(Paths.get("file.txt"));
+</code>
+<code>
+//可以使用正则表达式将字符串拆分为 Stream
+String sentence = "Hello, world! Java Stream API.";
+Pattern pattern = Pattern.compile("\\s+");//至少一个空格
+Stream&lt;String> words = pattern.splitAsStream(sentence);
+words.forEach(System.out::println);
+</code>
+<code>
+//基于字符序创建流,用于字符加密
+String str = "abc汉字";
+IntStream stream = str.chars();// 基于字符序创建流
+stream.forEach(c -> System.out.print(c + " "));//97 98 99 27721 23383 
+ 
+stream = str.chars();// 流被消耗掉了，需要重新创建
+stream.forEach(c -> System.out.print((char) c + " "));//a b c 汉 字 
+ 
+stream = str.chars();
+IntStream encryptedStream = stream.map(c -> c + 3);// 演示字符加密（简单的 Caesar cipher，偏移量为 3）
+encryptedStream.forEach(c -> System.out.print(c + " "));//100 101 102 27724 23386
+ 
+stream = str.chars().map(c -> c + 3);
+StringBuilder encryptedStr = new StringBuilder();
+stream.forEach(c -> encryptedStr.append((char) c));
+System.out.println(encryptedStr.toString());//def汌孚
+ 
+stream = encryptedStr.toString().chars();
+IntStream decryptedStream = stream.map(c -> c - 3);//解密（偏移量为 -3）
+decryptedStream.forEach(c -> System.out.print(c + " "));//97 98 99 27721 23383 
+ 
+stream = encryptedStr.toString().chars().map(c -> c - 3);
+StringBuilder decryptedStr = new StringBuilder();
+stream.forEach(c -> decryptedStr.append((char) c));
+System.out.println(decryptedStr.toString());//abc汉字
+</code>
+
+<h2>Stream与parallelStream</h2>
+Stream 
+    顺序执行，不涉及多线程问题
+    对于小数据集和简单操作，顺序流性能通常更好，因为线程开销较小
+    通过parallel()中途切换为并行流
+<code>
+list.stream()
+    .map(String::toUpperCase)  // 在map操作后，转换为并行流
+    .parallel()
+    .forEach(System.out::println);
+</code>
+parallelStream
+    并行执行，多线程处理
+    对于大数据集和计算密集型任务(不适用于I/O密集型)，并行流性能通常更好，因为能够利用多核处理器的优势并行处理数据
+    并行流在处理非常小的数据集或简单操作时，可能由于线程管理的开销反而变慢
+    并行流操作涉及到共享状态的修改，线程安全问题可能会出现
+    如果需要并行处理但还要保持顺序, 可以使用 forEachOrdered, 但会降低并行处理的性能优势
+        numbers.parallelStream().forEachOrdered(System.out::println);
+
+对于较大的数据集，并行流通常能够显著减少计算时间
+<code>
+List&lt;Integer> numbers = Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+// 顺序流
+long startTime = System.nanoTime();
+int sum = numbers.stream()
+        .mapToInt(Integer::intValue)
+        .sum();
+long duration = System.nanoTime() - startTime;
+System.out.println("顺序流计算结果: " + sum + "，耗时: " + duration + " 纳秒");//顺序流计算结果: 55，耗时: 36509200 纳秒
+ 
+// 并行流
+startTime = System.nanoTime();
+sum = numbers.parallelStream()
+        .mapToInt(Integer::intValue)
+        .sum();
+duration = System.nanoTime() - startTime;
+System.out.println("并行流计算结果: " + sum + "，耗时: " + duration + " 纳秒");//并行流计算结果: 55，耗时: 2848200 纳秒
+</code>
+
+<h2>map和flatMap</h2>
+map
+    简单的对流中的数据计算或者转换
+<code>
+List&lt;Integer> numbers = Arrays.asList(1, 2, 3, 4, 5);
+List&lt;Integer> doubled = numbers.stream()
+                                .map(n -> n * 2)
+                                .collect(Collectors.toList());//[2, 4, 6, 8, 10]
+</code>
+flatMap
+    将具有层级结构的数据展平
+<code>
+List&lt;List&lt;String>> listOfLists = Arrays.asList(
+    Arrays.asList("a", "b", "c"),
+    Arrays.asList("d", "e", "f"),
+    Arrays.asList("g", "h", "i")
+);
+List&lt;String> flatList = listOfLists.stream()
+                               .flatMap(List::stream)
+                               .collect(Collectors.toList());//[a, b, c, d, e, f, g, h, i]
+ 
+List&lt;String> sentences = Arrays.asList(
+        "The quick brown fox",
+        "jumps over the lazy dog",
+        "and runs away"
+);
+List&lt;String> words = sentences.stream()
+                                .flatMap(sentence -> Arrays.stream(sentence.split(" ")))
+                                .collect(Collectors.toList());
+System.out.println(words); //[The, quick, brown, fox, jumps, over, the, lazy, dog, and, runs, away]
+ 
+Stream&lt;String&gt; lines = Files.lines(Paths.get("file.txt"));
+long words = long words = lines.parallel()  // 将串行流改为并行流
+    .flatMap(line -> Arrays.stream(line.split(" ")))
+    .distinct()
+    .count();//文件中不重复的单词数量
+</code>
+<code>
+List&lt;String[]&gt; eggs = new ArrayList&lt;&gt;();
+ 
+@Before
+public void init() {
+    // 第一箱鸡蛋
+    eggs.add(new String[]{"鸡蛋_1", "鸡蛋_1", "鸡蛋_1", "鸡蛋_1", "鸡蛋_1"});
+    // 第二箱鸡蛋
+    eggs.add(new String[]{"鸡蛋_2", "鸡蛋_2", "鸡蛋_2", "鸡蛋_2", "鸡蛋_2"});
+}
+ 
+static int group = 1;
+static int student = 1;
+ 
+//把二箱鸡蛋分别加工成煎蛋，还是放在原来的两箱，分给2组学生
+@Test
+public void map() {
+    eggs.stream()
+            .map(x -&gt; Arrays.stream(x).map(y -&gt; y.replace("鸡", "煎")))
+            .forEach(x -&gt; System.out.println("组" + group++ + ":" + Arrays.toString(x.toArray())));
+}
+//组1:[煎蛋_1, 煎蛋_1, 煎蛋_1, 煎蛋_1, 煎蛋_1]
+//组2:[煎蛋_2, 煎蛋_2, 煎蛋_2, 煎蛋_2, 煎蛋_2]
+ 
+//把二箱鸡蛋分别加工成煎蛋，然后放到一起【10个煎蛋】，分给10个学生
+@Test
+public void flatMap() {
+    eggs.stream()
+            .flatMap(x -&gt; Arrays.stream(x).map(y -&gt; y.replace("鸡", "煎")))
+            .forEach(x -&gt; System.out.println("学生" + student++ + ":" + x));
+}
+//学生1:煎蛋_1
+//学生2:煎蛋_1
+//学生3:煎蛋_1
+//学生4:煎蛋_1
+//学生5:煎蛋_1
+//学生6:煎蛋_2
+//学生7:煎蛋_2
+//学生8:煎蛋_2
+//学生9:煎蛋_2
+//学生10:煎蛋_2
+</code>
+
+<h2>mergeFunction</h2>
+Collectors.toMap接受一个合并函数（merge function），用于处理键冲突的情况。
+合并函数的主要作用是当两个元素的键相同时，决定如何合并这些元素的值。
+<code>
+//假设我们有一组用户数据，每个用户有一个 ID 和一个名字，我们希望将这些用户数据转换为一个 Map，其中 ID 是键，名字是值。
+//如果两个用户有相同的 ID，我们需要合并它们的名字。
+List&lt;User> users = Arrays.asList(
+    new User(1, "Alice"),
+    new User(2, "Bob"),
+    new User(1, "Charlie"),
+    new User(3, "David"),
+    new User(2, "Eve")
+);
+Map&lt;Integer, String> userMap = users.stream().collect(
+    Collectors.toMap(
+        User::getId,//方法引用,等价(User u) -> u.getId()
+        User::getName,
+        (name1, name2) -> name1 + ", " + name2
+    )
+);
+userMap.forEach((id, names) -> System.out.println(id + ": " + names));
+/*
+1: Alice, Charlie
+2: Bob, Eve
+3: David
+*/
+</code>
+<code>
+List&lt;Person> personList = ...; // 获取Person列表
+Map&lt;String, Person> personMap = personList.stream()
+        .collect(Collectors.toMap(
+            Person::getName, //提取 Person 的名字作为 Map 的键
+            Function.identity(),//提取 Person 自身作为 Map 的值
+            (existing, replacement) -> replacement //处理键冲突时，保留新的值
+        ));
+/*
+Alice: Person{name='Alice', age=28}
+Bob: Person{name='Bob', age=25}
+Charlie: Person{name='Charlie', age=35}
+*/
+</code>
+
+<h2>groupingBy</h2>
+<code>
+List&lt;Person> people = Arrays.asList(
+    new Person("Alice", 20),
+    new Person("Bob", 25),
+    new Person("Charlie", 30),
+    new Person("David", 25)
+);
+</code>
+<code>
+//按照对象属性分组
+Map&lt;Integer, List&lt;Person>> peopleByAge = people.stream()
+    .collect(Collectors.groupingBy(Person::getAge));
+peopleByAge.forEach((k,v)-> System.out.println(k+":"+v));
+/*
+20:[Person{name='Alice', age=20}]
+25:[Person{name='Bob', age=25}, Person{name='David', age=25}]
+30:[Person{name='Charlie', age=30}]
+*/
+</code>
+<code>
+//按照对象属性分组，并对分组后的元素进行计数
+Map&lt;Integer, Long> countByAge = people.stream()
+        .collect(Collectors.groupingBy(Person::getAge, Collectors.counting()));
+countByAge.forEach((age, count) -> System.out.println("Age " + age + ": " + count + "人"));
+/*
+Age 20: 1人
+Age 25: 2人
+Age 30: 1人
+*/
+</code>
+<code>
+//按照对象属性分组，并对分组后的元素进行其它聚合操作
+Map&lt;Integer, Double> map = people.stream()
+    .collect(Collectors.groupingBy(
+            Person::getAge,
+            Collectors.summingDouble(Person::getAge)//总龄
+    ));
+map.forEach((k, v) -> System.out.println(k+ ":"+v));
+/*
+20:20.0
+25:50.0
+30:30.0
+*/
+</code>
+<code>
+//按照对象属性分组，并将分组后的元素映射为另一种类型
+Map&lt;Integer, List&lt;String>> namesByAge = people.stream()
+    .collect(Collectors.groupingBy(
+            Person::getAge,
+            Collectors.mapping(Person::getName, Collectors.toList())
+    ));
+namesByAge.forEach((age, names) -> System.out.println("Age " + age + ": " + names));
+/*
+Age 20: [Alice]
+Age 25: [Bob, David]
+Age 30: [Charlie]
+*/
+</code>
+
+<h2>reduce</h2>
+<code>
+List&lt;Integer> numbers = Arrays.asList(1, 2, 3, 4, 5);
+int sum = numbers.stream()
+        .reduce(0, (a, b) -> a + b);
+ 
+List&lt;String> words = Arrays.asList("apple", "banana", "cherry", "date");
+String longestWord = words.stream()
+        .reduce((word1, word2) -> word1.length() &lt; word2.length() ? word1 : word2)
+        .orElse("");//orElse 是 Optional 类的一个方法，它用于在 Optional 对象没有值的情况下提供一个默认值
+ 
+List&lt;String> words = Arrays.asList("Java", "is", "awesome");
+String combinedString = words.stream()
+        .reduce("", (a, b) -> a + " " + b);
+ 
+List&lt;Integer> numbers = Arrays.asList(1, 2, 3, 4, 5);
+int product = numbers.stream()
+        .reduce(1, (a, b) -> a * b);
+</code>
+
+<h2>peek</h2>
+用于在流处理过程中观察和调试每个元素的状态
+    peek 方法应该只用于产生副作用（例如打印输出），而不应该用于修改流中的元素
+<code>
+List&lt;Integer> numbers = Arrays.asList(1, 2, 3, 4, 5);
+numbers.stream()
+       .peek(e -> System.out.println("Processing element: " + e))
+       .map(e -> e * 2)
+       .forEach(System.out::println);
+</code>
+
+<h2>Stream API的其它方法</h2>
+<code>
+//skip(long)：跳过流中的前 N 个元素
+stream.skip(5).forEach(System.out::println);
+ 
+//检查流中是否有任意元素匹配、全部元素匹配或没有元素匹配给定条件
+boolean anyMatch = stream.anyMatch(x -> x > 5);
+boolean allMatch = stream.allMatch(x -> x > 5);
+boolean noneMatch = stream.noneMatch(x -> x > 5);
+ 
+//findFirst() / findAny()：返回流中的第一个元素或任意一个元素（在并行流中更有效）
+Optional&lt;Integer> first = stream.findFirst();
+Optional&lt;Integer> any = stream.findAny();
+ 
+//最值
+Optional&lt;Integer> min = stream.min(Comparator.naturalOrder());
+Optional&lt;Integer> max = stream.max(Comparator.naturalOrder());
+ 
+//流中元素转数组
+List&lt;Integer> numbers = Arrays.asList(1, 2, 3, 4, 5);
+Integer[] array = numbers.stream().toArray(Integer[]::new);
+</code>
+
+<h2>例</h2>
+<code>
+//所有偶数和
+List&lt;String&gt; list = Arrays.asList(&quot;1&quot;, &quot;2&quot;, &quot;3&quot;, &quot;4&quot;, &quot;5&quot;, &quot;6&quot;);
+int sum = list
+        .stream()
+        //.map(s -&gt; Integer.parseInt(s))
+        //.mapToInt(s -&gt; Integer.parseInt(s))
+        //使用 .map(s -&gt; Integer.parseInt(s))，它返回的是一个 Stream&lt;Integer&gt;，即将每个字符串转换为整数后，保持为一个 Stream
+        //使用 .mapToInt(s -&gt; Integer.parseInt(s))，它返回的是一个 IntStream，其中的元素都是原始的 int 类型，而不需要进行拆箱操作。
+        .mapToInt(Integer::parseInt)
+        .filter(i -&gt; i % 2 == 0)
+        //.reduce(0,(a,b)-&gt;a+b)
+        .sum();
+ 
+//所有首字母大写
+List&lt;String&gt; list = Arrays.asList(&quot;tom&quot;, &quot;jerry&quot;);
+List&lt;String&gt; list2 = list.stream()
+        .map(s -&gt; s.substring(0,1).toUpperCase().concat(s.substring(1)))
+        .collect(Collectors.toList());
+ 
+//将其中奇数去重倒序
+List&lt;String&gt; list = Arrays.asList(&quot;1&quot;,&quot;2&quot;,&quot;3&quot;,&quot;3&quot;,&quot;4&quot;,&quot;5&quot;);
+List&lt;Integer&gt; list2 = list.stream()
+        .map(Integer::parseInt)
+        .distinct()
+        .filter(i -&gt; i%2==1)
+        .sorted((o1, o2) -&gt; o2-o1)
+        .collect(Collectors.toList());
+ 
+//统计字符串中各字符个数
+String str = "我爱学java";
+Map&lt;Character, Integer> map2 = new HashMap&lt;>();
+str.chars()
+        .mapToObj(c -> (char) c)
+        .forEach(character -> map2.put(character, map2.getOrDefault(character, 0) + 1));
+map2.forEach((k, v) -> System.out.println(k + ":" + v));
+ 
+//统计文本中重复姓名并按次数排序
+/*
+1,aa,28
+2,cc,35
+4,王五,35
+3,aa,28
+4,王五,35
+5,aa,28
+6,cc,35
+7,赵六,28
+8,田七,35
+ */
+//File file = new File("info.txt");
+List&lt;String> list = new ArrayList();
+//try (BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(file), "UTF-8"))) {
+try (BufferedReader br = Files.newBufferedReader(Paths.get("info.txt"))) {
+    String line;
+    while ((line = br.readLine()) != null) {
+        list.add(line.split(",")[1]);
+    }
+} catch (IOException e) {
+    e.printStackTrace();
+}
+ 
+Map&lt;String, Integer> map = new HashMap&lt;>();
+list.forEach(i -> map.put(i, map.getOrDefault(i, 0) + 1));
+ 
+LinkedHashMap&lt;String, Integer> collect = map.entrySet().stream()
+        .filter(entry -> entry.getValue() > 1)
+        //.sorted(Map.Entry.comparingByValue().reversed())
+        .sorted(Map.Entry.comparingByValue())
+        .collect(Collectors.toMap(
+                Map.Entry::getKey,
+                Map.Entry::getValue,
+                (a, b) -> a,
+                LinkedHashMap::new));
+collect.forEach((k,v)-> System.out.println(k+":"+v));
+</code>
+</pre>
+ </body>
+</html>

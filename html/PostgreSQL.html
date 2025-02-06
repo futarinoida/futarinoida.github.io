@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>PostgreSQL</title>
+</head>
+<body><span id="anchor">20240906180530-_数据库</span>
+<pre>
+PostgreSQL 和 MySQL 都是流行的开源关系型数据库管理系统（RDBMS）
+    PostgreSQL适合复杂数据处理、分析型应用、企业级系统、需要高扩展性和自定义功能的场景，特别是需要处理结构化和非结构化数据的大型系统。
+    MySQL适合高并发的 Web 应用、轻量级的数据库需求，以及需要高性能读写操作的中小型项目。
+
+被称为“世界上最先进的开源数据库”。注重标准兼容性和功能的完整性。支持复杂的数据类型和高级的查询功能。
+    MySQL主要强调 性能和易用性，更轻量，通常在 Web 开发中使用广泛。专注于简单的查询性能，通常较少使用复杂的SQL特性。
+
+严格遵循 SQL 标准，支持许多高级 SQL 特性，如窗口函数、CTE（公共表表达式）、递归查询等，适合复杂查询。
+    MySQL 对 SQL 标准的支持不如 PostgreSQL 完整，在处理复杂查询和高级 SQL 特性上略显不足，但其语法更加简化，易于使用。
+
+使用多版本并发控制（MVCC），可以处理高并发的事务而不锁定数据行，完全支持 ACID（原子性、一致性、隔离性、持久性），确保数据的一致性和可靠性。适合需要复杂事务处理的应用。
+    MySQL 通过 InnoDB 引擎也支持 ACID 事务和 MVCC，但其默认的隔离级别为 可重复读（Repeatable Read），在处理复杂事务时可能性能稍逊。锁机制的处理在并发性上不如 PostgreSQL。
+
+可以使用 多种编程语言（如 PL/pgSQL、Python、Perl 等）编写存储过程。支持自定义数据类型、函数和操作符，提供极高的扩展性。外部数据封装器（FDW） 允许将外部数据源（其他数据库、文件系统）作为本地表使用。
+
+在复杂查询和大规模数据处理上，PostgreSQL 的性能往往优于 MySQL。它支持 并行查询，并能对复杂查询和大量数据进行更优化的处理。更适合需要复杂数据操作和高性能的企业级应用。
+    MySQL在简单查询和读操作场景中，MySQL 的性能表现较好，尤其适合高读写比的 Web 应用。对于中小型应用程序，MySQL 可以提供更高效的查询性能。
+
+支持多种索引类型，包括 B-tree、Hash、GIN、GiST 等，能针对不同查询需求选择合适的索引。提供丰富的数据类型，如 数组、JSON、XML、IP地址类型，以及自定义数据类型的支持，非常适合需要存储复杂数据的应用。
+    MySQL 索引类型较为有限，主要支持 B-tree 索引，但其查询性能在简单场景下表现较好。数据类型相对简单，虽然支持 JSON，但处理能力不如 PostgreSQL 的 JSONB 强大。
+
+提供主从复制 和 逻辑复制，支持流式复制，并允许热备份。逻辑复制允许在表级别进行复制，适合对部分数据集进行复制和分发。
+    MySQL 提供了较为简单的主从复制功能，支持 异步复制 和 半同步复制，且其复制设置较为简单，适合 Web 开发。
+
+拥有强大的社区支持和活跃的开发者生态，提供了许多第三方扩展和插件（如 PostGIS 用于地理空间数据），被认为是学术研究和企业应用中的首选数据库。
+    MySQL 社区庞大，文档和教程丰富，是 Web 开发、CMS（如 WordPress）等领域中最流行的数据库，特别适合中小型项目和初学者。
+
+<h1>postgresql.conf</h1>
+<code bash>
+# 客户端编码
+client_encoding = 'UTF8'
+ 
+# 指定 PostgreSQL 监听的 IP 地址。设置为 '*' 以监听所有地址，或指定具体的地址。
+listen_addresses = '*'
+ 
+port = 5432
+max_connections = 100
+ 
+# PostgreSQL 使用的共享内存缓冲区大小。通常设置为总内存的 25% 左右。
+shared_buffers = 128MB
+ 
+# 每个操作（如排序）可使用的内存量。应根据工作负载进行调整。
+work_mem = 4MB
+ 
+# 维护操作（如创建索引）可使用的内存量。通常设置为比 work_mem 大。
+maintenance_work_mem = 64MB
+ 
+# WAL（写前日志）的记录级别。选项包括 minimal、replica 和 logical。
+wal_level = replica
+ 
+# 检查点之间的时间间隔。默认是 5 分钟。
+checkpoint_timeout = 15min
+ 
+# 日志记录的目标。可以是 stderr、csvlog、syslog 等。
+log_destination = 'stderr'
+ 
+# 是否启用日志收集器。如果启用，则日志会写入文件。
+logging_collector = on
+log_directory = 'pg_log'
+log_filename = 'postgresql-%Y-%m-%d_%H%M%S.log'
+ 
+# 是否启用自动清理功能，以避免表膨胀。
+autovacuum = on
+ 
+# 自动清理进程之间的时间间隔。
+autovacuum_naptime = 1min
+ 
+# 估计数据库系统能够使用的缓存内存量。帮助优化查询规划。
+effective_cache_size = 4GB
+ 
+# 用于估计随机访问磁盘页面成本的值。影响查询优化器的决策。
+random_page_cost = 4.0
+ 
+# cpu_tuple_cost 和 cpu_index_tuple_cost：影响优化器估计 CPU 消耗的设置。
+cpu_tuple_cost = 0.01
+cpu_index_tuple_cost = 0.005
+ 
+# 设置密码加密方法。可以选择 md5 或 scram-sha-256。
+password_encryption = scram-sha-256
+ 
+# 启用 SSL 加密连接。
+ssl = on
+ 
+# ssl_cert_file 和 ssl_key_file：指定 SSL 证书和私钥文件的位置。
+ssl_cert_file = 'server.crt'
+ssl_key_file = 'server.key'
+
+# 设置数据库的时区。
+timezone = 'UTC'
+ 
+# 设置用于自动统计数据的目标，影响查询优化器的统计信息。
+default_statistics_target = 100
+ 
+# 设置每个事务允许的最大锁定数。
+max_locks_per_transaction = 64
+</code>
+
+<h1>PostgreSQL 和 MySQL 之间的命令差异</h1>
+    PostgreSQL 的命令以反斜杠 \ 开头是 psql 命令行工具的内部命令
+    MySQL 的命令是 SQL 语句，直接在 MySQL 命令行工具中执行
+<p>
+显示所有数据库 : \l 或 \list : SHOW DATABASES;
+切换数据库 : \c database_name : USE database_name;
+显示所有表 : \dt : SHOW TABLES;
+显示表结构 : \d table_name : DESCRIBE table_name; 或 SHOW COLUMNS FROM table_name;
+查看索引 : \di : SHOW INDEX FROM table_name;
+查看视图 : \dv : SHOW FULL TABLES WHERE Table_type = 'VIEW';
+查看用户 : \du : SELECT User FROM mysql.user;
+创建用户 : CREATE USER 'user' WITH PASSWORD 'password'; : CREATE USER 'user'@'host' IDENTIFIED BY 'password';
+删除用户 : DROP USER 'user'; : DROP USER 'user'@'host';
+授权权限 : GRANT ALL PRIVILEGES ON database_name.* TO 'user'; : GRANT ALL PRIVILEGES ON database_name.* TO 'user'@'host';
+撤销权限 : REVOKE ALL PRIVILEGES ON database_name.* FROM 'user'; : REVOKE ALL PRIVILEGES ON database_name.* FROM 'user'@'host';
+查看当前连接信息 : \conninfo : SHOW PROCESSLIST;
+</p>
+
+<h1>命令行基础操作</h1>
+<code bash>
+# 使用默认的postgres帐号登录到本地数据库
+psql -U postgres -h localhost
+ 
+create database testdb;
+ 
+# 切换到testdb
+\c testdb;
+ 
+# user 是一个保留字，它用于表示当前数据库用户。因此，直接使用 user 作为表名会导致语法错误
+# 单引号（'）用于包裹字符串值, 双引号（"），它们用于标识表名、列名、模式名等标识符, 使用两个连续的单引号来转义单引号, 或用反斜杠 \ 转义单引号字符
+testdb=# create table "user"(
+testdb(# id serial primary key,
+testdb(# name varchar(32),
+testdb(# email varchar(128)
+testdb(# );
+ 
+# 列出所有表, pgadmin中位于testdb/schemas/public/tables
+\dt
+ 
+# 插入数据, INSERT 0 1其中 0 是影响的行数（通常是 0），1 是实际插入的行数
+testdb=# insert into "user"(name,email) values('小丽','@com');
+ 
+# 使用扩展显示模式时，查询结果会以更加易读的格式进行显示，特别是当表的列数很多时，扩展模式会将每一行数据纵向排列，这样更容易阅读。
+\ x on
+select * from "user";
+</code>
+
+<h1>centos7中安装</h1>
+https://www.postgresql.org/download/linux/redhat/
+<code bash>
+yum install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+yum install -y postgresql13-server
+# 初始化数据库
+/usr/pgsql-13/bin/postgresql-13-setup initdb
+ 
+# 加入自启
+systemctl enable postgresql-13
+ 
+# 启用应用
+systemctl start postgresql-13
+systemctl status postgresql-13
+ 
+# 切换到 postgres 用户的环境
+sudo -i -u postgres
+ 
+# 进入PostgreSQL交互式终端
+psql 
+ 
+# 为postgres设置密码
+alter user postgres with password 'root';
+
+</code>
+</pre>
+</body>
+</html>

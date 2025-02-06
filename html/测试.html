@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>测试</title>
+</head>
+<body><span id="anchor">20240902152921-_java</span>
+<pre>
+JUnit 4: 是一个单一的库（junit-4.x.x.jar），所有功能都在同一个包里。
+    @Test, @Before, @After, @BeforeClass, @AfterClass, @Ignore
+    不支持动态测试
+
+JUnit 5: 是一个模块化的框架，分为多个模块，包括：
+    JUnit Platform: 提供启动测试框架的基础设施。
+    JUnit Jupiter: 提供JUnit 5的API和功能。
+    JUnit Vintage: 用于运行JUnit 4的测试。
+
+    增加了一些新的注解，如 @BeforeEach, @AfterEach, @BeforeAll, @AfterAll, @Disabled
+    新增了对动态测试的支持，可以在运行时生成测试用例。
+
+Assert（或 Assertions）在单元测试中的主要目的是验证代码的行为是否符合预期，并且带来了以下几个关键好处
+1. 自动化测试
+    无需手动检查代码的输出，这大幅提高了测试效率，特别是在项目规模较大时。
+2. 即时反馈
+    可以在代码的行为不符合预期时立即提供反馈。如果一个断言失败，测试将中断，并报告错误。这种即时反馈可以帮助开发者迅速定位问题。
+3. 代码质量保证
+    通过在代码中使用 Assert 进行严格的验证，可以保证代码的质量。
+    开发人员可以通过编写测试用例来确保代码在不同情况下都能正常工作，从而减少bug的数量。
+4. 回归测试
+    当项目迭代时，旧代码可能会因为新代码的加入而产生问题。
+    通过保留和运行使用 Assert 的单元测试，可以快速发现回归问题，确保新改动没有破坏已有功能。
+5. 文档作用
+    测试用例中的断言不仅仅是验证工具，还起到了一定的文档作用。
+    它们明确地表达了代码在特定情况下应该具有什么样的行为。
+    其他开发者可以通过阅读测试用例，快速理解代码的设计意图和预期行为。
+6. 减少手动测试的依赖
+    通过编写自动化测试，尤其是使用断言，可以减少对手动测试的依赖。
+    手动测试不仅耗时，还容易出错。自动化测试则可以反复执行，并且每次都能确保一致的结果。
+</pre>
+</body>
+</html>

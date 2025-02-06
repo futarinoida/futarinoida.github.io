@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>IO</title>
+ </head>
+ <body>
+  <span id="anchor">20240307183503-_java</span>
+  <pre>
+<h1>IO的分类</h1>
+20240619185632.webp
+字节流（Byte Streams）
+    处理二进制数据，如图像、音频、视频文件  
+字符流（Character Streams）
+    处理文本数据，如文本文件
+缓冲流（Buffered Streams）
+    提高IO操作的效率，减少对底层设备的读写次数
+数据流（Data Streams）
+    读写基本数据类型和字符串。
+对象流（Object Streams）
+    读写Java对象，实现对象的序列化和反序列化。
+文件流（File IO）
+    读写文件，提供对文件和目录的操作。
+管道（Pipes）
+    用于线程之间的通信。
+序列流（Sequence Streams）
+    用于将多个输入流串联成一个输入流。
+特殊用途的流（Specialized Streams）
+    推回输入流
+
+<h1>字节流和字符流及转换器</h1>
+字节流可以处理任何类型的数据，如图片、avi等，基本以Stream结尾
+字符流只能处理字符类型的数据,都以Reader或Writer结尾
+InputStreamReader(OutputStreamWriter同理)
+    InputStreamReader是将字节流转换为字符流的桥梁
+    InputStreamReader封裝了InputStream类,一次读取一个字符
+    而BufferedReader进一步封裝了InputStreamReader类,一次读取一行字符
+        例:BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+            //public final static InputStream in 未被包装过的InputStream
+            在使用System.in（标准输入流）时，需要将其转换为字符流并加上缓冲区,因此使用BufferedReader来包装InputStreamReader
+        BufferedReader的最大特点就是缓冲区的设置。
+            通常Reader 所作的每个读取请求都会导致对底层字符或字节流进行相应的读取请求
+            如果没有缓冲，则每次调用 read() 或 readLine() 都会导致从文件中读取字节，并将其转换为字符后返回，而这是极其低效的。
+            使用BufferedReader可以指定缓冲区的大小，或者可使用默认的大小。大多数情况下，默认值就足够大了。
+            因此，建议用 BufferedReader 包装所有其 read() 操作可能开销很高的 Reader（如 FileReader 和InputStreamReader）。
+在使用字符流读取文本文件时(且不使用包装流时),有两种类提供读取文件方法,分别是InputStreamReader和FileReader,后者为前者子类。
+    InputStreamReader是用来读取原始字节流, 以二进制方式处理，不会出现乱码现象,可指定编码格式
+    FileReader类的构造函数假定默认字符编码和默认字节缓冲区大小是适当的
+        当文本文件编码与编译工具默认编码不同时,读取文件会出现乱码的情况
+            大多数情况下，Java 编译器（如 javac）会使用操作系统的默认编码方式来解析源代码文件。
+            例如，Windows 系统通常使用 GBK 或 UTF-8（最新版本），而 macOS 和大多数 Linux 发行版通常使用 UTF-8。
+            在开发中统一使用 UTF-8 编码，因为它支持几乎所有的字符和语言，并且是互联网标准中广泛使用的编码方式
+            如果需要，可以通过 -encoding 参数显式地告知编译工具使用特定的编码方式进行编译
+            javac -encoding UTF-8 MyClass.java
+            在使用文本编辑器编写代码时，可以检查编辑器的默认编码设置，并确保与预期的编码方式一致。
+<code>
+// 方法1
+File file = new File("info.txt");
+FileInputStream fis = new FileInputStream(file);
+InputStreamReader isr = new InputStreamReader(fis, "UTF-8");
+BufferedReader br = new BufferedReader(isr);
+ 
+//方法2
+//对于不需要编码设置时推荐使用Files.newBufferedReader() 方法，它更简洁和高效
+//Paths.get() 方法是 Java NIO 中用于获取 Path 对象的工厂方法,Files 是 Java NIO 中的一个实用类，提供了一系列对文件系统进行操作的静态方法
+//Files.newBufferedReader(Path path) 方法用于从指定的文件路径 (Path 对象)创建一个 BufferedReader 对象
+BufferedReader br = Files.newBufferedReader(Paths.get("info.txt"));
+ 
+// 方法3
+File file = new File("info.txt");
+FileReader fr = new FileReader(file);
+BufferedReader br = new BufferedReader(fr);
+</code>
+
+<h1>File类</h1>
+File 类不仅仅表示一个文件，它也可以表示一个目录或文件路径
+    关于路径
+        Windows中分割符是“\”，Linux是“/”,因此平时在代码中不要使用诸如“\”这种代表路径，可能造成Linux平台下代码执行错误
+        而File类给我们提供了抽象的表示File.separator，屏蔽了系统层的差异。
+            String filePath = "folder" + File.separator + "subFolder" + File.separator + "file.txt";
+            String filePath = String.join(File.separator, "folder", "subFolder", "file.txt");
+        FileSystems.getDefault()返回一个表示默认文件系统的 FileSystem 对象, 在 Windows 上是 NTFS，而在 Unix 或 Linux 上是 Ext4
+            // getPath(String first, String... more) 参数会合成一个路径，路径的分隔符（如斜杠 / 或反斜杠 \）会根据操作系统自动调整
+            Path path = FileSystems.getDefault().getPath("d:", "mess", "a.png"); //"d:\mess\a.png"
+        Path path = FileSystems.getDefault().getPath(filePath, etc);
+        路径的解码
+            String path = Demo.class.getResource("../../../config.properties").getPath();
+            //getPath() 返回的路径可能会被编码，特别是当路径中包含特殊字符或空格时
+            path = URLDecoder.decode(path,"UTF-8");
+ 
+File类常用方法
+<code>
+class FileExample  {
+    public static void main(String[] args) {
+        try {
+            // 创建新文件
+            File file = new File("example.txt");
+            if (file.createNewFile()) {
+                System.out.println("File created: " + file.getName());
+            } else {
+                System.out.println("File already exists");
+            }
+ 
+            // 创建新目录
+            File directory = new File("exampleDir");
+            if (directory.mkdir()) {
+                System.out.println("Directory created: " + directory.getName());
+            } else {
+                System.out.println("Directory already exists or failed to create");
+            }
+            //if (!dir.exists()) dir.mkdirs();
+            //if (!dir.exist()) dir.mkdir();
+ 
+            // 获取绝对路径
+            System.out.println("Absolute path: " + file.getAbsolutePath());
+ 
+            // 获取文件名
+            System.out.println("File name: " + file.getName());
+ 
+            // 获取父目录路径
+            File nestedFile = new File("exampleDir" + File.separator + "nested.txt");
+            System.out.println("Parent directory: " + nestedFile.getParent());
+ 
+            // 获取文件长度
+            System.out.println("File length: " + file.length() + " bytes");
+ 
+            // 重命名文件
+            File newFile = new File("renamed_example.txt");
+            if (file.renameTo(newFile)) {
+                System.out.println("File renamed successfully");
+            } else {
+                System.out.println("Failed to rename file");
+            }
+ 
+            // 列出目录内容
+            File[] filesAndDirs = directory.listFiles();
+            if (filesAndDirs != null) {
+                System.out.println("Files in directory " + directory.getName() + ":");
+                for (File f : filesAndDirs) {
+                    System.out.println(f.getName());
+                }
+            }
+ 
+            // 删除文件和目录
+            if (newFile.delete()) {
+                System.out.println("File deleted");
+            }
+            if (directory.delete()) {
+                System.out.println("Directory deleted");
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
+</code>
+根据传入的规则，遍历得到目录中所有的文件构成的File对象数组
+<code>
+public class FileExample  {
+    //将 regex 声明为 final 是为了保证匿名内部类 FilenameFilter 能够访问它，同时确保它的值在方法执行期间保持不变。
+    //这是一种常见的编程习惯，特别是在处理匿名内部类时，以确保代码的安全性和正确性。
+    public static File[] getLocalFiles(File dir, final String regex){
+        return dir.listFiles(new FilenameFilter() {
+            private final Pattern pattern = Pattern.compile(regex);
+            @Override
+            public boolean accept(File dir, String name) {
+                return pattern.matcher(name).matches();
+            }
+        });
+    }
+    // 重载方法
+    public static File[] getLocalFiles(String path, final String regex){
+        return getLocalFiles(new File(path),regex);
+    }
+ 
+    public static void main(String[] args) {
+        String dir = String.join(File.separator, "D:", "Dropbox", "ebook","2__古典文学","诸子百家");
+        File[] files = FileExample.getLocalFiles(dir,".*\\.txt");
+        for(File file : files){
+            System.out.println(file.getAbsolutePath());
+        }
+    }
+}
+</code>
+
+<h1>flush和close</h1>
+flush()
+    将缓冲区中的数据强制写出，但不会关闭流
+    强制将缓冲区中的内容写入底层输出流 fos，确保所有数据都写入文件中。
+    因为缓冲区可能还没有满，所以需要调用 flush() 以确保数据被写入文件。
+close()
+    关闭输出流。close() 方法会先调用 flush()，确保所有数据都写入文件，然后释放资源。
+    关闭流的顺序
+        在写操作中，使用缓冲流时需要先关闭缓冲流，再关闭底层的输出流
+            缓冲流会将数据先写入内部缓冲区，而不是立即写入底层输出流。只有当缓冲区满了或者显式调用 flush() 方法时，数据才会被写入底层输出流。
+            调用缓冲流的 close() 方法时，会先调用 flush() 方法将缓冲区中的所有数据写入底层输出流，然后再关闭缓冲流本身。
+            如果先关闭了底层输出流，缓冲流将无法再将数据写入已关闭的底层输出流，从而导致数据丢失。
+        在读操作中，关闭流的顺序可以是任意的
+            缓冲流会先从底层输入流读取数据到缓冲区，然后再从缓冲区读取数据。即使底层输入流被关闭，已经读取到缓冲区的数据仍然可用
+ 
+显式调用 flush()的原因
+    确保及时写出数据：如果你希望在程序运行期间多次写出数据，并且希望这些数据及时写入文件而不是在缓冲区中等待，可以显式调用 flush()。
+    如果写操作和关闭流之间有大量其他操作，显式调用 flush() 可以确保数据在这些操作之前被写入文件
+    在调试和测试过程中，显式调用 flush() 可以确保数据写入文件，这样可以查看中间结果而不必关闭流
+    如果确定在每次写操作之后不需要立即将数据写入文件，并且可以等到流关闭时再写入，那么显式调用 flush() 是不必要的
+
+<h1>缓冲区</h1>
+自定义缓冲区
+<code>
+public class FileCopyExample {//文件拷贝
+    public static void main(String[] args) {
+        try (FileInputStream fis = new FileInputStream("happy.gif");
+             FileOutputStream fos = new FileOutputStream("happy(1).gif")) {
+            int n;
+            byte[] buffer = new byte[1024];
+            // 读取并写入数据
+            // 尝试从 fis 输入流中读取数据到字节数组 b 中，并将实际读取的字节数赋给 n, 到达文件末尾时返回 -1
+            while ((n = fis.read(buffer)) != -1) {
+                //fos.write(b) 方法将整个字节数组写入到输出流中，不会考虑数组中实际有效数据的长度 n，而是将整个数组长度的数据写入
+                //  当写到最后时实际内容不够1024,但还是用掉了1024的空间,导致新生成的文件比原文件大
+                 
+                //fos.write(b, 0, n) 方法用于将字节数组 b 中从索引 0 开始，长度为 n 的实际字节数据写入到输出流中。
+                //在文件复制或数据传输过程中，应该始终使用 fos.write(b, 0, n) 这种形式，以确保只写入实际读取的数据长度
+                fos.write(buffer, 0, n);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
+</code>
+自动管理缓冲区 
+    BufferedInputStream/BufferedOutputStream
+    不需要手动创建和管理 byte[] buffer 数组。
+    默认缓冲区大小通常为 8192 字节,也可以指定大小BufferedOutputStream(OutputStream out, int size)
+
+文件复制
+    如果处理的是小文件或者对复制速度要求不是非常高的情况下，使用 BufferedInputStream 和 BufferedOutputStream 可以简单快速地完成任务。缺点是对于大文件，由于数据是逐字节传输的，可能效率较低，特别是在网络文件系统或远程位置时。
+    对于需要高性能和大文件处理的场景，特别是需要考虑到文件系统的效率和零拷贝技术的情况，使用 FileChannel 和 ByteBuffer 更为合适, 它能够提供更高的吞吐量和更低的 CPU 使用率，尤其在处理大文件时表现更为明显
+    参见IO模型中NIO复制例
+<code>
+public class BufferedFileCopySimplified {
+    public static void main(String[] args) {
+        try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream("happy.gif"));
+                BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream("happy(1).gif"))) {
+            int data;
+            while ((data = bis.read()) != -1) {
+                bos.write(data);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
+</code>
+文件复制改名例
+<code>
+/**
+ * 编写一个程序，将java目录下的所有.java文件复制到jad目录下，并将原来文件的扩展名从.java改为.jad
+ */
+public class 文件复制和改扩展名 {
+    public static void main(String[] args) {
+        File srcDir = new File(String.join(File.separator, "D:", "Dropbox", "workspace", "idea", "try", "java"));
+        File destDir = new File(String.join(File.separator, "D:", "Dropbox", "workspace", "idea", "try", "jad"));
+        if (!destDir.exists())
+            destDir.mkdirs();
+
+        File[] files = getLocalFiles(srcDir, "^.*\\.java$");
+        for (File file : files) {
+            String newName = file.getName().replace(".java", ".jad");
+            File destFile = new File(destDir, newName);//表示复制后的文件, 第一个参数是目录路径，第二个参数是文件名
+            fastCopy(file, destFile);
+        }
+        System.out.println("复制和改名完成！");
+    }
+ 
+    public static File[] getLocalFiles(File dir, final String regex) {
+        return dir.listFiles(new FilenameFilter() {
+            private final Pattern pattern = Pattern.compile(regex);
+
+            @Override
+            public boolean accept(File dir, String name) {
+                return pattern.matcher(name).matches();
+            }
+        });
+    }
+ 
+    public static File[] getLocalFiles(String path, final String regex) {
+        return getLocalFiles(new File(path), regex);
+    }
+ 
+    public static void fastCopy(File file, File destFile) {
+        try (FileInputStream fis = new FileInputStream(file);
+             FileChannel fisChannel = fis.getChannel();
+             FileOutputStream fos = new FileOutputStream(destFile);
+             FileChannel fosChannel = fos.getChannel()) {
+
+            ByteBuffer buffer = ByteBuffer.allocate(1024);
+            while (fisChannel.read(buffer) != -1) {
+                buffer.flip();
+                fosChannel.write(buffer);
+                buffer.clear();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
+</code>
+
+
+<h1>BufferedReader 和 BufferedInputStream</h1>
+BufferedReader
+    read(): 读取单个字符。
+    readLine(): 读取一行文本。
+    在处理文本文件时效率更高，因为它针对字符数据进行了优化。
+BufferedInputStream
+    read(): 读取单个字节。
+    在处理二进制文件时效率更高，因为它针对字节数据进行了优化
+
+<h1>写文件时追加和覆盖</h1>
+<code>
+public class FileOutputStreamExample {
+    public static void main(String[] args) {
+        FileOutputStream fos = null;
+        try {
+            // 使用追加模式,（覆盖模式: 第二个参数为 false 或不提供）
+            // 如果提供的是一个相对路径，文件将被创建或写入到当前工作目录中
+            // System.out.println("Current working directory: " + System.getProperty("user.dir"));
+            fos = new FileOutputStream("1.txt", true);
+            fos.write(50); // 写入字符 '2' 的 ASCII 码
+            fos.write('a'); // 写入字符 'a'
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                if (fos != null) {
+                    fos.close();
+                }
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            }
+        }
+/*
+        //try-with-resources 语句来简化代码, 使用缓冲流
+        try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream("1.txt", true)))) {
+            writer.write("Hello, World!\n");
+            writer.write("This is a test.\n");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+*/
+    }
+}
+</code>
+
+<h1>读写例</h1>
+传统写法
+<code>
+public class Demo {
+    public static void main(String[] args) throws Exception {
+        // 写入文件
+        BufferedWriter bw = null;
+        OutputStreamWriter osw = null;
+        FileOutputStream fos = null;
+        try {
+            File file = new File("output.txt");
+            fos = new FileOutputStream(file);
+            osw = new OutputStreamWriter(fos, "UTF-8");
+            bw = new BufferedWriter(osw);
+            bw.write("Hello, World!\n");
+            bw.write("你好，世界！\n");
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                if (bw != null) {
+                    bw.close();
+                }
+                if (osw != null) {
+                    osw.close();
+                }
+                if (fos != null) {
+                    fos.close();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+ 
+        // 读取文件
+        BufferedReader br = null;
+        FileInputStream fis = null;
+        InputStreamReader isr = null;
+        try {
+            fis = new FileInputStream("output.txt");
+            isr = new InputStreamReader(fis, "UTF-8");
+            br = new BufferedReader(isr);
+            String line;
+            while ((line = br.readLine()) != null) {
+                System.out.println(line);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                if (br != null) {
+                    br.close(); // 关闭 BufferedReader
+                }
+                if (isr != null) {
+                    isr.close(); // 关闭 InputStreamReader
+                }
+                if (fis != null) {
+                    fis.close(); // 关闭 FileInputStream
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+}
+</code>
+简化写法
+<code>
+public class Demo {
+    public static void main(String[] args) {
+        // 写入文件
+        try (BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream("output.txt"), "UTF-8"))) {
+            bw.write("Hello, World!\n");
+            bw.write("你好，世界！\n");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+ 
+        // 读取文件
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream("output.txt"), "UTF-8"))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                System.out.println(line);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
+</code>
+
+<h1>对象流 ObjectInputStream</h1>
+使用ObjectInputStream对象的readObject方法读入对象、ObjectOutputStream的writeObject方法写入对象到流中
+<code>
+public class Apple implements Serializable {
+    private static final long serialVersionUID = -4251269726946099535L;
+    private int x;
+    private String y;
+    transient private String z;
+    static String staticField = "I am static";
+    Apple(int x, String y) {
+        this.x = x;
+        this.y = y;
+        this.z = "z";
+    }
+    @Override
+    public String toString() {
+        return "x = " + x + "  " + "y = " + y + "  " + "z = " + z + "  " + "staticField = " + staticField;
+    }
+ 
+    public static void main(String[] args) {
+        String objFile = "Apple.txt";
+        Apple apple = new Apple(1, "apple");
+        try(ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(objFile))){
+            oos.writeObject(apple);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+ 
+        Apple.staticField = "Changed static field";
+ 
+        Apple appleRead = null;
+        try(ObjectInputStream ois = new ObjectInputStream(new FileInputStream(objFile))){
+            appleRead = (Apple) ois.readObject();
+        } catch (IOException | ClassNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+        System.out.println(appleRead);// x = 1  y = apple  z = null  staticField = Changed static field
+    }
+}
+</code>
+
+<h1>数据流 DataInputStream</h1>
+<code>
+public class DataIODemo {
+    public static void main(String[] args) {
+        try {
+            // 将内存中的基本数据类型和字符串写入文件
+            try (DataOutputStream dos = new DataOutputStream(new FileOutputStream("out.txt"))) {
+                // writeUTF将字符串以修改过的 UTF-8 编码写入输出流中。
+                // 这种编码在写入时会在前面加上两个字节的表示长度的值。这样，readUTF 方法就可以准确地读取这些字符串，无论其长度如何。
+                dos.writeUTF("你好");
+                dos.writeBoolean(false);
+                dos.writeDouble(6.9);
+                dos.writeInt(82);
+            } catch (IOException e) {
+                System.err.println("Error writing to file: " + e.getMessage());
+            }
+            // 将文件中的数据读取回内存中的变量
+            try (DataInputStream dis = new DataInputStream(new FileInputStream("out.txt"))) {
+                System.out.println(dis.readUTF());
+                System.out.println(dis.readBoolean());
+                System.out.println(dis.readDouble());
+                System.out.println(dis.readInt());
+            } catch (IOException e) {
+                System.err.println("Error reading from file: " + e.getMessage());
+            }
+        } catch (Exception e) {
+            System.err.println("Unexpected error: " + e.getMessage());
+        }
+    }
+}
+</code>
+
+<h1>推回流 PushbackInputStream</h1>
+在JAVA IO中所有的数据都是采用顺序的读取方式，即对于一个输入流来讲都是采用从头到尾的顺序读取的，如果在输入流中某个不需要的内容被读取进来，则只能通过程序将这些不需要的内容处理掉
+为了解决这样的处理问题，在JAVA中提供了一种推回流，可以在读取数据后将数据“推回”到流中，以便后续读取。
+这在某些情况下很有用，例如在读取数据时，需要查看数据的一部分，然后决定如何继续读取
+回退流同样分为字节流和字符流（PushbackInputStream 和 PushbackReader）
+<code>
+public class Demo {
+    public static void main(String[] args) {
+        // eg1----------------------------------------------
+        String file = &quot;out.txt&quot;;
+        try (FileInputStream fis = new FileInputStream(file);
+             PushbackInputStream pbis = new PushbackInputStream(fis)) {
+ 
+            int data = pbis.read();
+            System.out.println(&quot;Read: &quot; + (char)data);
+            // Push back the data
+            pbis.unread(data);
+            // Read the data again
+            data = pbis.read();
+            System.out.println(&quot;Read again: &quot; + (char)data);
+ 
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+ 
+        // eg2----------------------------------------------
+        String str = &quot;www.google.com&quot;;
+        try(//ByteArrayInputStream 是一个输入流，这种方法的好处是你可以在内存中操作字节数组，而不必将字符串写入文件
+            //另一种方法是直接使用 StringReader，这样可以将字符串作为字符流直接处理，而无需转换为字节数组
+            //ByteArrayInputStream bai = new ByteArrayInputStream(str.getBytes());
+            //PushbackInputStream pis = new PushbackInputStream(bai)
+            StringReader sr = new StringReader(str);
+            PushbackReader pr = new PushbackReader(sr)) {
+ 
+            int temp;
+            while ((temp = pr.read()) != -1) {
+                if (temp == &#39;.&#39;) {//判断是否读取到了字符“.”
+                    pr.unread(temp);//放回到缓冲区之中
+                    temp = pr.read();//再读一遍
+                    System.out.print(&quot;[&quot; + (char) temp + &quot;]&quot;);//包装一下
+                } else {
+                    System.out.print((char) temp);
+                }
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        //www[.]google[.]com
+ 
+        // eg3----------------------------------------------
+        String htmlContent = &quot;&lt;html&gt;\n&quot; +
+                &quot;&lt;body&gt;\n&quot; +
+                &quot;&lt;!-- This is a comment --&gt;\n&quot; +
+                &quot;&lt;!-0 This is not a comment --&gt;\n&quot; +
+                &quot;&lt;h1&gt;Hello, World!&lt;/h1&gt;\n&quot; +
+                &quot;&lt;/body&gt;\n&quot; +
+                &quot;&lt;/html&gt;&quot;;
+        //使用 PushbackReader 读取每个字符，并检查是否是注释的开头 &lt;!--。如果是，我们将 &lt;!-- 替换为 ***，然后继续读取下一个字符。
+        //否则，我们将字符写入到 StringWriter 中
+        try (StringReader stringReader = new StringReader(htmlContent);
+             //PushbackReader 可以接收一个可选的整数参数，用于指定推回缓冲区的大小。
+             //如果推回的字符数超过了指定的大小，将会抛出 IOException。
+             //在这里，我们使用 htmlContent.length() 作为推回缓冲区的大小，因为我们知道字符串的长度就是我们要处理的字符数量
+             PushbackReader pushbackReader = new PushbackReader(stringReader, htmlContent.length())) {
+ 
+            StringWriter stringWriter = new StringWriter();
+            int c;
+            while ((c = pushbackReader.read()) != -1) {
+                if (c == &#39;&lt;&#39;) {
+                    int nextChar = pushbackReader.read();
+                    if (nextChar == &#39;!&#39;) {
+                        int thirdChar = pushbackReader.read();
+                        if (thirdChar == &#39;-&#39;) {
+                            int fourthChar = pushbackReader.read();
+                            if (fourthChar == &#39;-&#39;) {
+                                stringWriter.write(&quot;***&quot;);
+                                continue;
+                            } else {
+                                pushbackReader.unread(fourthChar);
+                                pushbackReader.unread(thirdChar);
+                            }
+                        } else {
+                            pushbackReader.unread(thirdChar);
+                        }
+                    }
+                    pushbackReader.unread(nextChar);
+                }
+                stringWriter.write(c);
+            }
+            System.out.println(&quot;\nModified HTML:&quot;);
+            System.out.println(stringWriter);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        //*** This is a comment --&gt;
+        //&lt;!-0 This is not a comment --&gt;
+    }
+}
+</code>
+
+<h1>System标准流</h1>
+标准输入（System.in）：通常用于从控制台或其他标准输入设备读取用户输入。在命令行程序和交互式应用程序中经常使用。
+标准输出（System.out）：通常用于向控制台或其他标准输出设备打印程序输出。在命令行程序和控制台应用程序中经常使用。
+标准错误（System.err）：通常用于输出错误消息和异常信息，这些信息需要与标准输出分开显示，以便用户或开发人员能够更容易地识别和处理错误。
+<code>
+//将输出写入文件
+try(PrintStream printOut = new PrintStream(new FileOutputStream("out.txt"))) {
+    System.setOut(printOut);//使用setIn(InputStream)、setOut(PrintStream)、setErr(PrintStream)进行重定向
+    System.out.println("Hello, World!");
+    System.out.println("This is a test message.");
+    System.out.println("Standard output redirected to file successfully.");
+} catch (IOException e) {
+    System.err.println("Error redirecting standard output: " + e.getMessage());
+}
+</code>
+<code>
+//将输入追加到文件
+try (BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+     BufferedWriter writer = new BufferedWriter(new FileWriter("out.txt", true))) {
+    String line;
+    while ((line = reader.readLine()) != null && !line.equals("exit")) {
+        System.out.println(line);//跟随输入输出
+        writer.write(line);
+        writer.newLine();
+    }
+} catch (IOException e) {
+    e.printStackTrace();
+}
+</code>
+<code>
+public class Demo {
+    public static void main(String[] args) {
+        try {
+            // 创建一个文件作为标准输入流
+            FileInputStream fis = new FileInputStream("input.txt");
+            System.setIn(fis);
+ 
+            // 创建一个文件作为标准输出流
+            FileOutputStream fos = new FileOutputStream("output.txt");
+            System.setOut(new PrintStream(fos));
+ 
+            // 创建一个文件作为标准错误流
+            FileOutputStream errfos = new FileOutputStream("error.txt");
+            System.setErr(new PrintStream(errfos));
+ 
+            // 从标准输入读取并写入标准输出
+            BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+            BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(System.out));
+            String line;
+            while ((line = reader.readLine()) != null && !line.equals("exit")) {
+                writer.write(line);
+                writer.newLine();
+                writer.flush();
+            }
+ 
+            // 输出错误消息到标准错误流
+            System.err.println("This is an error message.");
+ 
+            // 关闭资源
+            fis.close();
+            fos.close();
+            errfos.close();
+            reader.close();
+            writer.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
+</code>
+
+<h1>zip解压缩</h1>
+Java 内置的 java.util.zip 包; 只支持 ZIP 文件格式
+<code>
+//使用字节流以便可以压缩任意类型的文件
+//压缩文件的过程不涉及文件内容的编码转换
+public class ZipFileUtils {
+    public static void compressFiles(File[] files, String zipPath) throws IOException {
+        try (FileOutputStream fos = new FileOutputStream(zipPath);
+             // 使用装饰器模式在给流添加校验功能
+             CheckedOutputStream checkedOs = new CheckedOutputStream(fos, new Adler32());
+             // ZipOutputStream 也是从FilterOutputStream 继承下来的
+             ZipOutputStream zipOut = new ZipOutputStream(checkedOs)) {
+ 
+            // 使用装饰器模式在给流添加缓冲功能
+            BufferedOutputStream buffOut = new BufferedOutputStream(zipOut);
+            // 对于压缩输出流我们可以设置个注释
+            zipOut.setComment("zip test");
+            // 从Files[] 数组中读入一批文件，然后写入zip包的过程
+            for (File file : files) {
+                try (FileInputStream fis = new FileInputStream(file)) {
+                    // 一个文件对象在zip流中用一个ZipEntry表示，使用putNextEntry添加到zip流中
+                    zipOut.putNextEntry(new ZipEntry(file.getName()));
+ 
+                    byte[] buffer = new byte[1024];
+                    int length;
+                    while ((length = fis.read(buffer)) != -1) {
+                        buffOut.write(buffer, 0, length);
+                    }
+                    buffOut.flush();
+                }
+            }
+        }
+    }
+    public static void main(String[] args) throws IOException {
+        String dir = "d:/test";
+        String zipPath = "d:/test.zip";
+        File[] files = new File(dir).listFiles();
+        if (files != null && files.length > 0) {
+            ZipFileUtils.compressFiles(files, zipPath);
+            System.out.println("Files compressed successfully.");
+        } else {
+            System.out.println("No files to compress.");
+        }
+    }
+}
+</code>
+<code>
+public class UnzipFileUtils {
+    public static void decompressFiles(String zipPath, String destDir) throws IOException {
+        File dir = new File(destDir);
+        if (!dir.exists()) dir.mkdirs();
+ 
+        try (FileInputStream fis = new FileInputStream(zipPath);
+             CheckedInputStream checkedIs = new CheckedInputStream(fis, new Adler32());
+             ZipInputStream zipIn = new ZipInputStream(checkedIs)) {
+ 
+            // 遍历ZIP文件中的每个条目
+            ZipEntry entry;
+            while ((entry = zipIn.getNextEntry()) != null) {
+                String filePath = destDir + File.separator + entry.getName();
+                if (!entry.isDirectory()) {
+                    // 如果条目不是目录，则解压文件
+                    extractFile(zipIn, filePath);
+                } else {
+                    // 如果条目是目录，则创建目录
+                    File dirEntry = new File(filePath);
+                    dirEntry.mkdirs();
+                }
+                zipIn.closeEntry();
+            }
+        }
+    }
+    private static void extractFile(ZipInputStream zipIn, String filePath) throws IOException {
+        try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(filePath))) {
+            byte[] buffer = new byte[1024];
+            int read;
+            while ((read = zipIn.read(buffer)) != -1) {
+                bos.write(buffer, 0, read);
+            }
+            bos.flush();
+        }
+    }
+    public static void main(String[] args) throws IOException {
+        String zipPath = "d:/test.zip";
+        String destDir = "d:/test_unzipped";
+        UnzipFileUtils.decompressFiles(zipPath, destDir);
+        System.out.println("Files decompressed successfully.");
+    }
+}
+</code>
+
+<h1>Scanner</h1>
+Scanner类通常被用于从输入流中扫描并解析基本类型和字符串。
+虽然Scanner可以使用System.in作为输入源，但它更通用的用法是处理各种类型的输入，包括文件、字符串等。因此，尽管Scanner用于处理输入，但它不属于Java IO包的一部分。
+Scanner的构造器支持多种方式，可以从字符串（Readable）、输入流、文件等等来直接构建Scanner对象
+<code>
+//Scanner默认分隔符Pattern为"\p{javaWhitespace}",一个或多个连续的Java空白字符(包括空格、制表符、换行符等)
+Scanner s = new Scanner("123 asdf。。。hjksdfojk----634345664，erg");
+s.useDelimiter("[ ,.]");// 设置新的分割符 使用空格或逗号或点号作为分隔符
+System.out.println(s.delimiter());//返回此 Scanner 当前正在用于匹配分隔符的Pattern
+</code>
+<code>
+public class Demo {
+    public static void main(String[] args) {
+        String filePath = "out.txt";
+        try(Scanner scanner = new Scanner(new File(filePath))) {
+            while (scanner.hasNextLine()) {
+                //nextLine()方法是读取一整行，以一个回车符作为结束标记停止扫描,当下一个要接收数字类型时,需要scanner.nextLine() 来消费掉换行符
+                //next() / nextInt() / nextDouble()等方法是，读取到第一个结束符【空格、回车、Tab键】作为结束标记停止扫描
+                String line = scanner.nextLine();
+                System.out.println(line);
+            }
+        } catch (FileNotFoundException e) {
+            System.err.println("File not found: " + e.getMessage());
+        }
+        //早晨跨得雕鞍去
+        //日暮归来红粉香
+    }
+}
+</code>
+
+<h1>RandomAccessFile</h1>
+RandomAccessFile是Java中用于对文件进行随机读写的类，可以用于直接访问这些文件，以读取或修改特定的记录，而不必加载整个文件到内存中。
+与常规的输入流（FileInputStream等）不同，RandomAccessFile可以在任意位置读写数据，而不必从文件的开头开始
+    日志文件处理：
+        在处理日志文件时，可能需要定位到文件的特定位置来查找或修改日志记录。RandomAccessFile可以让你直接跳转到日志文件中的特定位置，而不必逐行读取。
+<code>
+//log.txt
+//2024-06-19|Error: Something went wrong
+//2024-06-20|Info: Process completed successfully
+//2024-06-21|Warning: Potential performance issue
+//假设log文件体积很大,同时需要频繁查找, 其中的RandomAccessFile类在上面的代码中是否充分发挥了它自身的设计目标, 避免加载整个文件到内存,只找有用的
+//RandomAccessFile 被用来逐行读取文件内容，并在找到匹配的日期时立即停止读取。
+//这种方式确实避免了将整个文件加载到内存中，并充分利用了 RandomAccessFile 的随机访问能力。这是一个高效的查找方式，尤其适合处理大型文件。
+public class Demo {
+    public static void main(String[] args) {
+        String filePath = "log.txt";
+        String targetDate = "2024-06-20";
+ 
+        try (RandomAccessFile raf = new RandomAccessFile(filePath, "r")) {//只读
+            String line;
+            boolean recordFound = false; // 标记是否找到记录
+ 
+            while ((line = raf.readLine()) != null) {
+                String[] parts = line.split("\\|");
+                String logDate = parts[0];
+                if (logDate.equals(targetDate)) {
+                    System.out.println("Found log record for date: " + targetDate);
+                    System.out.println("Log message: " + parts[1]);
+                    recordFound = true; // 记录已找到
+                    break;
+                }
+            }
+            // 如果没有找到目标日期的日志记录，则打印消息
+            if (!recordFound) {
+                System.out.println("No log record found for date: " + targetDate);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
+</code>
+    数据库文件处理：
+        对于一些简单的数据库系统，数据通常存储在文件中。RandomAccessFile可以用于直接访问数据库文件的特定记录或数据块，而不必加载整个文件到内存中。
+    网络编程：
+        在网络编程中，RandomAccessFile可以用于处理文件下载或上传的断点续传功能。它允许你在文件中定位并继续读取或写入数据，而无需重新开始。
+        大文件上传文件中途暂停或失败（比如遇到网络问题）之后，不需要重新上传，只需要上传那些未成功上传的文件分片即可
+        分片（先将文件切分成多个文件分片）上传是断点续传的基础,RandomAccessFile 可以帮助我们合并文件分片
+    配置文件管理：
+        有时候需要从配置文件中读取或修改特定的配置项。RandomAccessFile可以让你定位到配置文件中的特定位置，并读取或修改相应的配置项，而不必读取整个文件。
+<code>
+/*
+spring.datasource.an=110000
+spring.datasource.n=11222
+spring.datasource.name=111
+spring.datasource.nae=1119999
+spring.datasource.username=222
+spring.datasource.password=asd!123A
+spring.datasource.url=jdbc:mysql://localhost:3306/mall?serverTimezone=UTC&useUnicode=true&characterEncoding=utf-8&useSSL=true
+ 
+在你的代码中，RandomAccessFile 类的确充分发挥了它的设计目标，避免了加载整个文件到内存中，可以区域性地针对性地查找或修改文件的内容。这种方式适合处理大文件，可以有效地节省内存和提高性能
+ */
+public class ConfigFileExample {
+    public static void modifyPropertyValue(String filePath, String propertyName, String newValue) {
+        File file = new File(filePath);
+        File tempFile = new File(file.getAbsolutePath() + ".tmp");
+ 
+        try (RandomAccessFile raf = new RandomAccessFile(file, "rw");//可读可写
+             BufferedWriter writer = new BufferedWriter(new FileWriter(tempFile))) {
+            String line;
+            boolean propertyFound = false;
+            String oldValue = null;
+ 
+            while ((line = raf.readLine()) != null) {
+                int index = line.indexOf('=');
+                if (index != -1) {
+                    String key = line.substring(0, index).trim();
+                    if (key.equals(propertyName)) {
+                        oldValue = line.substring(index + 1).trim();
+                        line = key + "=" + newValue;
+                        propertyFound = true;
+                    }
+                }
+                writer.write(line);
+                writer.newLine();
+            }
+            writer.flush();
+            raf.close();
+            writer.close();
+ 
+            if (file.delete()) {
+                if (!tempFile.renameTo(file)) {
+                    throw new IOException("Could not rename temp file to original file name.");
+                }
+            } else {
+                throw new IOException("Could not delete the original file.");
+            }
+ 
+            if (propertyFound) {
+                System.out.println("Updated property: " + propertyName + " from: " + filePath);
+                System.out.println("Old Value: " + oldValue);
+                System.out.println("New Value: " + newValue);
+            } else {
+                System.out.println("Property not found: " + propertyName);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+ 
+    public static String getPropertyValue(String filePath, String propertyName) {
+        File file = new File(filePath);
+ 
+        try (RandomAccessFile raf = new RandomAccessFile(file, "r")) {
+            String line;
+            while ((line = raf.readLine()) != null) {
+                int index = line.indexOf('=');
+                if (index != -1) {
+                    String key = line.substring(0, index).trim();
+                    if (key.equals(propertyName)) {
+                        return "Query property: " + propertyName + "="+line.substring(index + 1).trim()+" from: " + filePath;
+                    }
+                }
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return "property: " + propertyName + " not found from: " + filePath;
+    }
+ 
+    public static void main(String[] args) {
+        try {
+            modifyPropertyValue("src/main/resources/application.properties", "spring.datasource.name", "my_datasource");
+            modifyPropertyValue("src/main/resources/application.properties", "spring.datasource.username", "admin");
+            System.out.println(getPropertyValue("src/main/resources/application.properties", "spring.datasource.password"));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+</code>
+    文件索引：
+        在某些应用中，可能需要维护文件的索引信息以加快文件的查找速度。RandomAccessFile可以用于读取或更新文件的索引信息，从而实现快速的文件查找。
+</pre>
+ </body>
+</html>

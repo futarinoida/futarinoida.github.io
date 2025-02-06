@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>final</title>
+</head>
+<body><span id="anchor">20240616183123-_java</span>
+<pre>
+final线程安全不需要额外的同步开销
+static和final组合,通常用来存储配置信息
+
+修饰类防止被继承
+修饰方法防止被重写
+    被final修饰的方法,JVM会尝试将其内联,以提高运行效率
+修饰引用,表示引用不可变,引用指向的内容可变.
+修饰变量防止被修改
+    被final修饰的常量,在编译阶段会存入常量池中.
+    三种变量
+        只能被赋值一次,之后不能被改变
+        类中的final属性
+            在声明变量时直接赋值
+            在构造函数中赋值
+            在类的初始代码块中赋值
+        类中static final属性
+            在声明变量时直接赋值
+            在static初始代码块中赋值
+        方法中的final变量
+            在使用前必须赋值
+</pre>
+</body>
+</html>

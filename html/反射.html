@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css"></style>
+  <script src="../js/content.js"></script>
+  <title>反射</title>
+ </head>
+ <body>
+  <span id="anchor">20240413004212-_java</span>
+  <pre>
+一般用来解决Java 程序运行期间，对某个实例对象一无所知的情况下，如何调用该对象内部的方法问题
+    优点：动态代理（在不修改原来代码的情况下，通过代理对象对原对象的方法进行增强）、注解处理、框架
+    缺点：使用反射基本是解释执行，对程序执行速度有影响。
+        正因为反射不受类的访问权限限制，其安全性低，很大部分的java安全问题都是反射导致的。
+        相对于正常的对象的访问调用，反射因为存在类和方法的实例化过程，性能也相对较低
+        破坏java类封装性，类的信息隐藏性和边界被破坏
+
+<h1>动态语言</h1>
+是一类在运行时可以改变其结构的语言：例如新的函数、对象、甚至代码可以被引进，已有的函数可以被删除或是其他结构上的变化。通俗点说就是在运行时代码可以根据某些条件改变自身结构。如Object-C、C#、JavaScript、PHP、Python、Erlang。
+
+<h1>静态语言</h1>
+与动态语言相对应的，运行时结构不可变的语言就是静态语言。如Java、C、C++。
+Java不是动态语言，但Java可以称之为“准动态语言”。即Java有一定的动态性，我们可以利用反射机制、字节码操作获得类似动态语言的特性
+反射机制是Java实现动态语言的关键，也就是通过反射实现类的动态加载。
+    静态加载：编译时就加载相关的类，如果程序中不存在该类则编译报错，依赖性太强。
+    动态加载：运行时加载相关的类，即使程序中不存在该类，但如果运行时未使用到该类，也不会编译错误，依赖性较弱。
+<code>
+public static void main(String[] args) {
+    Scanner sc = new Scanner(System.in);
+    int key = sc.nextInt();
+    switch(key) {
+        case 0:
+            Cat cat = new Cat();
+            break;
+        case 1:
+            // 通过反射创建一个Dog 类对象，不提供代码，只是文字说明
+            break;
+    }
+}
+</code>
+    上面代码中，根据 key 的值选择创建 Cat/Dog 对象，但是在代码编译时，编译器会先检查程序中是否存在 Cat 类，如果没有，则会编译报错；编译器不会检查是否存在 Dog 类，因为 Dog 类是使用反射的方式创建的，所以即使程序中不存在 Dog 类，也不会编译报错，而是等到程序运行时，我们真正选择了 key = 1 后，才会去检查 Dog 类是否存在。
+
+<h1>反射与封装</h1>
+如果使用反射可以获取private字段的值，那么类的封装还有什么意义？
+    答案是一般情况下，我们总是通过p.name来访问Person的name字段，编译器会根据public、protected和private这些访问权限修饰符决定是否允许访问字段，这样就达到了数据封装的目的。
+    而反射是一种非常规的用法，使用反射，首先代码非常繁琐；其次，它更多地是给工具或者底层框架来使用，目的是在不知道目标对象任何信息的情况下，获取特定字段的值。
+    此外，setAccessible(true)可能会失败。 如果 JVM 运行期存在SecurityManager，那么它会根据规则进行检查，有可能阻止setAccessible(true)。例如，某个SecurityManager可能不允许对java和javax开头的package的类调用setAccessible(true)，这样可以保证 JVM 核心库的安全。
+
+
+<h1>类的加载时机</h1>
+创建该类或子类的对象会触发类加载。
+访问类的静态成员变量时会触发类加载。
+    JVM虚拟机只会为静态变量分配一次内存，在加载类的过程中完成对静态变量的内存分配；
+调用类的静态方法时会触发类加载。
+对类或接口的静态字段执行读写操作（即执行getstatic、putstatic指令）；不过final修饰的静态字段的除外(已经赋值，String和基本类型，不包含包装类型)，它被初始化为一个编译时常量表达式
+    注意 ：操作静态字段时，只有直接定义这个字段的类才会被初始化；如通过其子类来操作父类中定义的静态字段，只会触发父类&lt;clinit&gt;的初始化而不是子类的初始化
+使用java命令执行有主方法main的类，也会触发类的加载
+使用反射方式来强制创建某个类或接口对应的java.lang.Class对象
+
+<h1>类的加载过程</h1>
+类的加载是由类加载器在程序运行期间动态进行的，一个类只会被加载一次,将类的字节码文件加载到内存中，过程包括加载、连接（验证、准备、解析）和初始化三个阶段。
+    在加载阶段，类加载器从文件系统,jar包,网络或其他来源加载类的字节码文件，并创建一个代表该类的Class对象。
+    在连接阶段，虚拟机将对类的字节码进行验证、准备和解析
+        验证：校验class字节流是否符合当前jvm规范
+        准备：为 类变量 分配内存并设置变量的初始值( 默认值 )。如果是final修饰的对象则是赋值声明值
+        解析：将常量池的符号引用替换为直接引用
+    在初始化阶段，虚拟机对类进行初始化，包括执行静态变量的赋值和静态代码块的执行。
+
+    类加载和实例化对象是两个不同的概念。实例化对象是根据类的定义创建一个类的实例。
+    实例化对象时，虚拟机会为对象分配内存，并调用类的构造方法进行初始化。
+        使用new关键字
+        使用Class类的newInstance方法
+        使用Constructor类的newInstance方法
+        使用clone方法
+        使用反序列化
+<code>
+public class Main {
+    public static void main(String[] args) {
+        if (args.length &gt; 0) {
+            create(args[0]);
+        }
+    }
+    static void create(String name) {
+        Person p = new Person(name);
+    }
+}
+</code>
+JVM在执行 Java程序的时候，并不是一次性把所有用到的class全部加载到内存，而是第一次需要用到class时才加载
+当执行Main.java时，由于用到了Main类，因此，JVM 首先会把Main类对应的Class类对象Main.class加载到内存中。
+然而，并不会加载Person.class，除非程序执行到create()方法，JVM 发现需要加载Person类时，才会首次加载Person类对应的Class类对象Person.class。
+如果没有执行create()方法，那么Person.class根本就不会被加载。这就是 JVM动态加载class的特性。
+
+<h1>ClassLoader类加载器</h1>
+负责加载类的对象,通过Class对象的getClassLoader方法获得, 每个类都有一个类加载器
+    将类的字节码文件从硬盘中加载到内存，并以此在内存中创建一个Class对象。
+        类的字节码二进制数据，是存放在方法区的，又称为类的元数据（包括方法代码、变量名、方法名、访问权限等等）
+
+<h1>Class类对象</h1>
+一个类加载完后，在堆内存中就会产生该类的唯一一个 Class 对象，这个Class 对象包含了该类的完整结构信息，包括类名、包名、父类、实现的接口、所有方法、字段等, 这种通过Class实例获取类class信息的方法称为反射
+
+获取一个类的Class实例
+<code>
+public class ClassExample {
+    public static void main(String[] args) {
+        // 1. 通过类名直接获取
+        Class&lt;String> stringClass = String.class;
+        System.out.println("String class: " + stringClass.getName());
+ 
+        // 2. 通过对象获取
+        String str = "Hello";
+        Class&lt;? extends String> strClass = str.getClass();
+        System.out.println("String object class: " + strClass.getName());
+ 
+        // 3. 通过类的完整类名获取
+        try {
+            Class&lt;?> clazz = Class.forName("java.lang.String");
+            System.out.println("Class.forName: " + clazz.getName());
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+ 
+        // 4. 通过基本数据类型获取
+        Class&lt;Integer> intClass = int.class;
+        System.out.println("int class: " + intClass.getName());
+ 
+        // 5. 通过基本数据类型的包装类获取
+        Class&lt;Integer> type1 = Integer.TYPE;
+        System.out.println("Integer.TYPE: " + type1.getName());
+ 
+        // 6. 基本数据类型和对应包装类获取到的Class对象是同一个
+        System.out.println(int.class == Integer.TYPE); // true
+        System.out.println(char.class == Character.TYPE); // true
+        System.out.println(boolean.class == Boolean.TYPE); // true
+    }
+}
+</code>
+判断一个对象是否是某个类型时，正常情况下，使用instanceof操作符
+如果是两个Class类对象，可以调用isAssignableFrom()方法, 判断一个类是否是另一个类的父类或接口
+<code>
+public static void main(String[] args) {
+    String str = "Hello";
+    if (str instanceof String) {
+        System.out.println("str is an instance of String");
+    }
+ 
+    Class&lt;?> numberClass = Number.class;
+    Class&lt;?> integerClass = Integer.class;
+    if (numberClass.isAssignableFrom(integerClass)) {
+        System.out.println("Number is assignable from Integer");
+    }
+}
+</code>
+
+<h1>Constructor</h1>
+Constructor类对象只含有当前类定义的构造方法，和父类无关，因此不存在多态的问题
+<code>
+// 获取当前类中public的构造函数
+Constructor getConstructor(Class&lt;?>... parameterTypes)
+ 
+// 获取当前类中所有public的构造函数
+Constructor[] getConstructors()
+ 
+// 获取某个Constructor，包括public、protected、default（package）和private
+Constructor getDeclaredConstructor(Class&lt;?>... parameterTypes)
+ 
+// 获取所有Constructor，包括public、protected、default（package）和private
+Constructor[] getDeclaredConstructors()
+</code>
+<code>
+Person p = Person.class.newInstance() //类对象.newInstance()只能调用该类的public无参构造方法
+ 
+Constructor cons1 = Integer.class.getConstructor(int.class);
+Integer n1 = (Integer) cons1.newInstance(123);
+System.out.println(n1);
+ 
+Constructor cons2 = Integer.class.getConstructor(String.class);
+Integer n2 = (Integer) cons2.newInstance("456");
+System.out.println(n2);
+ 
+Constructor&lt;T> constructor = MyClass.class.getConstructor(String.class, int.class);
+T object = constructor.newInstance("example", 42);
+</code>
+
+<h1>Field</h1>
+<code>
+// 获取某个public的field（包括父类的public field）
+Field getField(String name)
+ 
+// 获取所有public的field（包括父类的public field）
+Field[] getFields()
+ 
+// 获取当前类的某个field，包括public、protected、default（package）和private，不包括父类的field
+Field getDeclaredField(String name)
+ 
+// 获取当前类的所有field，包括public、protected、default（package）和private，不包括父类的field
+Field[] getDeclaredFields()
+</code>
+<code>
+public final class String {
+    private final byte[] value;
+}
+
+Field f = String.class.getDeclaredField("value");
+f.getName(); // "value"
+f.getType(); // class [B 表示byte[]类型
+
+int m = f.getModifiers(); //获取修饰符
+Modifier.isFinal(m); // true
+Modifier.isPublic(m); // false
+Modifier.isProtected(m); // false
+Modifier.isPrivate(m); // true
+Modifier.isStatic(m); // false
+</code>
+<code>
+public class Main {
+    public static void main(String[] args) throws Exception {
+        Person p = new Person("Xiao Ming");
+        Class c = p.getClass();
+        Field f = c.getDeclaredField("name");// 获取 private String name;
+        f.setAccessible(true);
+        Object value = f.get(p);
+        System.out.println(value); // "Xiao Ming"
+
+        f.set(p, "Xiao Hong");// 设置 p 的 name 的值
+        System.out.println(p.getName()); // "Xiao Hong"
+    }
+}
+
+class Person {
+    private String name;
+
+    public Person(String name) {
+        this.name = name;
+    }
+}
+</code>
+
+<h1>Method</h1>
+<code>
+// 获取某个public的Method（包括父类的public method）
+Method getMethod(String name, Class&lt;?>... parameterTypes)
+ 
+// 获取所有public的Method（包括父类的public method）
+Method[] getMethods()
+ 
+// 获取当前类的某个Method，包括public、protected、default（package）和private，不包括父类的method
+Method getDeclaredMethod(String name, Class&lt;?>... parameterTypes)
+ 
+// 获取当前类的所有Method，包括public、protected、default（package）和private，不包括父类的method
+Method[] getDeclaredMethods()
+</code>
+getName(): 返回方法的名称
+getReturnType(): 返回方法的返回值类型，也是一个 Class 实例，例如：String.class；
+getParameterTypes(): 返回方法的参数类型，是一个 Class 数组，例如：{String.class, int.class}；
+getModifiers(): 返回方法的修饰符，它是一个 int，不同的 bit 表示不同的含义。
+<code>
+Class clz = Class.forName("com.ida.entity.Employee");
+Constructor constructor = clz.getConstructor(int.class,String.class,Float.class,String.class);
+Employee employee = (Employee) constructor.newInstance(1001,"张三",5000f,"销售");
+Field[] fields = clz.getDeclaredFields();
+for (Field field : fields) {
+    if (field.getModifiers() == 1) {//公有
+        Object o = field.get(employee);
+        System.out.println(o);
+    } else if (field.getModifiers() ==2) {//私有
+        String m = "get"+field.getName().substring(0,1).toUpperCase()+field.getName().substring(1);
+        Method method = clz.getMethod(m);
+        Object o =  method.invoke(employee);
+        System.out.println(o);
+    }
+}
+</code>
+<code>
+public class Main {
+    public static void main(String[] args) throws Exception {
+        Class stdClass = Student.class;
+        System.out.println(stdClass.getMethod("getScore", String.class));
+        System.out.println(stdClass.getMethod("getName"));
+        System.out.println(stdClass.getDeclaredMethod("getGrade", int.class));
+        //public int Student.getScore(java.lang.String)
+        //public java.lang.String Person.getName()
+        //private int Student.getGrade(int)
+    }
+}
+class Student extends Person {
+    public int getScore(String type) {
+        return 99;
+    }
+    private int getGrade(int year) {
+        return 1;
+    }
+}
+class Person {
+    public String getName() {
+        return "Person";
+    }
+}
+</code>
+<code>
+public class Main {
+    public static void main(String[] args) throws Exception {
+        // String 对象:
+        String s = "Hello world";
+        // 获取 String substring(int)方法，形参为 int:
+        Method m = String.class.getMethod("substring", int.class);
+        // 在 s 对象上调用该方法并获取结果:
+        String r = (String) m.invoke(s, 6);
+        // 打印调用结果:
+        System.out.println(r);
+    }
+}
+</code>
+invoke()
+    Object invoke(Object obj, Object... args)
+    如果底层方法是静态的，那么可以忽略指定的 obj 参数。该参数可以为 null
+    如果底层方法所需的形参数为 0，则所提供的 args 数组长度可以为 0 或 null
+    如果方法正常完成，则将该方法返回的值返回给调用者
+    如果该值为基本类型，则首先适当地将其包装在对象中。
+    如果该值的类型为一组基本类型，则数组元素不被包装在对象中,返回基本类型的数组
+
+调用静态方法
+    如果获取到的Method表示一个静态方法，调用静态方法时，由于无需指定实例对象，所以invoke方法传入的第一个参数永远为null。我们以Integer.parseInt(String)方法为例：
+<code>
+public class Main {
+    public static void main(String[] args) throws Exception {
+        // 获取 Integer.parseInt(String) 方法，参数为 String:
+        Method m = Integer.class.getMethod("parseInt", String.class);
+        //Method methodMain = clazz.getMethod("main", String[].class)，main方法形参的类型String[].class
+        // 调用该静态方法并获取结果:
+        Integer n = (Integer) m.invoke(null, "12345");
+        // 打印调用结果:
+        System.out.println(n);// 12345
+    }
+}
+</code>
+调用非 public方法
+    由于 Method 对象的 setAccessible(true) 调用是在运行时进行的，并不会在 ClassLoader 被销毁后自动恢复原来的访问权限。因此，即使 ClassLoader 被销毁，权限修改也会继续生效。
+    正确的做法是在使用 setAccessible(true) 修改访问权限后，执行完操作后再恢复原始状态，以避免潜在的安全问题
+<code>
+public class Main {
+    public static void main(String[] args) throws Exception {
+        Person p = new Person();
+        Method m = p.getClass().getDeclaredMethod("setName", String.class);
+        boolean accessible = m.isAccessible(); // 保存当前的访问权限状态
+        m.setAccessible(true); // 设置为可访问
+        m.invoke(p, "Bob");
+        m.setAccessible(accessible); // 恢复原始的访问权限状态
+        System.out.println(p.name); // Bob
+    }
+}
+ 
+class Person {
+    String name;
+
+    private void setName(String name) {
+        this.name = name;
+    }
+}
+</code>
+
+<h1>父类</h1>
+Integer的父类类型是Number，Number的父类是Object，Object是祖先类
+如果一个类没有显式地指定继承自哪个类，那么它默认继承自 Object 类
+除了接口外，所有类都有父类
+接口和类是不同的概念，虽然接口可以继承其他接口，但这并不等同于类的继承，但在继承的语境下，并不能说接口有父类这个说法。
+<code>
+public class Main {
+    public static void main(String[] args) throws Exception {
+        Class i = Integer.class;
+        Class n = i.getSuperclass();
+        System.out.println(n);
+        Class o = n.getSuperclass();
+        System.out.println(o);
+        System.out.println(o.getSuperclass());
+    }
+}
+-------------------
+class java.lang.Number
+class java.lang.Object
+null
+</code>
+
+<h1>接口</h1>
+对接口调用 getSuperclass()总是返回 null，获取接口的父接口要用 getInterfaces()
+如果一个类没有实现任何interface，那么getInterfaces()返回空数组
+getInterfaces()方法只返回当前类直接实现的接口，不包括其父类实现的接口
+<code>
+public class Main {
+    public static void main(String[] args) throws Exception {
+        Class s = Integer.class;
+        Class[] is = s.getInterfaces();
+        for (Class i : is) {
+            System.out.println(i);
+        }
+    }
+}
+-----------------
+java.lang.Comparable
+java.lang.constant.Constable
+java.lang.constant.ConstantDesc
+</code>
+<code>
+public class Main {
+    public static void main(String[] args) throws Exception {
+        Class s = Integer.class.getSuperclass();
+        Class[] is = s.getInterfaces(); //class java.lang.Number的接口
+        for (Class i : is) {
+            System.out.println(i);
+        }
+    }
+}
+-----------------
+interface java.io.Serializable
+</code>
+
+<h1>绕过泛型检查</h1>
+<code>
+public class Main {
+    public static void main(String[] args) throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+        List&lt;Student&gt;l=new ArrayList&lt;&gt;();
+        Class c=l.getClass();
+        Method m=c.getDeclaredMethod("add",Object.class);
+        m.invoke(l,"字符串");
+        m.invoke(l,"不是Student却加入了容器");
+        System.out.println(l);
+    }
+}
+</code>
+泛型运行在编译期间，检查你的源程序是否有语法错误，如果没有就将其翻译成字节码文件, 在编译后的.class文件中是没有泛型的。
+像ArrayList这种能够存储所有类型的数据类型的容器，底层一般都是用Object实现。
+如果使用反射就可以直接越过实例化这一步，先调用add方法，最后指定这个方法是附属于某个实例就可以了,这就是反射能够绕过泛型检查的原因
+
+<h1>多态</h1>
+<code>
+public class Main {
+    public static void main(String[] args) throws Exception {
+        // 获取Person的 hello方法:
+        Method h = Person.class.getMethod("hello");
+        // 对 Student实例调用 hello方法:
+        h.invoke(new Student());
+        //输出 Student:hello
+    }
+}
+class Person {
+    public void hello() {
+        System.out.println("Person:hello");
+    }
+}
+class Student extends Person {
+    public void hello() {
+        System.out.println("Student:hello");
+    }
+}
+</code>
+
+<h1>捕获被反射调用的方法内部抛出的异常</h1>
+<code>
+@Retention(RetentionPolicy.RUNTIME)
+@Repeatable(Annos.class)
+@interface Anno {
+    int a() default 1;
+    int b() default 0;
+    int c() default 0;
+}
+@Retention(RetentionPolicy.RUNTIME)
+@interface Annos {
+    Anno[] value();
+}
+class Op {
+    @Anno(b = 2, c = 3)
+    @Anno(a = 0, b = 2, c = 4)
+    private static void add(int a, int b, int c) {
+        if (c != a + b) throw new ArithmeticException("error");
+    }
+}
+public class Demo {
+    public static void main(String[] args) {
+        for (Method m : Op.class.getDeclaredMethods()) {
+            if (m.isAnnotationPresent(Annos.class)) {
+                System.out.println(m.getName());
+                Anno[] annos = m.getAnnotationsByType(Anno.class);
+                for (Anno anno : annos) {
+                    System.out.println(anno.a() + " " + anno.b() + " " + anno.c());
+                    try {
+                        boolean accessible = m.isAccessible();
+                        m.setAccessible(true);
+                        m.invoke(null, anno.a(), anno.b(), anno.c());
+                        m.setAccessible(accessible);
+                    } catch (InvocationTargetException e) {
+                        //捕获被反射调用的方法内部抛出的异常
+                        //要特别处理 InvocationTargetException，因为该异常会包装被调用方法抛出的任何异常。
+                        //可以使用 InvocationTargetException.getCause() 来获取被调用方法内部抛出的异常,getCause() 方法返回的类型是 Throwable
+                        //如果明确知道被调用方法可能抛出的异常类型，并且想要进行特定的处理，可以先用 Throwable 接收，然后进行类型检查
+                        Throwable cause = e.getCause();
+                        if (cause instanceof ArithmeticException) {
+                            System.out.printf("Test [%s] failed: %s %n", m, cause.getMessage());
+                        } else {
+                            System.out.printf("Test [%s] failed: %s %n", m, e);
+                        }
+                    } catch (Exception e) {
+                        System.out.printf("Test [%s] failed: %s %n", m, e);
+                    }
+                }
+            }
+        }
+    }
+}
+/*
+add
+1 2 3
+0 2 4
+Test [private static void com.ida.temp.Op.add(int,int,int)] failed: error 
+*/
+</code>
+
+<h1>应用例1</h1>
+<code>
+package com.ida.reflect.lang;
+public interface Lang {void say();}
+ 
+package com.ida.reflect.lang;
+public class Zh implements Lang{
+    @Override
+    public void say() {
+        System.out.println("你好");
+    }
+}
+ 
+package com.ida.reflect.lang;
+public class En implements Lang{
+    @Override
+    public void say() {
+        System.out.println("hello");
+    }
+}
+</code>
+<code>
+import java.io.BufferedReader;
+import java.io.FileInputStream;
+import java.io.InputStreamReader;
+import java.net.URLDecoder;
+import java.util.Properties;
+ 
+public class Demo {
+    public static void main(String[] args) {
+        Properties properties = new Properties();
+        //language=Zh
+        //#language=En
+        try {
+            //使用 ClassLoader.getResourceAsStream() 和 Class.getResource() 是两种常见的读取资源文件的方法
+            //ClassLoader.getResourceAsStream(String name)：返回一个 InputStream 对象，用于读取资源文件的内容。更适合直接读取资源文件的内容，比如读取配置文件、文本文件等。
+            //Class.getResource(String name)：返回一个 URL 对象，用于定位资源文件的位置。更适合获取资源文件的路径或对资源文件进行其他操作（如传递给其他 API ）。
+            //target/classes/com/ida/reflect/Demo.class
+            //target/classes/config.properties
+            //String path = Demo.class.getResource("../../../config.properties").getPath();
+            //getPath() 返回的路径可能会被编码，特别是当路径中包含特殊字符或空格时
+            //path = URLDecoder.decode(path,"UTF-8");
+            //properties.load(new FileInputStream(path));
+            ClassLoader classLoader = Demo.class.getClassLoader();
+            properties.load(new BufferedReader(new InputStreamReader(classLoader.getResourceAsStream("config.properties"))));
+            //此处反射的作用体现在
+            //当新增了一种语言支持时,Demo2不用重新修改编译,只需将新语言类的.class文件上传到服务器同时修改配置文件即可
+            Class clz = Class.forName("com.ida.reflect.lang."+properties.getProperty("language"));
+            Lang lang = (Lang) clz.newInstance();
+            lang.say();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+}
+</code>
+
+<h1>应用例2</h1>
+<code>
+interface OP{ int operation(int x, int y);}
+ 
+class Add implements OP{
+    @Override
+    public int operation(int x,int y) {return x+y;}
+}
+ 
+class Sub implements OP{
+    @Override
+    public int operation(int x,int y) {return x-y;}
+}
+ 
+public class ReflectSample {
+    @Test
+    public void case1(){
+        Scanner scanner = new Scanner(System.in);
+        System.out.println("第一个数");
+        int x = scanner.nextInt();
+        System.out.println("第二个数");
+        int y = scanner.nextInt();
+        System.out.println("操作类名");
+        String m = scanner.next();
+        OP op = null;
+        if (m.equals("Add")) {//在不修改方法的情况下只能操作Add
+            op = new Add();
+        }
+        int result = op.operation(x, y);
+        System.out.println(result);
+    }
+ 
+    @Test
+    public void case2(){
+        Scanner scanner = new Scanner(System.in);
+        System.out.println("第一个数");
+        int x = scanner.nextInt();
+        System.out.println("第二个数");
+        int y = scanner.nextInt();
+        System.out.println("操作类名");
+        String m = scanner.next();
+        OP op = null;
+        try {
+            ClassLoader classLoader = getClass().getClassLoader();
+            Class cls = classLoader.loadClass("com.ida.reflect."+m);//在不修改方法的情况下可以OP子类,Add和Sub
+            op = (OP) cls.newInstance();
+        } catch (ClassNotFoundException | InstantiationException | IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
+        int result = op.operation(x,y);
+        System.out.println(result);
+    }
+}
+</code>
+</pre>
+ </body>
+</html>
