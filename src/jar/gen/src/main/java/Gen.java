@@ -22,13 +22,13 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.commons.text.StringEscapeUtils;
+import org.mozilla.universalchardet.UniversalDetector;
 
 public class Gen {
     private static final Logger logger = LoggerFactory.getLogger(Gen.class);
-    private static List<String> pdfList = new ArrayList<>();
+    private static List<String> bookList = new ArrayList<>();
     private static List<String> imageList = new ArrayList<>();
     private static Metadata imageMetadata = null;
-    private static List<String> txtList = new ArrayList<>();
     private static List<String> audioList = new ArrayList<>();
     private static List<String> videoList = new ArrayList<>();
     private static int idCounter = 0;
@@ -51,9 +51,8 @@ public class Gen {
         }
 
         Path htmlDir = Paths.get(props.getProperty("htmlDir"));
-        Path pdfDir = Paths.get(props.getProperty("pdfDir"));
+        Path bookDir = Paths.get(props.getProperty("bookDir"));
         Path imageDir = Paths.get(props.getProperty("imageDir"));
-        Path txtDir = Paths.get(props.getProperty("txtDir"));
         Path audioDir = Paths.get(props.getProperty("audioDir"));
         Path videoDir = Paths.get(props.getProperty("videoDir"));
         Path sideHtml = Paths.get(props.getProperty("sideHtml"));
@@ -63,7 +62,7 @@ public class Gen {
         List<String> excludeFiles = Arrays.asList(props.getProperty("exclude").split("\\|"));
 
         //处理txt文件
-        txtToHtml(txtDir, Paths.get("append.txt"));
+        txtToHtml(bookDir, Paths.get("append.txt"));
 
         Map<String, List<String>> articlesByCategory = new HashMap<>();
         List<String> volume = new LinkedList<>();
@@ -141,9 +140,9 @@ public class Gen {
         genElement.empty();
         genElement.append(stb.toString());
         boolean flag = false;
-        String p = scanPdf(pdfDir);
+        String p = scanBook(bookDir);
         if(p!=null){
-            genElement = doc.getElementById("pdf");
+            genElement = doc.getElementById("book");
             genElement.empty();
             genElement.append(p);
             flag = true;
@@ -155,14 +154,6 @@ public class Gen {
             genElement.empty();
             genElement.append(im);
             flag2 = true;
-        }
-        boolean flag3 = false;
-        String tx = scanTxt(txtDir);
-        if(tx!=null){
-            genElement = doc.getElementById("txt");
-            genElement.empty();
-            genElement.append(tx);
-            flag3 = true;
         }
         boolean flag4 = false;
         String au = scanAudio(audioDir);
@@ -205,18 +196,13 @@ public class Gen {
             writer.write("`" + volume.get(i) + "`");
         }
         if (flag) {
-            for (int i = 0; i < pdfList.size(); i++) {
-                 writer.write(",`" + pdfList.get(i) + "`");
+            for (int i = 0; i < bookList.size(); i++) {
+                 writer.write(",`" + bookList.get(i) + "`");
             }
         }
         if (flag2) {
             for (int i = 0; i < imageList.size(); i++) {
                 writer.write(",`" + imageList.get(i) + "`");
-            }
-        }
-        if (flag3) {
-            for (int i = 0; i < txtList.size(); i++) {
-                writer.write(",`" + txtList.get(i) + "`");
             }
         }
         if (flag4) {
@@ -235,7 +221,7 @@ public class Gen {
         Files.write(wallpaperJS, generateJSArray(wallpaperDir).getBytes());
     }
 
-    private static String scanPdf(Path sourceDir) {
+    private static String scanBook(Path sourceDir) {
         File directory = new File(String.valueOf(sourceDir));
         if (directory.exists() && directory.isDirectory()) {
             File[] subFiles = directory.listFiles();
@@ -263,7 +249,8 @@ public class Gen {
                                     htmlBuilder.append("\n<span class=\"category inactive\" onclick=\"toggle('")
                                             .append(uniqueId)
                                             .append("')\">")
-                                            .append(categoryName2)
+                                            //.append(categoryName2)
+                                            .append(StringEscapeUtils.escapeHtml4(categoryName2))
                                             .append("</span>\n");
                                     htmlBuilder.append("<ul id=\"").append(uniqueId).append("\" class=\"hidden\">\n");
                                     File[] subFilesInDir2 = subFile.listFiles();
@@ -271,32 +258,84 @@ public class Gen {
                                         for (File subFile2 : subFilesInDir2) {
                                             if (!subFile2.isDirectory() && subFile2.getName().toLowerCase().endsWith(".pdf")) {
                                                 String fileName = subFile2.getName();
-                                                String link = "../pdf/" + categoryName + "/" + categoryName2 + "/" + fileName;
+                                                String link = "../book/" + categoryName + "/" + categoryName2 + "/" + fileName;
                                                 String escapedLink = StringEscapeUtils.escapeHtml4(link);
                                                 htmlBuilder.append("<li><a data-path=\"").append(escapedLink)
                                                         .append("\" target=\"content\">")
                                                         .append(fileName)
                                                         .append("</a></li>\n");
-                                                pdfList.add("");
-                                                pdfList.add("");
-                                                pdfList.add(link);
-                                                pdfList.add("pdf");
+                                                bookList.add("");
+                                                bookList.add("");
+                                                bookList.add(link);
+                                                bookList.add("pdf");
+                                            } else if (!subFile2.isDirectory() && subFile2.getName().endsWith(".html")) {
+                                                String fileName = subFile2.getName();
+                                                String link = "../book/" + categoryName + "/" + categoryName2 + "/" + fileName;
+                                                String escapedLink = StringEscapeUtils.escapeHtml4(link);
+                                                String escapedFileName = StringEscapeUtils.escapeHtml4(fileName.replaceAll(".html", ".txt"));
+
+                                                htmlBuilder.append("<li><a data-path=\"").append(escapedLink)
+                                                        .append("\">").append(escapedFileName)
+                                                        .append("</a></li>\n");
+                                                bookList.add("");
+                                                bookList.add("");
+                                                bookList.add(link);
+                                                bookList.add("txt");
+                                            } else if (!subFile2.isDirectory() && subFile2.getName().endsWith(".epub")) {
+                                                String fileName = subFile2.getName();
+                                                String link = "../book/" + categoryName + "/" + categoryName2 + "/" + fileName;
+                                                String escapedLink = StringEscapeUtils.escapeHtml4(link);
+                                                htmlBuilder.append("<li><a data-path=\"").append(escapedLink)
+                                                        .append("\" target=\"content\">")
+                                                        .append(fileName)
+                                                        .append("</a></li>\n");
+                                                bookList.add("");
+                                                bookList.add("");
+                                                bookList.add(link);
+                                                bookList.add("epub");
                                             }
                                         }
                                     }
                                     htmlBuilder.append("</ul>\n");
                                 } else if (!subFile.isDirectory() && subFile.getName().toLowerCase().endsWith(".pdf")) {
                                     String fileName = subFile.getName();
-                                    String link = "../pdf/" + categoryName + "/" + fileName;
+                                    String link = "../book/" + categoryName + "/" + fileName;
                                     String escapedLink = StringEscapeUtils.escapeHtml4(link);
                                     unclassifiedFiles2.append("<li><a data-path=\"").append(escapedLink)
                                             .append("\" target=\"content\">")
                                             .append(fileName)
                                             .append("</a></li>\n");
-                                    pdfList.add("");
-                                    pdfList.add("");
-                                    pdfList.add(link);
-                                    pdfList.add("pdf");
+                                    bookList.add("");
+                                    bookList.add("");
+                                    bookList.add(link);
+                                    bookList.add("pdf");
+                                } else if (!subFile.isDirectory() && subFile.getName().endsWith(".html")) {
+                                    String fileName = subFile.getName();
+                                    String link = "../book/" + categoryName + "/" + fileName;
+
+                                    // ✅ 处理 HTML 特殊字符
+                                    String escapedLink = StringEscapeUtils.escapeHtml4(link);
+                                    String escapedFileName = StringEscapeUtils.escapeHtml4(fileName.replaceAll(".html", ".txt"));
+
+                                    unclassifiedFiles2.append("<li><a data-path=\"").append(escapedLink)
+                                            .append("\">").append(escapedFileName)
+                                            .append("</a></li>\n");
+                                    bookList.add("");
+                                    bookList.add("");
+                                    bookList.add(link);
+                                    bookList.add("txt");
+                                } else if (!subFile.isDirectory() && subFile.getName().toLowerCase().endsWith(".epub")) {
+                                    String fileName = subFile.getName();
+                                    String link = "../book/" + categoryName + "/" + fileName;
+                                    String escapedLink = StringEscapeUtils.escapeHtml4(link);
+                                    unclassifiedFiles2.append("<li><a data-path=\"").append(escapedLink)
+                                            .append("\" target=\"content\">")
+                                            .append(fileName)
+                                            .append("</a></li>\n");
+                                    bookList.add("");
+                                    bookList.add("");
+                                    bookList.add(link);
+                                    bookList.add("epub");
                                 }
                             }
 
@@ -307,16 +346,43 @@ public class Gen {
                         htmlBuilder.append("</ul>\n");
                     } else if (!file.isDirectory() && file.getName().toLowerCase().endsWith(".pdf")) {
                         String fileName = file.getName();
-                        String link = "../pdf/" + fileName;
+                        String link = "../book/" + fileName;
                         String escapedLink = StringEscapeUtils.escapeHtml4(link);
                         unclassifiedFiles.append("<li><a data-path=\"").append(escapedLink)
                                 .append("\" target=\"content\">")
                                 .append(fileName)
                                 .append("</a></li>\n");
-                        pdfList.add("");
-                        pdfList.add("");
-                        pdfList.add(link);
-                        pdfList.add("pdf");
+                        bookList.add("");
+                        bookList.add("");
+                        bookList.add(link);
+                        bookList.add("pdf");
+                    } else if (!file.isDirectory() && file.getName().endsWith(".html")) {
+                        String fileName = file.getName();
+                        String link = "../book/" + fileName;
+
+                        // ✅ 处理 HTML 特殊字符
+                        String escapedLink = StringEscapeUtils.escapeHtml4(link);
+                        String escapedFileName = StringEscapeUtils.escapeHtml4(fileName.replaceAll(".html", ".txt"));
+
+                        unclassifiedFiles.append("<li><a data-path=\"").append(escapedLink)
+                                .append("\">").append(escapedFileName)
+                                .append("</a></li>\n");
+                        bookList.add("");
+                        bookList.add("");
+                        bookList.add(link);
+                        bookList.add("txt");
+                    } else if (!file.isDirectory() && file.getName().toLowerCase().endsWith(".epub")) {
+                        String fileName = file.getName();
+                        String link = "../book/" + fileName;
+                        String escapedLink = StringEscapeUtils.escapeHtml4(link);
+                        unclassifiedFiles.append("<li><a data-path=\"").append(escapedLink)
+                                .append("\" target=\"content\">")
+                                .append(fileName)
+                                .append("</a></li>\n");
+                        bookList.add("");
+                        bookList.add("");
+                        bookList.add(link);
+                        bookList.add("epub");
                     }
                 }
 
@@ -456,114 +522,6 @@ public class Gen {
                         return tag.getDescription();
                     }
                 }
-            }
-        }
-        return null;
-    }
-
-    private static String scanTxt(Path sourceDir) {
-        File directory = new File(String.valueOf(sourceDir));
-        if (directory.exists() && directory.isDirectory()) {
-            File[] subFiles = directory.listFiles();
-            if (subFiles != null) {
-                StringBuilder htmlBuilder = new StringBuilder();
-                StringBuilder unclassifiedFiles = new StringBuilder();
-
-                for (File file : subFiles) {
-                    if (file.isDirectory()) {
-                        String categoryName = file.getName();
-                        String uniqueId2 = generateUniqueId();
-                        htmlBuilder.append("\n<span class=\"category inactive\" onclick=\"toggle('")
-                                .append(uniqueId2)
-                                .append("')\">")
-                                .append(StringEscapeUtils.escapeHtml4(categoryName))
-                                .append("</span>\n");
-                        htmlBuilder.append("<ul id=\"").append(uniqueId2).append("\" class=\"hidden\">\n");
-                        File[] subFilesInDir = file.listFiles();
-                        if (subFilesInDir != null) {
-                            StringBuilder unclassifiedFiles2 = new StringBuilder();
-                            for (File subFile : subFilesInDir) {
-                                if (subFile.isDirectory()) {
-                                    String categoryName2 = subFile.getName();
-                                    String uniqueId = generateUniqueId();
-                                    htmlBuilder.append("\n<span class=\"category inactive\" onclick=\"toggle('")
-                                            .append(uniqueId)
-                                            .append("')\">")
-                                            .append(StringEscapeUtils.escapeHtml4(categoryName2))
-                                            .append("</span>\n");
-                                    htmlBuilder.append("<ul id=\"").append(uniqueId).append("\" class=\"hidden\">\n");
-                                    File[] subFilesInDir2 = subFile.listFiles();
-                                    if (subFilesInDir2 != null) {
-                                        for (File subFile2 : subFilesInDir2) {
-                                            if (!subFile2.isDirectory() && subFile2.getName().endsWith(".html")) {
-                                                String fileName = subFile2.getName();
-                                                String link = "../txt/" + categoryName + "/" + categoryName2 + "/" + fileName;
-
-                                                // ✅ 处理 HTML 特殊字符
-                                                String escapedLink = StringEscapeUtils.escapeHtml4(link);
-                                                String escapedFileName = StringEscapeUtils.escapeHtml4(fileName.replaceAll(".html", ""));
-
-                                                htmlBuilder.append("<li><a data-path=\"").append(escapedLink)
-                                                        .append("\">").append(escapedFileName)
-                                                        .append("</a></li>\n");
-                                                txtList.add("");
-                                                txtList.add("");
-                                                txtList.add(link);
-                                                txtList.add("txt");
-                                            }
-                                        }
-                                    }
-                                    htmlBuilder.append("</ul>\n");
-                                } else if (!subFile.isDirectory() && subFile.getName().endsWith(".html")) {
-                                    String fileName = subFile.getName();
-                                    String link = "../txt/" + categoryName + "/" + fileName;
-
-                                    // ✅ 处理 HTML 特殊字符
-                                    String escapedLink = StringEscapeUtils.escapeHtml4(link);
-                                    String escapedFileName = StringEscapeUtils.escapeHtml4(fileName.replaceAll(".html", ""));
-
-                                    unclassifiedFiles2.append("<li><a data-path=\"").append(escapedLink)
-                                            .append("\">").append(escapedFileName)
-                                            .append("</a></li>\n");
-                                    txtList.add("");
-                                    txtList.add("");
-                                    txtList.add(link);
-                                    txtList.add("txt");
-                                }
-                            }
-
-                            if (unclassifiedFiles2.length() > 0) {
-                                htmlBuilder.append(unclassifiedFiles2);
-                            }
-                        }
-                        htmlBuilder.append("</ul>\n");
-                    } else if (!file.isDirectory() && file.getName().endsWith(".html")) {
-                        String fileName = file.getName();
-                        String link = "../txt/" + fileName;
-
-                        // ✅ 处理 HTML 特殊字符
-                        String escapedLink = StringEscapeUtils.escapeHtml4(link);
-                        String escapedFileName = StringEscapeUtils.escapeHtml4(fileName.replaceAll(".html", ""));
-
-                        unclassifiedFiles.append("<li><a data-path=\"").append(escapedLink)
-                                .append("\">").append(escapedFileName)
-                                .append("</a></li>\n");
-                        txtList.add("");
-                        txtList.add("");
-                        txtList.add(link);
-                        txtList.add("txt");
-                    }
-                }
-
-                if (unclassifiedFiles.length() > 0) {
-                    String uniqueId = generateUniqueId();
-                    htmlBuilder.append("\n<span class=\"category inactive\" onclick=\"toggle('").append(uniqueId).append("')\">未分类</span>\n");
-                    htmlBuilder.append("<ul id=\"").append(uniqueId).append("\" class=\"hidden\">\n");
-                    htmlBuilder.append(unclassifiedFiles);
-                    htmlBuilder.append("</ul>\n");
-                }
-
-                return htmlBuilder.toString();
             }
         }
         return null;
@@ -874,18 +832,21 @@ public class Gen {
         Path txtFilePath = txtFile.toPath();
         Path htmlFilePath = txtFilePath.resolveSibling(txtFile.getName().replaceAll("(?i)\\.txt$", ".html"));
 
-        Charset detectedCharset = detectFileEncoding(txtFile); // 自动检测编码
+        Charset detectedCharset = detectFileEncoding(txtFile);
 
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(txtFile), detectedCharset));
              BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(htmlFilePath.toFile()), StandardCharsets.UTF_8))) {
 
-            writer.write("<meta charset=\"UTF-8\">\n"); // 确保 HTML 解析 UTF-8
+            writer.write("<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"UTF-8\">\n");
             writer.write(headerContent + "\n"); // 插入 JavaScript 代码
+            writer.write("</head>\n<body>\n");
 
             String line;
             while ((line = reader.readLine()) != null) {
-                writer.write(line + "\n"); // 逐行写入原始文本
+                writer.write(removeBOM(line) + "\n");
             }
+
+            writer.write("</body>\n</html>"); // 关闭 HTML 结构
 
         } catch (Exception e) {
             throw new Err("Error converting file: " + txtFile.getName());
@@ -897,24 +858,33 @@ public class Gen {
         }
     }
 
-
-    private static Charset detectFileEncoding(File file) {
-        try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file))) {
-            byte[] buffer = new byte[3];
-            bis.mark(3);
-            int read = bis.read(buffer, 0, 3);
-            bis.reset();
-
-            // 检测 UTF-8 BOM（Byte Order Mark）
-            if (read >= 3 && buffer[0] == (byte) 0xEF && buffer[1] == (byte) 0xBB && buffer[2] == (byte) 0xBF) {
-                return StandardCharsets.UTF_8;
-            }
-
-            // 否则，默认假设是 UTF-8（或者你可以改成 GBK 作为默认）
-            return Charset.forName("UTF-8");
-        } catch (IOException e) {
-            return StandardCharsets.UTF_8; // 读取失败时默认 UTF-8
+    private static String removeBOM(String str) {
+        if (str.startsWith("\uFEFF")) {
+            return str.substring(1);
         }
+        return str;
+    }
+
+    public static Charset detectFileEncoding(File file) {
+        byte[] buf = new byte[4096];
+        try (FileInputStream fis = new FileInputStream(file)) {
+            UniversalDetector detector = new UniversalDetector(null);
+            int nRead;
+            while ((nRead = fis.read(buf)) > 0 && !detector.isDone()) {
+                detector.handleData(buf, 0, nRead);
+            }
+            detector.dataEnd();
+            String encoding = detector.getDetectedCharset();
+            detector.reset();
+
+            if (encoding != null) {
+                return Charset.forName(encoding);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return StandardCharsets.UTF_8; // 默认回退 UTF-8
     }
 
     private static String readHeaderFile(Path headerFilePath) {

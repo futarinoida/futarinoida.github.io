@@ -1,5 +1,5 @@
 ## about
-- 此静态模板旨在于桌面脱联机chrome中通览常见的媒体文件(超文本, pdf, 音视频, 图册, txt)
+- 此静态模板旨在于桌面脱联机chrome中通览常见的媒体文件(超文本, pdf, 音视频, 图册, txt, epub)
 - 线下清晰快速地组织文件, 线上经github,dropbox推送存盘
 - by [ida](mailto:futarinoida@gmail.com)
 
@@ -32,9 +32,9 @@
 
 
 ## 文件组织
-- audio, pdf, video, gallery, txt目录下存放对应类型的文件(文件名带emoji时dropbox无法同步), 最多两级子类, 其层级结构映射于右栏导航页面, 无所属的自动划入未分类
+- audio, book(pdf/txt/epub), video, gallery目录下存放对应类型的文件(文件名带emoji时dropbox无法同步), 最多两级子类, 其层级结构映射于右栏导航页面, 无所属的自动划入未分类
 	- gallery中bg目录下的图片作为首页的随机背景图来源
-	- txt中最终文件类型为html, `gen.jar`会遍历覆写此目录下的txt文件, 开头植入脚本同时变更后缀
+	- `gen.jar`会遍历覆写book下的txt文件, 开头植入脚本同时变更后缀为.html
 - html存放单体文件, 头部固定引用content脚本及样式, 正文固定于首个`pre`标签内, 代码固定于`code`标签内(祼属性名直接指明目标语言类型), 按行首缩进(x4空格数)自动套用样式, 14位数字加图片类型后缀自动创建`img`标签(关联img目录下的图片), 纯文本网址自动创建`a`标签, `p`标签自动转表格(冒号作为列分隔), 尽可能减少标签书写
 - img中存放单体文件
 - src中存放配置文件, 错误日志, jar包及源码, 触发脚本, 协议注册表, 基础html
@@ -46,9 +46,9 @@
 
 
 ## 复用前提
-- 安装java环境, 配置config, 创建本地url协议
+- 安装java环境, 配置config, 创建本地url协议, 安装本地服务器(针对epub)
 - 重命名首页title
-- 在audio, gallery, html, img, pdf, txt, video下放入对应类型的文件
+- 在audio, gallery, html, img, book(pdf/txt/epub), video下放入对应类型的文件
 - 执行gen.bat
 
 

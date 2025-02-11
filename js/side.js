@@ -61,8 +61,28 @@ window.onload = function(){
 		});
 	});
 
-	document.querySelectorAll('#pdf a').forEach(function(element) {
-		element.href = element.dataset.path;
+	document.querySelectorAll('#book a').forEach(function(element) {
+		let fileType = element.innerText.split('.').pop().toLowerCase();
+		if (fileType === "pdf") {
+			element.href = element.dataset.path;
+		} else if(fileType === "txt") {
+			element.addEventListener('click', function(e) {
+				var identifier = JSON.parse(localStorage.getItem('identifier')) || {};
+				identifier["resource_type"] = "txt";
+				identifier["txt_path"] = e.target.dataset.path;
+				localStorage.setItem("identifier", JSON.stringify(identifier));
+				top.postMessage(e.target.innerText, "*");
+			});
+		} else if(fileType === "epub") {
+			element.addEventListener('click', function(e) {
+				var identifier = JSON.parse(localStorage.getItem('identifier'));
+				if(identifier["protocol_header"] == "https"){
+					element.href = "https://" + document.location.hostname + "/js/bibi/?book=" + e.target.dataset.path.split("../book/")[1];
+				} else {
+					element.href = "http://localhost/js/bibi/?book=" + e.target.dataset.path.split("../book/")[1];
+				}
+			});
+		}
 	});
 
 	document.querySelectorAll('#gallery a').forEach(function(element) {
@@ -78,16 +98,6 @@ window.onload = function(){
 				.filter(a => a !== null);
 			localStorage.setItem("imagelist", JSON.stringify(group.map(a => a.dataset.path)));
 
-			top.postMessage(e.target.innerText, "*");
-		});
-	});
-
-	document.querySelectorAll('#txt a').forEach(function(element) {
-		element.addEventListener('click', function(e) {
-			var identifier = JSON.parse(localStorage.getItem('identifier'));
-			identifier["resource_type"]="txt";
-			identifier["txt_path"]=e.target.dataset.path;
-			localStorage.setItem("identifier",JSON.stringify(identifier));
 			top.postMessage(e.target.innerText, "*");
 		});
 	});
@@ -123,19 +133,32 @@ window.onload = function(){
 		});
 	});
 	
-	document.querySelectorAll('#gallery li,#pdf li,#audio li,#video li').forEach(function(element) {
+	document.querySelectorAll('#gallery li,#audio li,#video li').forEach(function(element) {
 		element.addEventListener('dblclick', function() {
 			copyToClipboard(element.textContent);
 		});
 	});
 
-	document.querySelectorAll('#html li,#txt li,#program li').forEach(function(element) {
+	document.querySelectorAll('#html li,#program li').forEach(function(element) {
 		element.addEventListener('dblclick', function() {
 			copyToClipboard(element.textContent+".html");
 		});
 	});
 
-	document.querySelectorAll('#gallery li,#pdf li,#audio li,#video li,#html li,#txt li').forEach(function(element) {
+	document.querySelectorAll('#book li').forEach(function(element) {
+		let fileType = element.innerText.split('.').pop().toLowerCase();
+		if (fileType === "pdf" || fileType === "epub" ) {
+			element.addEventListener('dblclick', function() {
+				copyToClipboard(element.textContent);
+			});
+		} else if(fileType === "txt") {
+			element.addEventListener('dblclick', function() {
+            copyToClipboard(element.textContent.trim().replace(/\.txt$/i, ".html"));
+			});
+		}
+	});
+
+	document.querySelectorAll('#gallery li,#book li,#audio li,#video li,#html li').forEach(function(element) {
 		element.setAttribute("title","双击复制文件名");
 	});
 
@@ -167,7 +190,7 @@ window.onload = function(){
 	}, false);
 
     window.addEventListener('message', function(event) {
-		document.querySelectorAll('#audio a,#gallery a,#txt a,#video a').forEach(function(element) {
+		document.querySelectorAll('#audio a,#gallery a,#video a').forEach(function(element) {
 			if(element.dataset.path === event.data){
 				document.querySelectorAll('li').forEach(l => l.classList.remove('current'));
 				element.parentElement.classList.add('current');
@@ -182,10 +205,18 @@ window.onload = function(){
 				localStorage.setItem("identifier",JSON.stringify(identifier));
 			}
 		});
-		document.querySelectorAll('#pdf a').forEach(function(element) {
-			if(event.data === element.dataset.path){
-				document.querySelectorAll('li').forEach(l => l.classList.remove('current'));
-				element.parentElement.classList.add('current');
+		document.querySelectorAll('#book a').forEach(function(element) {
+			let fileType = element.innerText.split('.').pop().toLowerCase();
+			if (fileType === "pdf") {
+				if(event.data === element.dataset.path){
+					document.querySelectorAll('li').forEach(l => l.classList.remove('current'));
+					element.parentElement.classList.add('current');
+				}
+			} else if(fileType === "txt" || fileType === "epub") {
+				if(element.dataset.path === event.data){
+					document.querySelectorAll('li').forEach(l => l.classList.remove('current'));
+					element.parentElement.classList.add('current');
+				}
 			}
 		});
     });

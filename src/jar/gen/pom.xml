@@ -29,6 +29,11 @@
             <artifactId>commons-text</artifactId>
             <version>1.10.0</version>  <!-- 最新稳定版本 -->
         </dependency>
+        <dependency>
+            <groupId>com.googlecode.juniversalchardet</groupId>
+            <artifactId>juniversalchardet</artifactId>
+            <version>1.0.3</version>
+        </dependency>
 
 
     </dependencies>

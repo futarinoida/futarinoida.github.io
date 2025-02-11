@@ -10,6 +10,7 @@ window.onload = function () {
         identifier["resource_type"] = "";
         identifier["search_jump"] = "0";
         identifier["content_src"] = "";
+        identifier["protocol_header"] = window.location.protocol.split(":")[0];
         localStorage.setItem('identifier', JSON.stringify(identifier));
     }
 
@@ -73,7 +74,7 @@ window.onload = function () {
                         var path = data[i + 2];
                         var t = path.split(".html")[0];
                         var last = t.split("/").length - 1;
-                        if (t.split("/")[last] === msg) {
+                        if (t.split("/")[last] === msg.split(".txt")[0]) {
                             $i("content").removeAttribute("srcdoc");
                             $i("content").src = path.split("../")[1];
                             $i("content").focus()
@@ -164,6 +165,19 @@ function search_op() {
             $i("content").removeAttribute("srcdoc");
             $i("content").src = path;
             $i("side").contentWindow.postMessage("../"+path, '*');
+        } else if (type == "epub") {
+            $i("content").removeAttribute("srcdoc");
+            var identifier = JSON.parse(localStorage.getItem('identifier'));
+            if(identifier["protocol_header"] == "https"){
+                $i("content").src = "https://" + document.location.hostname + "/js/bibi/?book=" + path.split("../book/")[1];
+            } else {
+                $i("content").src = "http://localhost/js/bibi/?book=" + path.split("../book/")[1];
+            }
+            $i("side").contentWindow.postMessage(path, '*');
+        } else if (type == "txt") {
+            $i("content").removeAttribute("srcdoc");
+            $i("content").src = path;
+            $i("side").contentWindow.postMessage("../"+path, '*');
         } else if (type == "image") {
             var imageUrl = path;
             var info = $i("searchResults").options[selectedIndex].dataset.info;
@@ -172,10 +186,6 @@ function search_op() {
         } else if (type == "video") {
             var videoUrl = path;
             $i("content").srcdoc = part11 + videoUrl + part12;
-            $i("side").contentWindow.postMessage("../"+path, '*');
-        } else if (type == "txt") {
-            $i("content").removeAttribute("srcdoc");
-            $i("content").src = path;
             $i("side").contentWindow.postMessage("../"+path, '*');
         } else if (type == "audio") {
             if ($i("audio")) {
@@ -372,6 +382,9 @@ function updateSearchResults(results) {
             if (result.type == "pdf") {
                 option.style.color = "tomato";
             }
+            if (result.type == "epub") {
+                option.style.color = "mediumturquoise";
+            }
             if (result.type == "txt") {
                 option.style.color = "gray";
             }
@@ -409,14 +422,18 @@ function search(keyword) {
             title = path.split("/")[path.split("/").length - 1];
         }
         if (type == "txt") {
-            title = path.split(".html")[0].split("/")[path.split(".html")[0].split("/").length - 1];
+            title = path.split(".html")[0].split("/")[path.split(".html")[0].split("/").length - 1]+".txt";
             path = path.split("../")[1];
+        }
+        if (type == "epub") {
+            title = path.split("/")[path.split("/").length - 1];
         }
         if (type == "audio") {
             title = path.split("/")[path.split("/").length - 1];
             path = path.split(title)[0];
         }
-        let count = ((type == "pdf") ? 0 : (content.match(keywordRegex) || []).length) + (title.match(keywordRegex) || []).length;
+        // let count = ((type == "pdf") ? 0 : (content.match(keywordRegex) || []).length) + (title.match(keywordRegex) || []).length;
+        let count = ((content.match(keywordRegex) || []).length) + (title.match(keywordRegex) || []).length;
         if (count > 0) {
             results.push({ title, count, type, path, info });
         }

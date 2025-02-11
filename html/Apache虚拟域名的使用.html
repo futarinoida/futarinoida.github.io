@@ -8,78 +8,40 @@
   <title>Apache虚拟域名的使用</title>
  </head>
  <body>
-  <span id="anchor">20240307183503-_工具使用</span>
+  <span id="anchor">20250210222831-_工具使用</span>
   <pre>
-<h1>下载解压至c盘根目录，管理员命令窗</h1>
-http://www.apachehaus.com/cgi-bin/download.plx
+<h1>下载解压(c盘根下为例)，管理员命令窗</h1>
+https://www.apachelounge.com/download/
 <code null>
-cd \Apache24
-cd bin
-httpd -t
+cd \Apache24\bin
 httpd -k install -n Apache
+httpd -v
 </code>
 
-<h1>引用httpd-vhosts</h1>
+<h1>httpd.conf</h1>
 C:\Apache24\conf\httpd.conf
 <code null>
-# Virtual hosts
-Include conf/extra/httpd-vhosts.conf
-</code>
-
-<h1>分配目录域名,权限</h1>
-C:\Apache24\conf\extra\httpd-vhosts.conf
-<code null>
-# site_1
-&lt;virtualhost *:80&gt;
-    DocumentRoot "D:\Dropbox\local"
-    ServerName local
-&lt;/virtualhost&gt;
-NameVirtualHost 127.0.0.2:80
-&lt;directory d:\dropbox\local&gt;
-    AllowOverride All
+# 根目录
+DocumentRoot "E:/Dropbox/life"
+&lt;Directory "E:/Dropbox/life">
+    Options Indexes FollowSymLinks
+    AllowOverride None
     Require all granted
-&lt;/directory&gt;
+&lt;/Directory>
  
-# site_2
-&lt;virtualhost *:80&gt;
-    DocumentRoot "D:\java\API\java_platform_se_8"
-    ServerName java_platform_se_8
-&lt;/virtualhost&gt;
-NameVirtualHost 127.0.0.3:80
-&lt;directory d:\java\api\java_platform_se_8&gt;
-    AllowOverride All
-    Require all granted
-&lt;/directory&gt;
+# 启用
+LoadModule headers_module modules/mod_headers.so
  
-# site_3
-&lt;virtualhost *:80&gt;
-    DocumentRoot "D:\java\API\java_platform_se_11"
-    ServerName java_platform_se_11
-&lt;/virtualhost&gt;
-NameVirtualHost 127.0.0.4:80
-&lt;directory d:\java\java_platform_se_11&gt;
-    AllowOverride All
-    Require all granted
-&lt;/directory&gt;
-</code>
-
-<h1>写入hosts</h1>
-C:\Windows\System32\drivers\etc\hosts
-<code null>
-127.0.0.2 local
-127.0.0.3 java_platform_se_8
-127.0.0.4 java_platform_se_11
-</code>
-
-<h1>浏览器书签</h1>
-<code null>
-名称: 𝘈𝘩 𝘊𝘩𝘰𝘯𝘨'𝘴 𝘢𝘳𝘤𝘩𝘪𝘷𝘦𝘴
-网址: local
+# 末尾添加
+&lt;IfModule mod_headers.c>
+    Header Set Access-Control-Allow-Origin "*"
+&lt;/IfModule>
 </code>
 
 <h1>加入自启</h1>
 C:\Apache24\bin\ApacheMonitor.exe
 <code null>
+# win + r
 shell:startup
 </code>
 </pre>
