@@ -24,6 +24,18 @@
 		<script id="bibi-script" src="resources/scripts/bibi.js"></script>
 		<script id="bibi-preset" src="presets/default.js" data-bibi-bookshelf=""></script>
 
+
+		<script>
+		// 子子iframe抓不到主面页的localstorage, 因此用postmessage中转一下
+		window.parent.postMessage("getPinyinData", "*");
+		window.addEventListener("message", function (event) {
+			if (event.data.pinyinData) {
+				// console.log("收到 :", event.data.pinyinData);
+				localStorage.setItem("pinyinData", event.data.pinyinData);
+			}
+		});
+		</script>
+
 	</head>
 
 

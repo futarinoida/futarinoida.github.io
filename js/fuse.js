@@ -74,6 +74,32 @@ window.fuseIntervalId = setInterval(function () {
             noteTaker.init();
         };
 
+        if (localStorage.getItem("pinyinData")) {
+            //
+        }else{
+            var identifier = JSON.parse(localStorage.getItem('identifier'));
+            var url;
+            if(identifier["protocol_header"] == "https"){
+                url = "https://" + document.location.hostname + "/js/pinyinData.js";
+            } else {
+                url = "http://localhost/js/pinyinData.js";
+            }
+            fetch(url)
+                .then(response => response.text())
+                .then(data => {
+                    // 解析 pinyinData.js 内容
+                    eval(data); // 运行 pinyinData.js (确保 pinyinData 变量存在)
+                    localStorage.setItem("pinyinData", JSON.stringify(pinyinData));
+                })
+                .catch(error => {
+                    console.error("加载 pinyinData.js 失败:", error);
+                });
+        }
+
+        let tooltip = document.createElement("div");
+        tooltip.className = "pinyin-tooltip";
+        document.body.appendChild(tooltip);
+
         localStorage.removeItem('_level');
         clearInterval(window.fuseIntervalId);
         window.fuseIntervalId = null;

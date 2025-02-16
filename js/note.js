@@ -44,6 +44,29 @@ class NoteTaker {
         let anchorTag = selection.anchorNode.parentNode;
         let focusTag = selection.focusNode.parentNode;
 
+        var pinyinData = JSON.parse(localStorage.getItem("pinyinData"));
+        var tooltip = document.getElementsByClassName("pinyin-tooltip")[0];
+        if (selectedText.length === 1 && /^[\u4e00-\u9fa5]$/.test(selectedText)) {
+            var pinyin = getPinyin(selectedText);
+            if (pinyin) {
+                tooltip.innerText = pinyin;
+                tooltip.style.left = e.pageX + "px";
+                tooltip.style.top = e.pageY + "px";
+                tooltip.style.display = "block";
+            }
+        } else {
+            tooltip.style.display = "none";
+        }
+    
+        function getPinyin(char) {
+            var index = pinyinData.indexOf(char);
+            if (index !== -1 && index + 1 < pinyinData.length) {
+                return pinyinData[index + 1];
+            }
+            return null;
+        }
+
+
         if ((e.pageX - this.mouseXPosition) < 0) {
             focusTag = selection.anchorNode.parentNode;
             anchorTag = selection.focusNode.parentNode;

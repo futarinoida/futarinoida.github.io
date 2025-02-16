@@ -18,6 +18,63 @@ window.onload = function(){
 		`;
 		document.head.appendChild(styleElement);
 	}
+
+	function loadPinyinData() {
+		if (localStorage.getItem("pinyinData")) {
+			// console.log("从 localStorage 读取拼音数据");
+			return JSON.parse(localStorage.getItem("pinyinData"));
+		}
+		// console.log("请求 pinyinData.js 并存入 localStorage");
+		var identifier = JSON.parse(localStorage.getItem('identifier'));
+		var url;
+		if(identifier["protocol_header"] == "https"){
+			url = "https://" + document.location.hostname + "/js/pinyinData.js";
+		} else {
+			url = "http://localhost/js/pinyinData.js";
+		}
+		return fetch(url)
+			.then(response => response.text())
+			.then(data => {
+				// 解析 pinyinData.js 内容
+				eval(data); // 运行 pinyinData.js (确保 pinyinData 变量存在)
+				localStorage.setItem("pinyinData", JSON.stringify(pinyinData));
+				return pinyinData;
+			})
+			.catch(error => {
+				// console.error("加载 pinyinData.js 失败:", error);
+				return null;
+			});
+	}
+
+	let tooltip = document.createElement("div");
+	tooltip.className = "pinyin-tooltip";
+	document.body.appendChild(tooltip);
+
+	document.addEventListener("mouseup", function(event) {
+		var selection = window.getSelection().toString().trim();
+		
+		if (selection.length === 1 && /^[\u4e00-\u9fa5]$/.test(selection)) {
+			var pinyin = getPinyin(selection);
+
+			if (pinyin) {
+				tooltip.innerText = pinyin;
+				tooltip.style.left = event.pageX + "px";
+				tooltip.style.top = event.pageY + "px";
+				tooltip.style.display = "block";
+			}
+		} else {
+			tooltip.style.display = "none";
+		}
+	});
+
+	function getPinyin(char) {
+		var x = loadPinyinData();
+		var index = x.indexOf(char);
+		if (index !== -1 && index + 1 < x.length) {
+			return x[index + 1];
+		}
+		return null;
+	}
 }
 
 function init() {
@@ -140,13 +197,14 @@ function search(keyword) {
 		});
 
 		if (matches.length > 0) {
-			matches[currentIndex].scrollIntoView({ block: 'center' });
-
 			var pageTitle = document.title;
-			var scrollPosition = window.pageYOffset;
-			var positions = JSON.parse(localStorage.getItem('positions'));
-			positions[pageTitle] = scrollPosition;
-			localStorage.setItem('positions', JSON.stringify(positions));
+			if(pageTitle !== "观阅记录"){
+				matches[currentIndex].scrollIntoView({ block: 'center' });
+				var scrollPosition = window.pageYOffset;
+				var positions = JSON.parse(localStorage.getItem('positions'));
+				positions[pageTitle] = scrollPosition;
+				localStorage.setItem('positions', JSON.stringify(positions));
+			}
 		}
 	}
 

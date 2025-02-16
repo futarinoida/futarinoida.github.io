@@ -36,6 +36,11 @@ window.onload = function () {
 
     window.addEventListener('message', function (event) {
         var msg = event.data;
+        if (msg === "getPinyinData") {
+            // console.log("收到 iframe 请求，发送 pinyinData");
+            var pinyinData = localStorage.getItem("pinyinData");
+            event.source.postMessage({ pinyinData: pinyinData }, event.origin);
+        }
         setTimeout(function () { //必须延迟等待localStorage更新
             var identifier = JSON.parse(localStorage.getItem('identifier'));
             var _type = identifier["resource_type"];

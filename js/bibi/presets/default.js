@@ -20,7 +20,7 @@ Bibi.preset({
 "resume-from-last-position"     : "yes", // "yes" or "no" or "desktop" or "mobile"
 
 "autostart"                     : "yes", // "yes" or "no" or "desktop" or "mobile"
-"autostart-embedded"            : "no", // "yes" or "no" or "desktop" or "mobile" (It takes priority over "autostart" when the book is embedded in a webpage)
+"autostart-embedded"            : "yes", // "yes" or "no" or "desktop" or "mobile" (It takes priority over "autostart" when the book is embedded in a webpage)
 "start-embedded-in-new-window"  : "mobile", // "yes" or "no" or "desktop" or "mobile" (It is used only when "autostart" (or "autostart-embedded") is NOT enabled)
 
 
@@ -36,7 +36,7 @@ Bibi.preset({
 
 "use-keys"                   : "yes", // "yes" or "no" or "desktop" or "mobile"
 
-"use-slider"                 : "yes", // "yes" or "no" or "desktop" or "mobile"
+"use-slider"                 : "no", // "yes" or "no" or "desktop" or "mobile"
 "flip-pages-during-sliding"  : "yes", // "yes" or "no" or "desktop" or "mobile"
 
 "use-nombre"                 : "yes", // "yes" or "no" or "desktop" or "mobile"
@@ -50,7 +50,7 @@ Bibi.preset({
 "loupe-scale-per-step"       : 1.6, // Number of scale (greater than 1, less than or equal to "loupe-max-scale")
 "zoom-out-for-utilities"     : "yes", // "yes" or "no" or "desktop" or "mobile"
 
-"use-history"                : "yes", // "yes" or "no" or "desktop" or "mobile"
+"use-history"                : "no", // "yes" or "no" or "desktop" or "mobile"
 "max-history"                : 19, // Number (0-19). If larger than 19, treated as 19. If 0, "use-history" is treated as "no". 
 
 "use-bookmarks"              : "yes", // "yes" or "no" or "desktop" or "mobile"

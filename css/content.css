@@ -268,3 +268,14 @@ code:after {
 .toc_a_no {
     color: cornflowerblue;
 }
+
+.pinyin-tooltip {
+    position: absolute;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 5px;
+    white-space: nowrap;
+    z-index: 1000;
+    display: none;
+}
