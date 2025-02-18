@@ -1040,14 +1040,97 @@ audio {
     
     div.appendChild(header);
     div.appendChild(playlistElement);
+    var br = document.createElement('br');
+    div.appendChild(br);
+    div.appendChild(prevButton);
+    div.appendChild(nextButton);
+    var br = document.createElement('br');
+    div.appendChild(br);
+    div.appendChild(favList);
+    div.appendChild(all);
+    var br = document.createElement('br');
+    div.appendChild(br);
     div.appendChild(shuffleButton);
     div.appendChild(singleLoopButton);
     div.appendChild(listLoopButton);
-    div.appendChild(prevButton);
-    div.appendChild(nextButton);
+    var br = document.createElement('br');
+    div.appendChild(br);
     div.appendChild(fav);
-    div.appendChild(favList);
-    div.appendChild(all);
+
+    var identifier = JSON.parse(localStorage.getItem('identifier'));
+    var isLocal = (identifier["protocol_header"] == "https") ? false : true;
+    if(isLocal) {
+        var export_btn = document.createElement('button');
+        export_btn.innerHTML = "Exp";
+        export_btn.addEventListener("click", () => {
+            let favData = localStorage.getItem("favList");
+            if (!favData) {
+                alert("未找到favList！");
+                return;
+            }
+            try {
+                let fileList = JSON.parse(favData);
+                let m3uContent = "#EXTM3U\n";
+                fileList.forEach(fileUrl => {
+                    let localPath = fileUrl.replace("file:///E:/Dropbox/life/", "/storage/emulated/0/Download/");
+                    m3uContent += localPath + "\n";
+                });
+    
+                // 生成 Blob 并创建下载链接
+                let blob = new Blob([m3uContent], { type: "audio/x-mpegurl" });
+                let a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = "favList.m3u8"; // 下载文件, 拖进dropbox, 手机dropbox保存到设备, AIMP导入播放列表
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            } catch (e) {
+                alert("数据格式错误：" + e.message);
+            }
+        });
+        div.appendChild(export_btn);
+        
+        function handleFile(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const text = event.target.result;
+                processM3U8(text);
+            };
+            reader.readAsText(file);
+        }
+
+        function processM3U8(m3uContent) {
+            let lines = m3uContent.split("\n");
+            let fileList = [];
+            lines.forEach(line => {
+                line = line.trim();
+                if (line && !line.startsWith("#")) {
+                    let originalPath = line.replace("/storage/emulated/0/Download/", "file:///E:/Dropbox/life/");
+                    fileList.push(originalPath);
+                }
+            });
+            localStorage.setItem("favList", JSON.stringify(fileList));
+        }
+
+        var fileInput = document.createElement("input");
+        fileInput.type = "file";
+        fileInput.accept = ".m3u8";
+        fileInput.style.display = "none";
+        fileInput.addEventListener("change", function() {
+            handleFile(this);
+        });
+        document.body.appendChild(fileInput);
+
+        var import_btn = document.createElement('button');
+        import_btn.innerHTML = "Imp";
+        import_btn.addEventListener("click", () => {
+            fileInput.click();
+        });
+        div.appendChild(import_btn);
+    }
+
     div.appendChild(audioPlayer);
     div.appendChild(close);
     playerContainer.appendChild(progressContainer);
