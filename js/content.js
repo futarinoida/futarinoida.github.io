@@ -86,7 +86,8 @@ function init() {
 		toc();
 	}
 	
-	if (identifier["resource_type"] === "html") {
+    var isLocal = (identifier["protocol_header"] == "https") ? false : true;
+	if (isLocal && identifier["resource_type"] === "html") {
 		document.getElementById("s_nav").insertAdjacentHTML("afterend", "<span style='float: left;'><a href='ida://1#" + document.title + "'>edit</a></span>");
 	}
 

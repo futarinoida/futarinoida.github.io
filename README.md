@@ -42,6 +42,7 @@
 	- webp.bat用于一键转webp格式, 将指定目录下的原始图片批量转webp格式输出到img目录, 同时以yyyymmddhhmmss格式重命名, 并将新文件名复制到剪贴板, 在config中指定转换质量和源目录
 	- gen.bat用于一键生成索引元数据和随机背景图列表, 以及查找和处理txt文件, 遇错自行打开err.log
 	- push.bat用于批量执行git指令
+	- keep.bat用于对google keep导出的json数据进行文本合并和图片转换
 - html页面左上角edit点按经本地url协议调用`guide.bat`, 执行`stamp.jar`更新本地html中的时间戳, 随即以vscode打开该文件, 双击右上角标题重载页面
 
 
