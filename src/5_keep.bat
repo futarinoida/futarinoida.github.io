@@ -25,8 +25,10 @@ set "jre_path="
 @REM 读取 config.properties
 for /f "tokens=1,* delims==" %%A in (%config_file%) do (
     if "%%A"=="jre_path" set "jre_path=%%B"
-    if "%%A"=="keep_path" set "keep_path=%%B"
 )
+
+set /p keep_path=path: 
+set /p label=label: 
 
 set "keep_path=%keep_path:\=/%"
 if not "!keep_path:~-1!"=="/" set "keep_path=!keep_path!/"
@@ -36,7 +38,7 @@ set "log_file=%A%err.log"
 for %%F in ("%log_file%") do set "prev_time=%%~tF"
 
 @REM 启动 Java 进程
-start "" /b "%jre_path%" -Dfile.encoding=UTF-8 -jar "%jar_path%" "%keep_path%"
+start "" /b "%jre_path%" -Dfile.encoding=UTF-8 -jar "%jar_path%" "%keep_path%" "%label%"
 
 @REM 等待 Java 进程启动
 timeout /t 2 >nul

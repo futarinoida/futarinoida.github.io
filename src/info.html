@@ -18,6 +18,10 @@ body {
     width: 100vw;
     background-size: contain;
 }
+body::before {
+    color: #00423a;
+    content: "五代．王仁裕《开元天宝遗事》卷上《记事珠》：“开元中，张说为宰相。有人惠说一珠，绀色有光，名曰“记事珠’。或有阙忘之事，则以手持弄此珠，便觉心神开悟，事无巨细，涣然明晓，一无所忘。”";
+}
 .tooltip {
     position: absolute;
     background-color: rgba(0, 0, 0, 0.75);
@@ -35,9 +39,8 @@ body {
 </body>
 <script>
 const messages = [
-    "六神和会自安然，一日清闲自在仙",
-    "读书须用意，一字值千金",
-    "难字压顶，寸步难行；闯字当头，随意纵横"
+    "蝴蝶多愉快\n飞进秋风中双双对对",
+    "蝴蝶多愉快\n刀光剑影中来来回回"
 ];
 
 window.onload=function(){

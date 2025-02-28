@@ -21,13 +21,13 @@ public class Keep {
 
     public static void main(String[] args) {
         try {
-            func(args[0]);
+            func(args[0],args[1]);
         } catch (Exception e) {
             logger.error(e.getMessage(),e);
         }
     }
 
-    public static void func(String folderPath) throws IOException {
+    private static void func(String folderPath, String label) throws IOException {
         String outputFile = folderPath + File.separator + "____notes____.txt";
 
         File folder = new File(folderPath);
@@ -36,14 +36,18 @@ public class Keep {
         }
 
         List<File> jsonFiles = Arrays.asList(Objects.requireNonNull(folder.listFiles((dir, name) -> name.endsWith(".json"))));
-        StringBuilder result = new StringBuilder();
+        List<NoteData> notes = new ArrayList<>();
 
         for (File jsonFile : jsonFiles) {
-            processJsonFile(jsonFile, result, folderPath);
+            processJsonFile(jsonFile, notes, folderPath,label);
         }
 
+        notes.sort(Comparator.comparingLong(note -> note.createdTimestamp));
+
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFile))) {
-            writer.write(result.toString());
+            for (NoteData note : notes) {
+                writer.write(note.toString());
+            }
         } catch (IOException e) {
             throw new Err("写入文件失败: " + e.getMessage());
         }
@@ -51,17 +55,35 @@ public class Keep {
         toWebp(folderPath);
     }
 
-    private static void processJsonFile(File file, StringBuilder result, String folderPath) {
+    private static void processJsonFile(File file, List<NoteData> notes, String folderPath, String label) {
         try {
             String content = new String(Files.readAllBytes(file.toPath()));
             JSONObject json = new JSONObject(content);
 
-            if (!json.optBoolean("isArchived", false)) {
+            if (!json.optBoolean("isArchived", false) || json.optBoolean("isTrashed", false)) {
                 return;
+            }
+
+            JSONArray labelsArray = json.optJSONArray("labels");
+            if (labelsArray != null) {
+                boolean hasAllowedLabel = false;
+                for (int i = 0; i < labelsArray.length(); i++) {
+                    JSONObject labelObj = labelsArray.getJSONObject(i);
+                    if (labelObj.optString("name", "").equals(label)) {
+                        hasAllowedLabel = true;
+                        break;
+                    }
+                }
+                if (!hasAllowedLabel) {
+                    return; // 如果没有包含指定标签，则跳过
+                }
+            } else {
+                return; // 没有标签则跳过
             }
 
             String title = json.optString("title", "无标题");
             String text = json.optString("textContent", "").trim();
+            long createdTimestamp = json.optLong("createdTimestampUsec", 0L) / 1000;
 
             JSONArray attachments = json.optJSONArray("attachments");
             List<String> newImageNames = new ArrayList<>();
@@ -77,7 +99,7 @@ public class Keep {
                 }
             }
 
-            appendNote(result, title, newImageNames, text);
+            notes.add(new NoteData(title, text, newImageNames, createdTimestamp));
         } catch (Exception e) {
             throw new Err("解析 JSON 失败: " + file.getName() + " - " + e.getMessage());
         }
@@ -146,6 +168,31 @@ public class Keep {
             File outputFile = new File(webpOutputDir, originalName + ".webp");
 
             ImageIO.write(image, "webp", outputFile);
+        }
+    }
+
+    private static class NoteData {
+        String title;
+        String text;
+        List<String> images;
+        long createdTimestamp;
+
+        public NoteData(String title, String text, List<String> images, long createdTimestamp) {
+            this.title = title;
+            this.text = text;
+            this.images = images;
+            this.createdTimestamp = createdTimestamp;
+        }
+
+        @Override
+        public String toString() {
+            StringBuilder result = new StringBuilder();
+            result.append("<h1>").append(title).append("</h1>\n");
+            for (String img : images) {
+                result.append(img).append("\n");
+            }
+            result.append(text).append("\n\n\n");
+            return result.toString();
         }
     }
 }
