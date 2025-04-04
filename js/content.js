@@ -318,6 +318,19 @@ function format() {
 		innerHTML = innerHTML.replaceAll(d_reg6, d_str6);
 		d_targets[i].innerHTML = innerHTML;
 	}
+
+	var anchor = document.querySelector("#anchor");
+	if (anchor && anchor.textContent.split("-").pop().trim() === "日记") {
+		document.querySelectorAll("span").forEach(span => {
+			var text = span.textContent.trim();
+			if (/^\d{2}$/.test(text)) {
+				var h1 = document.createElement("h1");
+				h1.textContent = text;
+				span.parentNode.replaceChild(h1, span);
+			}
+		});
+	}
+
 	var targets = $t("code");
 	for (var i = 0; i < targets.length; i++) {
 		targets[i].innerHTML = targets[i].innerHTML.replaceAll(/^\n/gm, "");
