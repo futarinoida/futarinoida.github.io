@@ -27,13 +27,47 @@ for /f "tokens=1,* delims==" %%A in (%config_file%) do (
     if "%%A"=="jre_path" set "jre_path=%%B"
 )
 
-set /p keep_path=path: 
-set /p label=label: 
+@REM 获取zip路径
+set /p zip_file=zip path: 
 
+@REM 去除路径前后的双引号
+set "zip_file=%zip_file:"=%"
+
+@REM 检查路径是否存在
+if not exist "%zip_file%" (
+    echo [ERROR] File not found: "%zip_file%"
+    pause
+    exit /b
+)
+
+@REM 获取不带扩展名的文件夹名
+for %%F in ("%zip_file%") do (
+    set "zip_name=%%~nF"
+    set "zip_dir=%%~dpF"
+)
+
+set "extract_path=%zip_dir%%zip_name%"
+
+powershell -Command "Expand-Archive -Force '%zip_file%' '%extract_path%'"
+
+@REM 拼接最终的keep路径
+set "keep_path=%extract_path%\Takeout\Keep"
+
+if not exist "%keep_path%" (
+    echo [ERROR] not existed: %keep_path%
+    pause
+    exit /b
+)
+
+@REM 替换路径中的\为/ 并确保结尾/
 set "keep_path=%keep_path:\=/%"
 if not "!keep_path:~-1!"=="/" set "keep_path=!keep_path!/"
 
-REM 记录 err.log 初始修改时间
+echo %keep_path%
+
+set /p label=label: 
+
+@REM 记录 err.log 初始修改时间
 set "log_file=%A%err.log"
 for %%F in ("%log_file%") do set "prev_time=%%~tF"
 
@@ -50,6 +84,15 @@ if %errorlevel% neq 0 (
     if not "!prev_time!"=="!current_time!" (
         start notepad "%log_file%"
     )
+)
+
+@REM 检查note.txt是否生成，并用记事本打开
+set "note_file=%keep_path%____notes____.txt"
+if exist "%note_file%" (
+    start notepad "%note_file%"
+) else (
+    echo [ERROR] note.txt not found in %keep_path%
+    pause
 )
 
 exit
