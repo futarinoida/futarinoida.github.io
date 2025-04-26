@@ -1,0 +1,84 @@
+<!doctype html>
+<html>
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/content.css">
+  <script src="../js/content.js"></script>
+  <title>Google Apps Script</title>
+ </head>
+ <body>
+  <span id="anchor">20250424001258-_工具使用</span>
+  <pre>
+google apps script是一个由google drive中的apps script编辑器开发的javascript,用于建立各种应用程式。它执行在google cloud platform上的平台, 可以直接与Google产品互动, 执行定制化操作
+
+https://developers.google.com/apps-script/reference?authuser=0&hl=zh-cn
+
+<h1>谷歌日历</h1>
+<h2>删除指定日期及其以前的全部事件</h2>
+<code js>
+function clearEventsBeforeDate() {
+  // Define your parameters
+  const calendarId = 'futarinoida@gmail.com'; // Replace with your Google Calendar ID
+  const cutoffDateStr = '04/23/2025';  // 包括该日期
+  // const searchString = '关键词';
+
+  // Convert the date string to a Date object
+  const cutoffDate = new Date(cutoffDateStr);
+
+  // Get all events in the calendar
+  const events = CalendarApp.getCalendarById(calendarId).getEvents(new Date(1970, 0, 1), new Date(2099, 11, 31)); // Get all events
+
+  // Iterate through the events and delete those before the cutoff date
+  for (const event of events) {
+    const eventStartDate = event.getStartTime(); // Get the start time of the event
+    if (eventStartDate &lt; cutoffDate) {
+      // 仅删除匹配关键词的事件
+      // if (event.getTitle().toLowerCase().includes(searchString.toLowerCase()) || event.getDescription().toLowerCase().includes(searchString.toLowerCase())) {
+        event.deleteEvent();
+        Logger.log(`Deleted event: ${event.getTitle()}`);
+      // }
+    }
+  }
+}
+</code>
+
+<h2>列出即将到来的下一批事件</h2>
+<code js>
+/**
+ * Lists the next 10 upcoming events in the user's default calendar.
+ * @see https://developers.google.com/calendar/api/v3/reference/events/list
+ */
+function listNext10Events() {
+  const calendarId = 'primary';
+  const now = new Date();
+  const events = Calendar.Events.list(calendarId, {
+    timeMin: now.toISOString(),
+    singleEvents: true,
+    orderBy: 'startTime',
+    maxResults: 10
+  });
+  if (!events.items || events.items.length === 0) {
+    console.log('No events found.');
+    return;
+  }
+  for (const event of events.items) {
+    if (event.start.date) {
+      // All-day event.
+      const start = new Date(event.start.date);
+      console.log('%s (%s)', event.summary, start.toLocaleDateString());
+      continue;
+    }
+    const start = new Date(event.start.dateTime);
+    console.log('%s (%s)', event.summary, start.toLocaleString());
+  }
+}
+</code>
+
+<h1>fetch加工回传</h2>
+https://medium.com/@Hsu.Yang-Min/apps-script-%E9%96%8B%E7%99%BC%E7%9A%84%E5%B0%8F%E5%B9%AB%E6%89%8B-cd1f15eb722b\
+
+<h1>简单爬虫</h1>
+</pre>
+ </body>
+</html>
