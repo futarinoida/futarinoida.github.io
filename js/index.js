@@ -658,7 +658,7 @@ img.addEventListener('dblclick', function () {
             '<script>' +
             'const identifier = JSON.parse(localStorage.getItem("identifier")) || {};' +
             'const protocol = identifier.protocol_header === "https" ? "https" : "http";' +
-            'const host = location.hostname || "localhost";' +
+            'const host = identifier.protocol_header === "https" ? location.hostname : "localhost";' +
             'const jsUrl = protocol + "://" + host + "/js/marzipano.js";' +
 
             'const script = document.createElement("script");' +
