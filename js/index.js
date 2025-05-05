@@ -498,6 +498,7 @@ part1 = `
 `, part3 = `</p>
 <script>
 var img = document.getElementById('img');
+img.style.border = img.src.endsWith('_pano.jpg') ? "2px red solid" : "none";
 var scale = 1.0;
 var maxScale = 10.0;
 var minScale = 0.5;
@@ -637,9 +638,49 @@ document.addEventListener('keydown', function (event) {
         document.getElementById("n").click();
     } 
 });
+
+img.addEventListener('dblclick', function () {
+    if (img.src.endsWith('_pano.jpg')) {
+        const newWindow = window.open();
+        const path = "/gallery/" + decodeURIComponent(img.src).split("gallery")[1];
+        newWindow.document.write(
+            '<!DOCTYPE html>' +
+            '<html>' +
+            '<head>' +
+            '<meta charset="utf-8">' +
+            '<meta name="viewport" content="width=device-width, initial-scale=1">' +
+            '<title>360° media viewer - Marzipano</title>' +
+            '<style>html, body { height: 100%; margin: 0; } #pano { width: 100%; height: 100%; }</style>' +
+            '</head>' +
+            '<body>' +
+            '<div id="pano"></div>' +
+            '<script>' +
+            'const identifier = JSON.parse(localStorage.getItem("identifier")) || {};' +
+            'const protocol = identifier.protocol_header === "https" ? "https" : "http";' +
+            'const host = location.hostname || "localhost";' +
+            'const jsUrl = protocol + "://" + host + "/js/marzipano.js";' +
+
+            'const script = document.createElement("script");' +
+            'script.src = jsUrl;' +
+            'script.onload = function () {' +
+              'var viewer = new Marzipano.Viewer(document.getElementById("pano"));' +
+              'var source = Marzipano.ImageUrlSource.fromString(protocol + "://" + host + "' + path + '");' +
+              'var geometry = new Marzipano.EquirectGeometry([{ width: 4000 }]);' +
+              'var limiter = Marzipano.RectilinearView.limit.traditional(4096, 100 * Math.PI / 180);' +
+              'var view = new Marzipano.RectilinearView(null, limiter);' +
+              'var scene = viewer.createScene({ source: source, geometry: geometry, view: view, pinFirstLevel: true });' +
+              'scene.switchTo();' +
+            '};' +
+            'document.body.appendChild(script);' +
+            '<\\/script>' +
+            '</body>' +
+            '</html>'
+        );
+        newWindow.document.close(); 
+    } 
+});
+
 </script>
-</body>
-</html>
 `;
 
 part11 = `<!DOCTYPE html>
