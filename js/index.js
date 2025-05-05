@@ -3,10 +3,6 @@ function $c(e) { return document.getElementsByClassName(e) }
 function $t(e) { return document.getElementsByTagName(e) }
 function $f(id) { return document.getElementById(id).contentWindow.document }
 
-protocol_header = "";
-protocol = "";
-host = ""; 
-
 window.onload = function () {
     if (!localStorage.getItem('identifier')) {
         var identifier = {};
@@ -17,10 +13,6 @@ window.onload = function () {
         identifier["protocol_header"] = window.location.protocol.split(":")[0];
         localStorage.setItem('identifier', JSON.stringify(identifier));
     }
-
-    protocol_header = JSON.parse(localStorage.getItem("identifier")).protocol_header;
-    protocol = protocol_header === "https" ? "https" : "http";
-    host = protocol_header === "https" ? location.hostname : "localhost"; 
 
     search_op();
     $i("search").style.right = ($i("side").offsetWidth + 4) + "px";
@@ -455,6 +447,10 @@ function search(keyword) {
     return results;
 }
 
+protocol_header = window.location.protocol.split(":")[0];
+protocol = protocol_header === "https" ? "https" : "http";
+host = protocol_header === "https" ? location.hostname : "localhost"; 
+
 part1 = `
 <!DOCTYPE html>
 <html>
@@ -726,10 +722,9 @@ img.addEventListener('dblclick', function () {
               'var geometry = new Marzipano.EquirectGeometry([{ width: 4000 }]);' +
               'var limiter = Marzipano.RectilinearView.limit.traditional(4096, 100 * Math.PI / 180);' +
               'var view = new Marzipano.RectilinearView(null, limiter);' +
-              'var scene = viewer.createScene({ source: source, geometry: geometry, view: view, pinFirstLevel: true });window.setTimeout(function(){' +
+              'var scene = viewer.createScene({ source: source, geometry: geometry, view: view, pinFirstLevel: true });' +
               'scene.switchTo();' +
               'document.getElementById("loader").style.display = "none";' +
-              '},5000)' +
             '};' +
             'document.body.appendChild(script);' +
             '<\\/script>' +
