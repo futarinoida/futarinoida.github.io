@@ -647,6 +647,8 @@ img.addEventListener('dblclick', function () {
         const identifier = JSON.parse(localStorage.getItem("identifier"));
         const protocol = identifier.protocol_header === "https" ? "https" : "http";
         const host = identifier.protocol_header === "https" ? location.hostname : "localhost";
+        const jsUrl = protocol + "://" + host + "/js/marzipano.js";
+        const imagePath = protocol + "://" + host + path;
 
         newWindow.document.write(
             '<!DOCTYPE html>' +
@@ -660,13 +662,12 @@ img.addEventListener('dblclick', function () {
             '<body>' +
             '<div id="pano"></div>' +
             '<script>' +
-            'const jsUrl = "' + protocol + '" + "://" + "' + host + '" + "/js/marzipano.js";' +
-
+            'const jsUrl = "' + jsUrl + '";' +
             'const script = document.createElement("script");' +
             'script.src = jsUrl;' +
             'script.onload = function () {' +
               'var viewer = new Marzipano.Viewer(document.getElementById("pano"));' +
-              'var source = Marzipano.ImageUrlSource.fromString("' + protocol + '" + "://" + "' + host + '" + "' + path + '");' +
+              'var source = Marzipano.ImageUrlSource.fromString("' + imagePath + '");' +
               'var geometry = new Marzipano.EquirectGeometry([{ width: 4000 }]);' +
               'var limiter = Marzipano.RectilinearView.limit.traditional(4096, 100 * Math.PI / 180);' +
               'var view = new Marzipano.RectilinearView(null, limiter);' +
