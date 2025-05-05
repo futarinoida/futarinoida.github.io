@@ -488,9 +488,34 @@ part1 = `
             max-height:100vh;
             max-width:100vw;
         }
+        #loader {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 9999;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+        }
+        .spinner {
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid #3498db;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
+<div id="loader">
+  <div class="spinner"></div>
+</div>
 <img src="`, part2 = `" id="img" onmouseover="drag(this,this)">
 <div class="span-container">
     <span id="c"></span>
@@ -504,6 +529,15 @@ part1 = `
 var img = document.getElementById('img');
 img.style.border = img.src.endsWith('.PHOTOSPHERE.jpg') ? "2px red solid" : "none";
 img.title = img.src.endsWith('.PHOTOSPHERE.jpg') ? "双击图片进入全景预览" : "";
+
+var loader = document.getElementById('loader');
+loader.style.display = 'block';
+img.style.visibility = 'hidden';
+img.onload = function () {
+    loader.style.display = 'none';
+    img.style.visibility = 'visible';
+};
+
 var scale = 1.0;
 var maxScale = 10.0;
 var minScale = 0.5;
@@ -658,10 +692,13 @@ img.addEventListener('dblclick', function () {
             '<meta charset="utf-8">' +
             '<meta name="viewport" content="width=device-width, initial-scale=1">' +
             '<title>360° media viewer - Marzipano</title>' +
-            '<style>html, body { height: 100%; margin: 0; } #pano { width: 100%; height: 100%; }</style>' +
+            '<style>html, body { height: 100%; margin: 0; } #pano { width: 100%; height: 100%; } .spinner { border: 8px solid #f3f3f3; border-top: 8px solid #3498db; border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite; } @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>' +
             '</head>' +
             '<body>' +
             '<div id="pano"></div>' +
+            '<div id="loader" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 9999; background-color: rgba(255, 255, 255, 0.7); padding: 20px; border-radius: 10px;">' +
+            '<div class="spinner"></div>' +
+            '</div>' +
             '<script>' +
             'const jsUrl = "' + jsUrl + '";' +
             'const script = document.createElement("script");' +
@@ -674,6 +711,7 @@ img.addEventListener('dblclick', function () {
               'var view = new Marzipano.RectilinearView(null, limiter);' +
               'var scene = viewer.createScene({ source: source, geometry: geometry, view: view, pinFirstLevel: true });' +
               'scene.switchTo();' +
+              'document.getElementById("loader").style.display = "none";' +
             '};' +
             'document.body.appendChild(script);' +
             '<\\/script>' +
