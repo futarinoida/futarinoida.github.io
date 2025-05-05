@@ -447,6 +447,10 @@ function search(keyword) {
     return results;
 }
 
+protocol_header = JSON.parse(localStorage.getItem("identifier")).protocol_header;
+protocol = protocol_header === "https" ? "https" : "http";
+host = protocol_header === "https" ? location.hostname : "localhost"; 
+
 part1 = `
 <!DOCTYPE html>
 <html>
@@ -578,7 +582,6 @@ function drag(bar, target, callback) {
 	}
 }
 
-
 var identifier = JSON.parse(localStorage.getItem('identifier'));
 var path = "../gallery/"+decodeURIComponent(document.getElementById("img").src).split("gallery/")[1];
 var identifier = JSON.parse(localStorage.getItem('identifier'));
@@ -644,12 +647,10 @@ img.addEventListener('dblclick', function () {
     if (img.src.endsWith('.PHOTOSPHERE.jpg')) {
         const newWindow = window.open();
         const path = "/gallery/" + decodeURIComponent(img.src).split("gallery")[1];
-        const identifier = JSON.parse(localStorage.getItem("identifier"));
-        const protocol = identifier.protocol_header === "https" ? "https" : "http";
-        const host = identifier.protocol_header === "https" ? location.hostname : "localhost";
-        const jsUrl = protocol + "://" + host + "/js/marzipano.js";
-        const imagePath = protocol + "://" + host + path;
-
+        var host = "${host}";
+        var protocol = "${protocol}";
+        var jsUrl = protocol + "://" + host + "/js/marzipano.js";
+        var imagePath = protocol + "://" + host + path;
         newWindow.document.write(
             '<!DOCTYPE html>' +
             '<html>' +
