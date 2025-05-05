@@ -487,6 +487,7 @@ part1 = `
             z-index:1;
             max-height:100vh;
             max-width:100vw;
+            visibility:hidden;
         }
         #loader {
             position: fixed;
@@ -494,27 +495,39 @@ part1 = `
             left: 50%;
             transform: translate(-50%, -50%);
             z-index: 9999;
-            background-color: rgba(255, 255, 255, 0.8);
-            padding: 20px;
-            border-radius: 10px;
         }
-        .spinner {
-            border: 8px solid #f3f3f3;
-            border-top: 8px solid #3498db;
-            border-radius: 50%;
-            width: 60px;
-            height: 60px;
+        .bar-spinner {
+            width: 40px;
+            height: 40px;
+            position: relative;
             animation: spin 1s linear infinite;
+        }
+        .bar-spinner .bar {
+            width: 4px;
+            height: 20px;
+            background: pink;
+            border-radius: 2px;
+            position: absolute;
+            top: 10px;
+            left: 18px;
+            transform-origin: center bottom;
+            animation: fade 1s linear infinite;
         }
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        @keyframes fade {
+            0% { opacity: 1; }
+            100% { opacity: 0.3; }
+        }
     </style>
 </head>
 <body>
 <div id="loader">
-  <div class="spinner"></div>
+  <div class="bar-spinner">
+    <div class="bar"></div>
+  </div>
 </div>
 <img src="`, part2 = `" id="img" onmouseover="drag(this,this)">
 <div class="span-container">
@@ -531,8 +544,6 @@ img.style.border = img.src.endsWith('.PHOTOSPHERE.jpg') ? "2px red solid" : "non
 img.title = img.src.endsWith('.PHOTOSPHERE.jpg') ? "双击图片进入全景预览" : "";
 
 var loader = document.getElementById('loader');
-loader.style.display = 'block';
-img.style.visibility = 'hidden';
 img.onload = function () {
     loader.style.display = 'none';
     img.style.visibility = 'visible';
@@ -692,12 +703,14 @@ img.addEventListener('dblclick', function () {
             '<meta charset="utf-8">' +
             '<meta name="viewport" content="width=device-width, initial-scale=1">' +
             '<title>360° media viewer - Marzipano</title>' +
-            '<style>html, body { height: 100%; margin: 0; } #pano { width: 100%; height: 100%; } .spinner { border: 8px solid #f3f3f3; border-top: 8px solid #3498db; border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite; } @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>' +
+            '<style>html, body { height: 100%; margin: 0; } #pano { width: 100%; height: 100%; } #loader { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 9999; } .bar-spinner { width: 40px; height: 40px; position: relative; animation: spin 1s linear infinite; } .bar-spinner .bar { width: 4px; height: 20px; background: pink; border-radius: 2px; position: absolute; top: 10px; left: 18px; transform-origin: center bottom; animation: fade 1s linear infinite; } @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } } @keyframes fade { 0% { opacity: 1; } 100% { opacity: 0.3; } }</style>' +
             '</head>' +
             '<body>' +
             '<div id="pano"></div>' +
-            '<div id="loader" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 9999; background-color: rgba(255, 255, 255, 0.7); padding: 20px; border-radius: 10px;">' +
-            '<div class="spinner"></div>' +
+            '<div id="loader">' +
+            '<div class="bar-spinner">' +
+            '<div class="bar"></div>' +
+            '</div>' +
             '</div>' +
             '<script>' +
             'const jsUrl = "' + jsUrl + '";' +
@@ -709,9 +722,10 @@ img.addEventListener('dblclick', function () {
               'var geometry = new Marzipano.EquirectGeometry([{ width: 4000 }]);' +
               'var limiter = Marzipano.RectilinearView.limit.traditional(4096, 100 * Math.PI / 180);' +
               'var view = new Marzipano.RectilinearView(null, limiter);' +
-              'var scene = viewer.createScene({ source: source, geometry: geometry, view: view, pinFirstLevel: true });' +
+              'var scene = viewer.createScene({ source: source, geometry: geometry, view: view, pinFirstLevel: true });window.setTimeout(function(){' +
               'scene.switchTo();' +
               'document.getElementById("loader").style.display = "none";' +
+              '},5000)' +
             '};' +
             'document.body.appendChild(script);' +
             '<\\/script>' +
