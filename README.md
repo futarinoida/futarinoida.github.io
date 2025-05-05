@@ -29,6 +29,7 @@
 
 ## 图册
 - 支持拖曳和滚轮缩放, 图片自身描述
+- 支持360全景图片, 当全景图片命名以`.PHOTOSPHERE.jpg`结尾时, 以红色边框作为提醒, 双击图片将在新标签页内展示, 拖动调整视角, 滚动缩放
 
 
 ## 文件组织
@@ -47,7 +48,7 @@
 
 
 ## 复用前提
-- 安装java环境, 配置config, 创建本地url协议, 安装本地服务器(针对epub)
+- 安装java环境, 配置config, 创建本地url协议, 安装本地服务器(针对epub, 全景预览)
 - 重命名首页title
 - 在audio, gallery, html, img, book(pdf/txt/epub), video下放入对应类型的文件
 - 执行gen.bat

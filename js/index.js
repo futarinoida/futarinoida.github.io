@@ -498,7 +498,8 @@ part1 = `
 `, part3 = `</p>
 <script>
 var img = document.getElementById('img');
-img.style.border = img.src.endsWith('_pano.jpg') ? "2px red solid" : "none";
+img.style.border = img.src.endsWith('.PHOTOSPHERE.jpg') ? "2px red solid" : "none";
+img.title = img.src.endsWith('.PHOTOSPHERE.jpg') ? "双击图片进入全景预览" : "";
 var scale = 1.0;
 var maxScale = 10.0;
 var minScale = 0.5;
@@ -640,7 +641,7 @@ document.addEventListener('keydown', function (event) {
 });
 
 img.addEventListener('dblclick', function () {
-    if (img.src.endsWith('_pano.jpg')) {
+    if (img.src.endsWith('.PHOTOSPHERE.jpg')) {
         const newWindow = window.open();
         const path = "/gallery/" + decodeURIComponent(img.src).split("gallery")[1];
         newWindow.document.write(
@@ -681,6 +682,8 @@ img.addEventListener('dblclick', function () {
 });
 
 </script>
+</body>
+</html>
 `;
 
 part11 = `<!DOCTYPE html>
