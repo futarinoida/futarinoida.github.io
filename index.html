@@ -1,23 +1,58 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<meta name="viewport" content="width=1920, initial-scale=1.0">
-<link rel="stylesheet" href="css/index.css"></style>
-<link href="css/favicon.ico" rel="icon" type="image/x-icon">
-<title>记事珠</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>记事珠</title>
+    <style>
+        #warning {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: white;
+            z-index: 9999;
+            font-size: 24px;
+            text-align: center;
+            padding-top: 40vh;
+        }
+    </style>
+    <link href="css/favicon.ico" rel="icon" type="image/x-icon">
 </head>
 <body>
-    <div id=search>
-        <select id=searchResults></select>
-        <input id=searchInput placeholder=search..>
-        <input id=clear type=button value=clear>
-        <select id="searchHistory"></select>
-    </div>
-    <iframe src="src/info.html" id="content" name="content"></iframe>
-    <iframe src="src/side.html" id="side" name="side"></iframe>
+    <div id="warning">请使用电脑端访问本页面</div>
+    <script>
+        const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-<script src="js/data.js"></script>
-<script src="js/index.js"></script>
+        if (isMobile) {
+            document.getElementById('warning').style.display = 'block';
+        } else {
+            const css = document.createElement('link');
+            css.rel = 'stylesheet';
+            css.href = 'css/index.css';
+            document.head.appendChild(css);
+            
+            document.body.innerHTML = `
+        <div id="search">
+            <select id="searchResults"></select>
+            <input id="searchInput" placeholder="search..">
+            <input id="clear" type="button" value="clear">
+            <select id="searchHistory"></select>
+        </div>
+        <iframe src="src/info.html" id="content" name="content"></iframe>
+        <iframe src="src/side.html" id="side" name="side"></iframe>
+      `;
+
+            const script1 = document.createElement('script');
+            script1.src = 'js/data.js';
+            document.body.appendChild(script1);
+
+            const script2 = document.createElement('script');
+            script2.src = 'js/index.js';
+            document.body.appendChild(script2);
+        }
+    </script>
 </body>
+
 </html>
