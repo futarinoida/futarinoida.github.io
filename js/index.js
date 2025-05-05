@@ -3,6 +3,10 @@ function $c(e) { return document.getElementsByClassName(e) }
 function $t(e) { return document.getElementsByTagName(e) }
 function $f(id) { return document.getElementById(id).contentWindow.document }
 
+protocol_header = "";
+protocol = "";
+host = ""; 
+
 window.onload = function () {
     if (!localStorage.getItem('identifier')) {
         var identifier = {};
@@ -13,6 +17,10 @@ window.onload = function () {
         identifier["protocol_header"] = window.location.protocol.split(":")[0];
         localStorage.setItem('identifier', JSON.stringify(identifier));
     }
+
+    protocol_header = JSON.parse(localStorage.getItem("identifier")).protocol_header;
+    protocol = protocol_header === "https" ? "https" : "http";
+    host = protocol_header === "https" ? location.hostname : "localhost"; 
 
     search_op();
     $i("search").style.right = ($i("side").offsetWidth + 4) + "px";
@@ -446,10 +454,6 @@ function search(keyword) {
     results.sort((a, b) => b.count - a.count);
     return results;
 }
-
-protocol_header = JSON.parse(localStorage.getItem("identifier")).protocol_header;
-protocol = protocol_header === "https" ? "https" : "http";
-host = protocol_header === "https" ? location.hostname : "localhost"; 
 
 part1 = `
 <!DOCTYPE html>
