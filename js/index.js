@@ -688,14 +688,7 @@ document.addEventListener('keydown', function (event) {
     } 
 });
 
-
-
-let lastTap = 0;
-
-img.addEventListener('touchend', function () {
-  let currentTime = new Date().getTime();
-  let tapLength = currentTime - lastTap;
-  if (tapLength < 300 && tapLength > 0) {
+img.addEventListener('dblclick', function () {
     if (img.src.endsWith('.PHOTOSPHERE.jpg')) {
         const newWindow = window.open();
         const path = "/gallery/" + decodeURIComponent(img.src).split("gallery")[1];
@@ -740,10 +733,7 @@ img.addEventListener('touchend', function () {
         );
         newWindow.document.close(); 
     } 
-  }
-  lastTap = currentTime;
 });
-
 
 </script>
 </body>
