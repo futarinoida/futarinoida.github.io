@@ -735,6 +735,61 @@ img.addEventListener('dblclick', function () {
     } 
 });
 
+let lastTap = 0;
+
+img.addEventListener('touchend', function () {
+  let currentTime = new Date().getTime();
+  let tapLength = currentTime - lastTap;
+  if (tapLength < 300 && tapLength > 0) {
+    if (img.src.endsWith('.PHOTOSPHERE.jpg')) {
+        const newWindow = window.open();
+        const path = "/gallery/" + decodeURIComponent(img.src).split("gallery")[1];
+        var host = "${host}";
+        var protocol = "${protocol}";
+        var jsUrl = protocol + "://" + host + "/js/marzipano.js";
+        var imagePath = protocol + "://" + host + path;
+        newWindow.document.write(
+            '<!DOCTYPE html>' +
+            '<html>' +
+            '<head>' +
+            '<meta charset="utf-8">' +
+            '<meta name="viewport" content="width=device-width, initial-scale=1">' +
+            '<title>360° media viewer - Marzipano</title>' +
+            '<style>html, body { height: 100%; margin: 0; } #pano { width: 100%; height: 100%; } #loader { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 9999; } .bar-spinner { width: 40px; height: 40px; position: relative; animation: spin 1s linear infinite; } .bar-spinner .bar { width: 4px; height: 20px; background: pink; border-radius: 2px; position: absolute; top: 10px; left: 18px; transform-origin: center bottom; animation: fade 1s linear infinite; } @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } } @keyframes fade { 0% { opacity: 1; } 100% { opacity: 0.3; } }</style>' +
+            '</head>' +
+            '<body>' +
+            '<div id="pano"></div>' +
+            '<div id="loader">' +
+            '<div class="bar-spinner">' +
+            '<div class="bar"></div>' +
+            '</div>' +
+            '</div>' +
+            '<script>' +
+            'const jsUrl = "' + jsUrl + '";' +
+            'const script = document.createElement("script");' +
+            'script.src = jsUrl;' +
+            'script.onload = function () {' +
+              'var viewer = new Marzipano.Viewer(document.getElementById("pano"));' +
+              'var source = Marzipano.ImageUrlSource.fromString("' + imagePath + '");' +
+              'var geometry = new Marzipano.EquirectGeometry([{ width: 4000 }]);' +
+              'var limiter = Marzipano.RectilinearView.limit.traditional(4096, 100 * Math.PI / 180);' +
+              'var view = new Marzipano.RectilinearView(null, limiter);' +
+              'var scene = viewer.createScene({ source: source, geometry: geometry, view: view, pinFirstLevel: true });' +
+              'scene.switchTo();' +
+              'document.getElementById("loader").style.display = "none";' +
+            '};' +
+            'document.body.appendChild(script);' +
+            '<\\/script>' +
+            '</body>' +
+            '</html>'
+        );
+        newWindow.document.close(); 
+    } 
+  }
+  lastTap = currentTime;
+});
+
+
 </script>
 </body>
 </html>
