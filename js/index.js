@@ -393,6 +393,12 @@ function updateSearchResults(results) {
             if (result.type == "txt") {
                 option.style.color = "gray";
             }
+            if (result.type == "audio") {
+                option.style.color = "green";
+            }
+            if (result.type == "video") {
+                option.style.color = "gold";
+            }
             select.add(option);
         });
         if ($i('searchResults').options.length > 10)
