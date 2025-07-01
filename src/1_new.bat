@@ -1,4 +1,5 @@
 @echo off
+chcp 65001 >nul
 setlocal enabledelayedexpansion
 
 @REM D\C\B\A(当前脚本自身所在目录)
@@ -54,23 +55,21 @@ REM 记录 err.log 初始修改时间
 set "log_file=%A%err.log"
 for %%F in ("%log_file%") do set "prev_time=%%~tF"
 
-@REM 启动 Java 进程
-start "" /b "%jre_path%" -Dfile.encoding=UTF-8 -jar "%jar_path%" "%title%" "%category%"
+for /f "delims=" %%A in ('powershell -nologo -command "[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes('%title%'))"') do set "b64_title=%%A"
+for /f "delims=" %%A in ('powershell -nologo -command "[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes('%category%'))"') do set "b64_category=%%A"
 
-@REM 等待 Java 进程启动
+"%jre_path%" -Dfile.encoding=UTF-8 -jar "%jar_path%" "%b64_title%" "%b64_category%"
+
 timeout /t 2 >nul
-
-@REM 检查 Java 进程是否运行
-tasklist /FI "IMAGENAME eq javaw.exe" | find /i "javaw.exe" >nul
-if %errorlevel% neq 0 (
-    if exist "%B%html\%title%.html" (
-        start "" "%vscode_path%" "%B%html\%title%.html"
-    )
-    
-    for %%F in ("%log_file%") do set "current_time=%%~tF"
-    if not "!prev_time!"=="!current_time!" (
-        start notepad "%log_file%"
-    )
+REM 检查是否创建了新 HTML 文件
+if exist "%B%html\%title%.html" (
+    start "" "%vscode_path%" "%B%html\%title%.html"
 )
 
-exit
+REM 检查日志是否更新
+for %%F in ("%log_file%") do set "current_time=%%~tF"
+if not "!prev_time!"=="!current_time!" (
+    start notepad "%log_file%"
+)
+
+exit /b
