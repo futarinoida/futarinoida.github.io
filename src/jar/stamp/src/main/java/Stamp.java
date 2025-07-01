@@ -1,6 +1,8 @@
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.text.SimpleDateFormat;
+import java.util.Base64;
 import java.util.Date;
 import java.util.Properties;
 import java.util.regex.Matcher;
@@ -24,8 +26,9 @@ public class Stamp {
         if (args.length < 1) {
             throw new Err("没有附带文件名");
         }
-
-        String fileName = args[0] + ".html";
+        String b64 = args[0];
+        byte[] decoded = Base64.getDecoder().decode(b64);
+        String fileName = new String(decoded, StandardCharsets.UTF_8) + ".html";
 
         // 获取 JAR 文件所在目录的上一级目录
         File jarFile = new File(Stamp.class.getProtectionDomain().getCodeSource().getLocation().toURI());

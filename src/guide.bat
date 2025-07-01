@@ -1,4 +1,5 @@
 @echo off
+chcp 65001 >nul
 setlocal enabledelayedexpansion
 
 @REM D\C\B\A(当前脚本自身所在目录)
@@ -16,17 +17,17 @@ for %%X in (A B C D) do (
     if not "!%%X:~-1!"=="\" set "%%X=!%%X!\"
 )
 
-@REM --------------------------------------------------------------------------------
-set "tmp=%systemroot%\temp\1001.txt"
-cscript //nologo "%B%js\decodeURI.js" "%1" > "%tmp%"
+for /f "delims=" %%A in (
+  'powershell -nologo -command "$uri = [uri]::UnescapeDataString(\"%~1\"); $uri -replace \"^.*:\/\/\", \"\""' 
+) do (
+    set "params=%%A"
+)
 
-set /p params=<"%tmp%"
-del %tmp%
-
-for /f "tokens=1,* delims=#" %%i in ("%params%") do (
+for /f "tokens=1,* delims={" %%i in ("!params!") do (
     set "code=%%i"
     set "title=%%j"
 )
+if "!title:~-1!"=="/" set "title=!title:~0,-1!"
 
 if "!code!"=="1" goto case_1 @REM edit
 if "!code!"=="2" goto case_2 
@@ -53,22 +54,17 @@ if not exist "%html_file%" (
 for %%F in ("%html_file%") do set "prev_time=%%~tF"
 for %%F in ("%log_file%") do set "prev_time2=%%~tF"
 
-start "" /b "%jre_path%" -Dfile.encoding=UTF-8 -jar "%jar_path%" "%title%"
+for /f "delims=" %%A in ('powershell -nologo -command "[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes('%title%'))"') do set "b64=%%A"
+"%jre_path%" -Dfile.encoding=UTF-8 -jar "%jar_path%" "%b64%"
 
-@REM 等待 Java 进程启动
-timeout /t 2 >nul
+for %%F in ("%html_file%") do set "current_time=%%~tF"
+if not "!prev_time!"=="!current_time!" (
+    start "" "%vscode_path%" "%html_file%"
+)
 
-@REM 检查 Java 进程是否运行
-tasklist /FI "IMAGENAME eq javaw.exe" | find /i "javaw.exe" >nul
-if %errorlevel% neq 0 (
-    for %%F in ("%html_file%") do set "current_time=%%~tF"
-    if not "!prev_time!"=="!current_time!" (
-        start "" "%vscode_path%" "%html_file%"
-    )
-    for %%F in ("%log_file%") do set "current_time2=%%~tF"
-    if not "!prev_time2!"=="!current_time2!" (
-        start notepad "%log_file%"
-    )
+for %%F in ("%log_file%") do set "current_time2=%%~tF"
+if not "!prev_time2!"=="!current_time2!" (
+    start notepad "%log_file%"
 )
 goto end
 
