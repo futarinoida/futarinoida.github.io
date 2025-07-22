@@ -1,55 +1,25 @@
-<a href="#" onclick="openMarzipanoViewer()">查看 360° 全景图</a>
-
-<script>
-  function openMarzipanoViewer() {
-    var newWindow = window.open();
-    var jsUrl = "https://cdn.jsdelivr.net/npm/marzipano@0.10.2/dist/marzipano.min.js";
-    var imagePath = "https://renderstuff.com/assets/133/equirectangular-360-panorama-interior-rendering-by-3ds-max-and-v-ray.jpg";
-
-    newWindow.document.write(
-      '<!DOCTYPE html>' +
-      '<html>' +
-      '<head>' +
-      '<meta charset="utf-8">' +
-      '<meta name="viewport" content="width=device-width, initial-scale=1">' +
-      '<title>360° media viewer - Marzipano</title>' +
-      '<style>' +
-        'html, body { height: 100%; margin: 0; }' +
-        '#pano { width: 100%; height: 100%; }' +
-        '#loader { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 9999; }' +
-        '.bar-spinner { width: 40px; height: 40px; position: relative; animation: spin 1s linear infinite; }' +
-        '.bar-spinner .bar { width: 4px; height: 20px; background: pink; border-radius: 2px; position: absolute; top: 10px; left: 18px; transform-origin: center bottom; animation: fade 1s linear infinite; }' +
-        '@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }' +
-        '@keyframes fade { 0% { opacity: 1; } 100% { opacity: 0.3; } }' +
-      '</style>' +
-      '</head>' +
-      '<body>' +
-      '<div id="pano"></div>' +
-      '<div id="loader">' +
-      '<div class="bar-spinner">' +
-      '<div class="bar"></div>' +
-      '</div>' +
-      '</div>' +
-      '<script>' +
-        'var jsUrl = "' + jsUrl + '";' +
-        'var script = document.createElement("script");' +
-        'script.src = jsUrl;' +
-        'script.onload = function () {' +
-          'var viewer = new Marzipano.Viewer(document.getElementById("pano"));' +
-          'var source = Marzipano.ImageUrlSource.fromString("' + imagePath + '");' +
-          'var geometry = new Marzipano.EquirectGeometry([{ width: 4000 }]);' +
-          'var limiter = Marzipano.RectilinearView.limit.traditional(4096, 100 * Math.PI / 180);' +
-          'var view = new Marzipano.RectilinearView(null, limiter);' +
-          'var scene = viewer.createScene({ source: source, geometry: geometry, view: view, pinFirstLevel: true });' +
-          'scene.switchTo();' +
-          'document.getElementById("loader").style.display = "none";' +
-        '};' +
-        'document.body.appendChild(script);' +
-      '<\\/script>' +
-      '</body>' +
-      '</html>'
-    );
-
-    newWindow.document.close();
-  }
-</script>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Marzipano 360 Viewer</title>
+  <script src="https://cdn.jsdelivr.net/npm/marzipano@0.10.2/dist/marzipano.min.js"></script>
+  <style>
+    html, body { height: 100%; margin: 0; }
+    #pano { width: 100%; height: 100%; }
+  </style>
+</head>
+<body>
+  <div id="pano"></div>
+  <script>
+    var viewer = new Marzipano.Viewer(document.getElementById("pano"));
+    var source = Marzipano.ImageUrlSource.fromString("https://pannellum.org/images/alma.jpg");
+    var geometry = new Marzipano.EquirectGeometry([{ width: 2048 }]);
+    var limiter = Marzipano.RectilinearView.limit.traditional(2048, 100 * Math.PI / 180);
+    var view = new Marzipano.RectilinearView(null, limiter);
+    var scene = viewer.createScene({ source: source, geometry: geometry, view: view, pinFirstLevel: true });
+    scene.switchTo();
+  </script>
+</body>
+</html>
